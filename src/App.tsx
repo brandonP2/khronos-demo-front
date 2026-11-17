@@ -1,0 +1,85 @@
+import { Navigate, Route, Routes } from 'react-router-dom'
+import { Building2 } from 'lucide-react'
+import { useAuth, useMe } from './auth/AuthContext'
+import { Layout, VenuePicker } from './components/Layout'
+import { Empty, ErrorNote, Loading } from './components/ui'
+import { VenueProvider, useVenue } from './lib/VenueContext'
+import Login from './pages/Login'
+import Account from './pages/Account'
+import SchedulePage from './pages/owner/SchedulePage'
+import EventsPage from './pages/owner/EventsPage'
+import TeamPage from './pages/owner/TeamPage'
+import VenuePage from './pages/owner/VenuePage'
+import MySchedule from './pages/worker/MySchedule'
+import AdminPage from './pages/admin/AdminPage'
+
+export default function App() {
+  const { user, ready } = useAuth()
+  if (!ready) return null
+  if (!user) return <Login />
+  if (user.role === 'OWNER') {
+    return (
+      <VenueProvider>
+        <OwnerApp />
+      </VenueProvider>
+    )
+  }
+  return <SimpleApp />
+}
+
+function OwnerApp() {
+  const { venue, loading, error } = useVenue()
+  return (
+    <Routes>
+      <Route element={<Layout venuePicker={<VenuePicker />} />}>
+        <Route path="/account" element={<Account />} />
+        <Route
+          path="*"
+          element={
+            loading ? (
+              <div className="page"><Loading /></div>
+            ) : error ? (
+              <div className="page"><ErrorNote error={error} /></div>
+            ) : !venue ? (
+              <NoVenue />
+            ) : (
+              <Routes key={venue.id}>
+                <Route index element={<SchedulePage />} />
+                <Route path="events" element={<EventsPage />} />
+                <Route path="team" element={<TeamPage />} />
+                <Route path="venue" element={<VenuePage />} />
+                <Route path="*" element={<Navigate to="/" replace />} />
+              </Routes>
+            )
+          }
+        />
+      </Route>
+    </Routes>
+  )
+}
+
+function NoVenue() {
+  return (
+    <div className="page">
+      <div className="card">
+        <Empty icon={Building2} title="No venue linked to your account yet">
+          Venues are set up by the Khronos team during onboarding. Once yours is added, its zones, team and schedule
+          will show up here.
+        </Empty>
+      </div>
+    </div>
+  )
+}
+
+function SimpleApp() {
+  const me = useMe()
+  return (
+    <Routes>
+      <Route element={<Layout />}>
+        <Route index element={me.role === 'WORKER' ? <MySchedule /> : <AdminPage />} />
+        <Route path="account" element={<Account />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Route>
+    </Routes>
+  )
+}
