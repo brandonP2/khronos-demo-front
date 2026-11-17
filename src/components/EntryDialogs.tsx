@@ -86,8 +86,8 @@ export function EntryFormDialog({
   const [reasonTouched, setReasonTouched] = useState(false)
 
   const now = Date.now()
-  const sameTime = !!clockIn && !!clockOut && !stillIn && minutes(clockOut) === minutes(clockIn)
-  const nextDay = !!clockIn && !!clockOut && minutes(clockOut) < minutes(clockIn)
+  // The same time as the clock-in is the next day too, so 08:00 to 08:00 is 24 hours, which the API takes
+  const nextDay = !!clockIn && !!clockOut && minutes(clockOut) <= minutes(clockIn)
   const outDate = nextDay ? addDays(date, 1) : date
   // The form shows whole minutes; a time the owner did not touch keeps its exact instant, seconds included
   const inInstant = !date || !clockIn
@@ -95,17 +95,21 @@ export function EntryFormDialog({
     : entry && date === zonedDate(entry.clockIn, timeZone) && clockIn === zonedTime(entry.clockIn, timeZone)
       ? entry.clockIn
       : zonedInstant(date, clockIn, timeZone)
-  const outInstant = stillIn || !date || !clockOut || sameTime
+  const typedOut = stillIn || !date || !clockOut
     ? null
     : entry?.clockOut && outDate === zonedDate(entry.clockOut, timeZone) && clockOut === zonedTime(entry.clockOut, timeZone)
       ? entry.clockOut
       : zonedInstant(outDate, clockOut, timeZone)
+  // Compared as instants, as the API does. A clock-out not after the clock-in can still be typed
+  // on the night the clocks go forward: 02:30 does not exist and becomes 03:30, after 03:00.
+  const notAfterIn = !!inInstant && !!typedOut && Date.parse(typedOut) <= Date.parse(inInstant)
+  const outInstant = notAfterIn ? null : typedOut
   const span = inInstant && outInstant ? Math.round((Date.parse(outInstant) - Date.parse(inInstant)) / 60_000) : null
   const breakMinutes = parseBreakMinutes(breakText)
 
   const inError = inInstant && Date.parse(inInstant) > now ? t.entryForm.future : undefined
-  const outError = sameTime
-    ? t.entryForm.sameTime
+  const outError = notAfterIn
+    ? t.entryForm.notAfterIn
     : outInstant && Date.parse(outInstant) > now
       ? t.entryForm.future
       : undefined

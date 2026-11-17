@@ -157,17 +157,41 @@ describe('person page', () => {
     })
   })
 
-  it('refuses a clock-out at the same time as the clock-in', async () => {
-    ownerApi()
+  it('takes a clock-out at the same time on the next day: exactly 24 hours, which the API accepts', async () => {
+    const calls = ownerApi((call) =>
+      call.method === 'POST' && call.path === '/time-entries' ? json(201, entry({ id: 50, source: 'MANAGER' })) : undefined,
+    )
     renderApp(PERSON)
     fireEvent.click((await screen.findAllByRole('button', { name: 'Añadir jornada' }))[0])
     const dialog = screen.getByRole('dialog', { name: 'Añadir jornada de Lucía Romero' })
     fireEvent.change(within(dialog).getByLabelText('Fecha de entrada'), { target: { value: '2025-11-13' } })
     fireEvent.change(within(dialog).getByLabelText('Entrada'), { target: { value: '08:00' } })
     fireEvent.change(within(dialog).getByLabelText('Salida'), { target: { value: '08:00' } })
+    fireEvent.change(within(dialog).getByLabelText('Motivo'), { target: { value: 'Turno doble' } })
+    expect(within(dialog).getByText('Sale al día siguiente.')).toBeTruthy()
+    expect(within(dialog).getByText('Trabajado: 24h')).toBeTruthy()
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Añadir jornada' }))
+    await waitFor(() => expect(calls.some((c) => c.method === 'POST' && c.path === '/time-entries')).toBe(true))
+    expect(calls.find((c) => c.method === 'POST')!.body).toEqual({
+      workerId: 5,
+      clockIn: '2025-11-13T07:00:00Z',
+      clockOut: '2025-11-14T07:00:00Z',
+      breakMinutes: 0,
+      reason: 'Turno doble',
+    })
+  })
+
+  it('refuses a clock-out that is not after the clock-in as an instant', async () => {
+    ownerApi()
+    renderApp(PERSON)
+    fireEvent.click((await screen.findAllByRole('button', { name: 'Añadir jornada' }))[0])
+    const dialog = screen.getByRole('dialog', { name: 'Añadir jornada de Lucía Romero' })
+    // The clocks go forward at 02:00 that night: 02:30 does not exist and becomes 03:30, after 03:00
+    fireEvent.change(within(dialog).getByLabelText('Fecha de entrada'), { target: { value: '2026-03-29' } })
+    fireEvent.change(within(dialog).getByLabelText('Entrada'), { target: { value: '02:30' } })
+    fireEvent.change(within(dialog).getByLabelText('Salida'), { target: { value: '03:00' } })
     fireEvent.change(within(dialog).getByLabelText('Motivo'), { target: { value: 'Día olvidado' } })
-    expect(within(dialog).getByText('La salida no puede ser a la misma hora que la entrada')).toBeTruthy()
-    expect(within(dialog).queryByText('Sale al día siguiente.')).toBeNull()
+    expect(within(dialog).getByText('La salida tiene que ser posterior a la entrada')).toBeTruthy()
     expect((within(dialog).getByRole('button', { name: 'Añadir jornada' }) as HTMLButtonElement).disabled).toBe(true)
   })
 

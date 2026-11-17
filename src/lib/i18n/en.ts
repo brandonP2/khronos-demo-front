@@ -421,7 +421,7 @@ export const en: Messages = {
     reasonHint: "Required. It is kept in the entry's history.",
     reasonError: 'Write the reason: at least 3 characters',
     future: 'Cannot be a time in the future',
-    sameTime: 'The clock-out cannot be at the same time as the clock-in',
+    notAfterIn: 'The clock-out must be after the clock-in',
     nextDay: 'Out the next day.',
     worked: (duration: string) => `Worked: ${duration}`,
     timesNote: (zone: string) => `Venue time (${zone}).`,
