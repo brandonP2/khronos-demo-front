@@ -38,8 +38,9 @@ describe('comparing with the period before', () => {
   })
 
   it('knows when the period before was empty', () => {
-    expect(isEmptyPrevious({ from: '', to: '', sales: 0, expenses: 0, laborCost: null, grossMargin: 0 })).toBe(true)
-    expect(isEmptyPrevious({ from: '', to: '', sales: 0, expenses: 12, laborCost: null, grossMargin: -12 })).toBe(false)
+    const previous = { from: '', to: '', laborCost: null, laborCostSource: 'PAYROLL_EXPENSES' as const }
+    expect(isEmptyPrevious({ ...previous, sales: 0, expenses: 0, grossMargin: 0 })).toBe(true)
+    expect(isEmptyPrevious({ ...previous, sales: 0, expenses: 12, grossMargin: -12 })).toBe(false)
   })
 
   it('works out a share with one decimal', () => {

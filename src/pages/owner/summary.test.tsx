@@ -28,10 +28,14 @@ function summary(patch: Partial<BusinessSummary> = {}, totals: Partial<BusinessS
       expenses: 1800,
       payrollExpenses: 600,
       laborCost: 1300,
+      laborCostPartial: false,
+      workersWithoutCost: 0,
       plannedLaborCost: 1250,
       grossMargin: 1700,
+      laborCostSource: 'HOURS',
       laborCostPercent: 31,
       cashDifference: -12.5,
+      draftCashDifference: 0,
       closedDays: 4,
       draftDays: 1,
       missingClosingDays: 2,
@@ -51,7 +55,7 @@ function summary(patch: Partial<BusinessSummary> = {}, totals: Partial<BusinessS
       { category: 'PAYROLL', amount: 600 },
       { category: 'UTILITIES', amount: 300 },
     ],
-    previous: { from: '2026-11-02', to: '2026-11-08', sales: 3500, expenses: 2000, laborCost: 1300, grossMargin: 1000 },
+    previous: { from: '2026-11-02', to: '2026-11-08', sales: 3500, expenses: 2000, laborCost: 1300, grossMargin: 1000, laborCostSource: 'HOURS' },
     ...patch,
   }
 }
@@ -105,7 +109,7 @@ describe('summary cards', () => {
   })
 
   it('marks a rise in costs as bad news, still in words', async () => {
-    summaryApi(summary({ previous: { from: '2026-11-02', to: '2026-11-08', sales: 4200, expenses: 1500, laborCost: 1300, grossMargin: 2000 } }))
+    summaryApi(summary({ previous: { from: '2026-11-02', to: '2026-11-08', sales: 4200, expenses: 1500, laborCost: 1300, grossMargin: 2000, laborCostSource: 'HOURS' } }))
     renderApp('/')
     await screen.findByText('Gastos', { selector: '.stat .label' })
     const trend = stat('Gastos').querySelector('.trend')!
@@ -115,28 +119,61 @@ describe('summary cards', () => {
   })
 
   it('says when there is nothing to compare with, and never divides by zero', async () => {
-    summaryApi(summary({ previous: { from: '2026-11-02', to: '2026-11-08', sales: 0, expenses: 0, laborCost: null, grossMargin: 0 } }))
+    summaryApi(summary({ previous: { from: '2026-11-02', to: '2026-11-08', sales: 0, expenses: 0, laborCost: null, grossMargin: 0, laborCostSource: 'PAYROLL_EXPENSES' } }))
     renderApp('/')
     await screen.findByText('Ventas', { selector: '.stat .label' })
     expect(screen.getAllByText('Sin datos del periodo anterior')).toHaveLength(5)
     cleanup()
 
     // Expenses but no sales the period before: sales went up from 0, with no percentage
-    summaryApi(summary({ previous: { from: '2026-11-02', to: '2026-11-08', sales: 0, expenses: 100, laborCost: null, grossMargin: -100 } }))
+    summaryApi(summary({ previous: { from: '2026-11-02', to: '2026-11-08', sales: 0, expenses: 100, laborCost: null, grossMargin: -100, laborCostSource: 'PAYROLL_EXPENSES' } }))
     renderApp('/')
     await screen.findByText('Ventas', { selector: '.stat .label' })
     expect(plain(stat('Ventas').querySelector('.trend')!.textContent)).toBe('+4.200,00 € más que en el periodo anterior')
     expect(document.body.textContent).not.toMatch(/Infinity|NaN/)
   })
 
-  it('shows staff cost as a dash with a link to Team when rates are missing', async () => {
-    summaryApi(summary({}, { laborCost: null, laborCostPercent: null, grossMargin: 3000 }))
+  it('takes the staff cost from the payroll expenses when no rates are set, and says so', async () => {
+    summaryApi(
+      summary({}, { laborCost: null, workersWithoutCost: 3, laborCostSource: 'PAYROLL_EXPENSES', laborCostPercent: null, grossMargin: 2400 }),
+    )
     renderApp('/')
     await screen.findByText('Coste de personal', { selector: '.stat .label' })
     const labor = stat('Coste de personal')
-    expect(labor.querySelector('.figure')!.textContent).toBe('—')
-    expect(within(labor).getByRole('link', { name: 'Fija las tarifas por hora en Equipo' }).getAttribute('href')).toBe('/team')
-    expect(stat('Coste de personal sobre ventas').querySelector('.figure')!.textContent).toBe('—')
+    // What the margin took off: the 600,00 € of payroll, not a cost from the hours
+    expect(plain(labor.querySelector('.figure')!.textContent)).toBe('600,00 €')
+    expect(within(labor).getByRole('link', { name: 'Según gastos de nóminas: faltan tarifas por hora' }).getAttribute('href')).toBe('/team')
+    expect(labor.querySelector('.trend')).toBeNull()
+    expect(plain(stat('Margen estimado').querySelector('.stat-help')!.textContent)).toBe(
+      'Ventas − gastos, nóminas incluidas. Sin tarifas por hora, el coste de personal son los gastos de nóminas.',
+    )
+    const share = stat('Coste de personal sobre ventas')
+    expect(share.querySelector('.figure')!.textContent).toBe('—')
+    expect(within(share).getByRole('link', { name: 'Fija las tarifas por hora en Equipo' }).getAttribute('href')).toBe('/team')
+  })
+
+  it('marks a staff cost that leaves someone out as partial, and does not compare it', async () => {
+    summaryApi(summary({}, { laborCostPartial: true, workersWithoutCost: 2 }))
+    renderApp('/')
+    await screen.findByText('Coste de personal', { selector: '.stat .label' })
+    const labor = stat('Coste de personal')
+    expect(plain(labor.querySelector('.figure')!.textContent)).toBe('1.300,00 €Parcial')
+    expect(within(labor).getByRole('link', { name: 'Parcial: 2 personas sin tarifa' }).getAttribute('href')).toBe('/team')
+    expect(labor.querySelector('.trend')).toBeNull()
+    expect(plain(stat('Margen estimado').textContent)).toContain('Con un coste de personal parcial: faltan tarifas')
+    expect(plain(stat('Margen estimado').querySelector('.stat-help')!.textContent)).toBe(
+      'Ventas − gastos sin nóminas − coste de personal por las horas fichadas. Las nóminas no se restan dos veces.',
+    )
+    const share = stat('Coste de personal sobre ventas')
+    expect(plain(share.textContent)).toContain('31,0 %')
+    expect(plain(share.textContent)).toContain('Parcial: falta la tarifa de parte del equipo')
+    expect(share.querySelector('.trend')).toBeNull()
+  })
+
+  it('names one person without a rate in the singular', async () => {
+    summaryApi(summary({}, { laborCostPartial: true, workersWithoutCost: 1 }))
+    renderApp('/')
+    expect(await screen.findByRole('link', { name: 'Parcial: 1 persona sin tarifa' })).toBeTruthy()
   })
 
   it('offers the first steps when the period has no sales and no expenses', async () => {
@@ -174,10 +211,23 @@ describe('summary alerts', () => {
     expect(screen.getByRole('link', { name: 'Cerrar la caja del Miércoles, 11 de noviembre' })).toBeTruthy()
     expect(screen.getByText('1 cierre de caja en borrador')).toBeTruthy()
     expect(screen.getByRole('link', { name: 'Revisar el cierre del Jueves, 12 de noviembre' }).getAttribute('href')).toBe('/cash?date=2026-11-12')
-    const difference = screen.getByText(/Descuadre acumulado de los cierres/).closest('.alert-item') as HTMLElement
+    const difference = screen.getByText(/Descuadre de los cierres cerrados/).closest('.alert-item') as HTMLElement
     expect(plain(difference.textContent)).toContain('−12,50 € (Falta dinero)')
+    // The drafts add nothing here: no provisional line
+    expect(screen.queryByText(/Descuadre de los borradores/)).toBeNull()
     // Who is clocked in now, from the schedule's Now card
     expect(await screen.findByText('Nadie ha fichado la entrada ahora mismo.')).toBeTruthy()
+  })
+
+  it("shows the drafts' difference apart, as provisional", async () => {
+    summaryApi(summary({}, { cashDifference: 0, draftCashDifference: 3 }))
+    renderApp('/')
+    const draft = (await screen.findByText(/Descuadre de los borradores/)).closest('.alert-item') as HTMLElement
+    expect(plain(draft.querySelector('.alert-title')!.textContent)).toBe('Descuadre de los borradores: +3,00 € (Sobra dinero) Provisional')
+    expect(within(draft).getByText('Provisional').classList.contains('tag')).toBe(true)
+    expect(within(draft).getByText('Puede cambiar hasta que se cierren.')).toBeTruthy()
+    // The closed days balance, so they have no line of their own
+    expect(screen.queryByText(/Descuadre de los cierres cerrados/)).toBeNull()
   })
 
   it('splits the expenses by category with their amount and share', async () => {

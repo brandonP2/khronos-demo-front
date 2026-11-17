@@ -8,11 +8,12 @@ const emptySummary = {
   currency: 'EUR',
   totals: {
     sales: 0, cashSales: 0, cardSales: 0, otherSales: 0, tips: 0, expenses: 0, payrollExpenses: 0, laborCost: null,
-    plannedLaborCost: null, grossMargin: 0, laborCostPercent: null, cashDifference: 0, closedDays: 0, draftDays: 0, missingClosingDays: 0,
+    laborCostPartial: false, workersWithoutCost: 0, plannedLaborCost: null, grossMargin: 0, laborCostSource: 'PAYROLL_EXPENSES',
+    laborCostPercent: null, cashDifference: 0, draftCashDifference: 0, closedDays: 0, draftDays: 0, missingClosingDays: 0,
   },
   days: [],
   expensesByCategory: [],
-  previous: { from: '2026-11-09', to: '2026-11-15', sales: 0, expenses: 0, laborCost: null, grossMargin: 0 },
+  previous: { from: '2026-11-09', to: '2026-11-15', sales: 0, expenses: 0, laborCost: null, grossMargin: 0, laborCostSource: 'PAYROLL_EXPENSES' },
 }
 
 /** A worker with an empty schedule, not clocked in */

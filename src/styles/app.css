@@ -1956,6 +1956,16 @@ a {
   border-top: 1px solid var(--line);
 }
 
+/* A staff cost that leaves someone out: said next to the figure, in words */
+.stat .figure .figure-tag {
+  margin-left: 8px;
+  vertical-align: middle;
+}
+
+.stat .meta.warn {
+  color: var(--accent-ink);
+}
+
 /* While another period loads, the previous one stays, dimmed, with no layout jump */
 .stats-5,
 .chart-card,
@@ -2033,6 +2043,11 @@ a {
 
 .alert-title {
   font-weight: 500;
+}
+
+.alert-note {
+  font-size: 13px;
+  color: var(--text-3);
 }
 
 .alert-item .chip {

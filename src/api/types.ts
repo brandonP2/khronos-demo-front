@@ -278,6 +278,10 @@ export interface HoursReport {
     differenceMinutes: number
     plannedCost: number | null
     actualCost: number | null
+    /** actualCost is known but leaves out someone who worked with no rate (from delivery 3 on) */
+    costPartial?: boolean
+    /** People who worked in the period and whose actual cost is unknown (from delivery 3 on) */
+    workersWithoutCost?: number
   }
 }
 
@@ -427,12 +431,20 @@ export interface SummaryDay {
   date: string
   sales: number
   expenses: number
-  /** null when nobody had a rate for some of the day's minutes */
+  /** null when the period's laborCost is null */
   laborCost: number | null
+  /** Like the totals' grossMargin, with the day's own figures */
   margin: number
   closingStatus: ClosingDayStatus
+  /** null without a closing, or while its cash has not been counted */
   cashDifference: number | null
 }
+
+/**
+ * The staff cost a margin takes off: HOURS is laborCost, the hours worked at each one's rate;
+ * PAYROLL_EXPENSES is the PAYROLL expenses, when no one's cost from the hours is known
+ */
+export type LaborCostSource = 'HOURS' | 'PAYROLL_EXPENSES'
 
 export interface SummaryTotals {
   /** From the period's closings, in any status */
@@ -444,15 +456,23 @@ export interface SummaryTotals {
   /** Every expense of the period, payroll included */
   expenses: number
   payrollExpenses: number
-  /** Worked hours times the rate in force; null when a rate is missing */
+  /** Worked hours times the rate in force; null when no one's cost is known */
   laborCost: number | null
+  /** laborCost is known but leaves out someone who worked with no rate */
+  laborCostPartial: boolean
+  /** People who worked in the period and whose cost is unknown, left out of laborCost */
+  workersWithoutCost: number
   plannedLaborCost: number | null
-  /** sales - (expenses - payrollExpenses) - (laborCost ?? 0); can be negative */
+  /** sales - (expenses - payrollExpenses) - (laborCost ?? payrollExpenses); can be negative */
   grossMargin: number
+  /** Which staff cost grossMargin took off */
+  laborCostSource: LaborCostSource
   /** laborCost / sales * 100, one decimal; null when there are no sales or no labor cost */
   laborCostPercent: number | null
-  /** Sum of the closings' differences */
+  /** Sum of the differences of the CLOSED days */
   cashDifference: number
+  /** Sum of the differences the drafts show now (counted ones only): provisional until they are closed */
+  draftCashDifference: number
   closedDays: number
   draftDays: number
   /** Days before today with a shift or an entry and no closing */
@@ -467,6 +487,8 @@ export interface SummaryPrevious {
   expenses: number
   laborCost: number | null
   grossMargin: number
+  /** Which staff cost this period's grossMargin took off */
+  laborCostSource: LaborCostSource
 }
 
 export interface BusinessSummary {

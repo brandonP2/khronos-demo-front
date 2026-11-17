@@ -54,10 +54,24 @@ export function ClosingStatusTag({ status }: { status: CashClosingStatus | 'NEW'
 const DIFF_CLASS: Record<DifferenceTone, string> = { over: 'diff over', short: 'diff under', even: 'diff' }
 
 /** Counted minus expected, signed, with the words for it: over, short or balanced */
-export function CashDifference({ value }: { value: number }) {
+export function CashDifference({
+  value,
+  wordsShown = false,
+}: {
+  value: number
+  /** The words in brackets beside the amount; else they are for screen readers only */
+  wordsShown?: boolean
+}) {
   const t = useT()
   const fmt = useFmt()
   const tone = differenceTone(value)
+  if (wordsShown) {
+    return (
+      <>
+        <span className={DIFF_CLASS[tone]}>{fmt.signedMoney(value)}</span> <span className="muted">({t.cash[tone]})</span>
+      </>
+    )
+  }
   return (
     <span className={DIFF_CLASS[tone]}>
       {fmt.signedMoney(value)}

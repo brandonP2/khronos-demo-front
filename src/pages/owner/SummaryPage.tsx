@@ -6,6 +6,7 @@ import { Link } from 'react-router-dom'
 import { Coins, Download, FileClock, ReceiptText, TriangleAlert, Wallet } from 'lucide-react'
 import { api } from '../../api/endpoints'
 import type { BusinessSummary, ClosingDayStatus } from '../../api/types'
+import { CashDifference } from '../../components/CashClosing'
 import { NowCard } from '../../components/NowCard'
 import { PeriodPicker, usePeriod } from '../../components/PeriodPicker'
 import { SummaryChart } from '../../components/SummaryChart'
@@ -78,6 +79,9 @@ function SummaryBody({ data, refreshing, today }: { data: BusinessSummary; refre
   const fmt = useFmt()
   const { totals, previous } = data
   const closings = totals.closedDays + totals.draftDays
+  // Staff cost from the payroll expenses (no rates at all), or from the hours leaving someone out
+  const byPayroll = totals.laborCostSource === 'PAYROLL_EXPENSES'
+  const partial = !byPayroll && totals.laborCost !== null && totals.laborCostPartial
   const empty = closings === 0 && totals.sales === 0 && totals.expenses === 0
   // A period before with nothing in it is not compared with
   const before = <T,>(value: T): T | null => (isEmptyPrevious(previous) ? null : value)
@@ -122,21 +126,44 @@ function SummaryBody({ data, refreshing, today }: { data: BusinessSummary; refre
           </div>
           <div className="card stat">
             <span className="label">{t.summary.laborCost}</span>
-            <span className="figure">{totals.laborCost === null ? '—' : fmt.money(totals.laborCost)}</span>
-            {totals.laborCost === null ? (
-              <Link className="meta" to="/team">
-                {t.summary.noRates}
-              </Link>
+            {byPayroll ? (
+              // No one's cost from the hours is known: the margin took off the payroll expenses instead
+              <>
+                <span className="figure">{fmt.money(totals.payrollExpenses)}</span>
+                <Link className="meta" to="/team">
+                  {t.summary.laborFromPayroll}
+                </Link>
+              </>
+            ) : totals.laborCost === null ? (
+              <>
+                <span className="figure">—</span>
+                <Link className="meta" to="/team">
+                  {t.summary.noRates}
+                </Link>
+              </>
             ) : (
-              <TrendLine trend={trend(totals.laborCost, before(previous.laborCost))} upIsGood={false} format={fmt.signedMoney} />
+              <>
+                <span className="figure">
+                  {fmt.money(totals.laborCost)}
+                  {partial && <span className="tag warn figure-tag">{t.summary.partial}</span>}
+                </span>
+                {partial ? (
+                  // Not the whole cost, so it is not compared with the period before either
+                  <Link className="meta warn" to="/team">
+                    {t.summary.laborPartial(totals.workersWithoutCost)}
+                  </Link>
+                ) : (
+                  <TrendLine trend={trend(totals.laborCost, before(previous.laborCost))} upIsGood={false} format={fmt.signedMoney} />
+                )}
+              </>
             )}
           </div>
           <div className="card stat">
             <span className="label">{t.summary.margin}</span>
             <span className={totals.grossMargin < 0 ? 'figure negative' : 'figure'}>{fmt.money(totals.grossMargin)}</span>
             <TrendLine trend={trend(totals.grossMargin, before(previous.grossMargin))} upIsGood format={fmt.signedMoney} />
-            {totals.laborCost === null && <span className="meta">{t.summary.marginNoLabor}</span>}
-            <span className="meta stat-help">{t.summary.marginHelp}</span>
+            {partial && <span className="meta">{t.summary.marginPartial}</span>}
+            <span className="meta stat-help">{byPayroll ? t.summary.marginHelpPayroll : t.summary.marginHelp}</span>
           </div>
           <div className="card stat">
             <span className="label">{t.summary.laborPercent}</span>
@@ -149,6 +176,8 @@ function SummaryBody({ data, refreshing, today }: { data: BusinessSummary; refre
                   {t.summary.noRates}
                 </Link>
               )
+            ) : partial ? (
+              <span className="meta">{t.summary.percentPartial}</span>
             ) : (
               <TrendLine
                 trend={trend(totals.laborCostPercent, before(previousPercent))}
@@ -202,7 +231,9 @@ function Alerts({ data }: { data: BusinessSummary }) {
       .reverse()
   const missing = datesWith('MISSING')
   const drafts = datesWith('DRAFT')
+  // Closed days only; the drafts' difference can still change, so it is shown apart
   const difference = toCents(totals.cashDifference)
+  const draftDifference = toCents(totals.draftCashDifference)
 
   const dayLinks = (dates: string[], label: (day: string) => string) => (
     <div className="chips">
@@ -244,14 +275,24 @@ function Alerts({ data }: { data: BusinessSummary }) {
             <Coins size={16} strokeWidth={1.5} className="alert-icon" aria-hidden />
             <div className="grow">
               <span className="alert-title">
-                {t.summary.cashDifference}:{' '}
-                <span className={difference > 0 ? 'diff over' : 'diff under'}>{fmt.signedMoney(totals.cashDifference)}</span>{' '}
-                <span className="muted">({difference > 0 ? t.cash.over : t.cash.short})</span>
+                {t.summary.cashDifference}: <CashDifference value={totals.cashDifference} wordsShown />
               </span>
             </div>
             <Link to="/cash" className="btn btn-sm btn-ghost">
               {t.summary.seeClosings}
             </Link>
+          </li>
+        )}
+        {draftDifference !== 0 && (
+          <li className="alert-item">
+            <Coins size={16} strokeWidth={1.5} className="alert-icon" aria-hidden />
+            <div className="grow">
+              <span className="alert-title">
+                {t.summary.draftCashDifference}: <CashDifference value={totals.draftCashDifference} wordsShown />{' '}
+                <span className="tag">{t.summary.provisional}</span>
+              </span>
+              <span className="alert-note">{t.summary.draftCashDifferenceHint}</span>
+            </div>
           </li>
         )}
         {totals.missingClosingDays === 0 && totals.draftDays === 0 && difference === 0 && (
