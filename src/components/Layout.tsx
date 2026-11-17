@@ -11,6 +11,7 @@ import {
   ReceiptText,
   UserCog,
   Users,
+  Wallet,
   type LucideIcon,
 } from 'lucide-react'
 import { useAuth, useMe } from '../auth/AuthContext'
@@ -30,6 +31,7 @@ const NAV: Record<string, NavItem[]> = {
   OWNER: [
     { to: '/', label: 'schedule', icon: CalendarRange },
     { to: '/hours', label: 'hours', icon: Clock },
+    { to: '/cash', label: 'cash', icon: Wallet },
     { to: '/expenses', label: 'expenses', icon: ReceiptText },
     { to: '/events', label: 'events', icon: CalendarClock },
     { to: '/team', label: 'team', icon: Users },

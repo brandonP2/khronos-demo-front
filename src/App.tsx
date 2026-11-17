@@ -9,6 +9,7 @@ import { VenueProvider, useVenue } from './lib/VenueContext'
 import Login from './pages/Login'
 import Account from './pages/Account'
 import SchedulePage from './pages/owner/SchedulePage'
+import CashPage from './pages/owner/CashPage'
 import ExpensesPage from './pages/owner/ExpensesPage'
 import HoursPage from './pages/owner/HoursPage'
 import EventsPage from './pages/owner/EventsPage'
@@ -57,6 +58,7 @@ function OwnerApp() {
               <Routes key={venue.id}>
                 <Route index element={<SchedulePage />} />
                 <Route path="hours" element={<HoursPage />} />
+                <Route path="cash" element={<CashPage />} />
                 <Route path="expenses" element={<ExpensesPage />} />
                 <Route path="events" element={<EventsPage />} />
                 <Route path="team" element={<TeamPage />} />
