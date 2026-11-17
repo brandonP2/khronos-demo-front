@@ -78,3 +78,35 @@ export function renderApp(path = '/') {
 export function user(id: number, role: User['role'], firstName = 'Lucía', lastName = 'Romero'): User {
   return { id, username: firstName.toLowerCase(), firstName, lastName, phoneNumber: null, email: `${id}@khronos.es`, role }
 }
+
+/** The venue the owner helpers below sign in to: Casa Lucía, in Madrid */
+export const testVenue = {
+  id: 1,
+  establishmentName: 'Casa Lucía',
+  establishmentAddress: 'Calle Mayor 1',
+  ownerId: 2,
+  ownerName: 'Ana Gil',
+  ownerEmail: 'a@g.es',
+  ownerPhone: null,
+  timeZone: 'Europe/Madrid',
+}
+
+/**
+ * A signed-in owner (Ana Gil, id 2) of `testVenue`, with one person on the team and nobody
+ * clocked in. `extra` answers the calls under test first; unknown paths answer 404.
+ */
+export function ownerApi(extra: Route = () => undefined) {
+  return mockApi(async (call) => {
+    const answer = await extra(call)
+    if (answer) return answer
+    if (call.path === '/users/me') return json(200, user(2, 'OWNER', 'Ana', 'Gil'))
+    if (call.path === '/establishments/owner/2') return json(200, [testVenue])
+    if (call.path === '/workers/establishment/1') return json(200, [{ userId: 5, establishmentId: 1, isActive: true }])
+    if (call.path === '/users/establishment/1') return json(200, [user(5, 'WORKER', 'Lucía', 'Romero')])
+    if (call.path === '/time-entries/establishment/1/open') return json(200, [])
+    return undefined
+  })
+}
+
+/** Text with the non-breaking spaces of formatted money and percentages turned into plain ones */
+export const plain = (text: string | null | undefined) => (text ?? '').replace(/[\s\u00a0\u202f]+/g, ' ').trim()
