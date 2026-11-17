@@ -217,6 +217,42 @@ describe('cash closing form', () => {
     expect(writes(calls)[1].body).toEqual({ differenceReason: 'Cambio mal dado' })
   })
 
+  it('stops asking for the reason the API wanted once the amounts are corrected', async () => {
+    // The API allows 2,00 € without a reason
+    const counted = () => (writes(calls).filter((c) => c.path === '/cash-closings/77').pop()?.body as CashClosingInput | undefined)?.countedCash ?? 1286.5
+    const calls: Call[] = cashServer(closingFrom({ ...baseInput, countedCash: 1286.5 }), {
+      close: (call) =>
+        (call.body as { differenceReason?: string }).differenceReason || counted() === 1289.5
+          ? undefined
+          : json(409, {
+              status: 409,
+              message: 'The cash difference of -3.00 EUR is larger than the 2.00 EUR allowed without a reason; send a differenceReason to close the day',
+            }),
+    })
+    renderApp(`/cash?date=${DAY}`)
+    await screen.findByLabelText('Ventas en efectivo')
+    fireEvent.click(screen.getByRole('button', { name: 'Cerrar caja' }))
+    expect(await screen.findByLabelText('Motivo del descuadre')).toBeTruthy()
+
+    // Card sales do not change the difference: the API would still want the reason
+    type('Ventas con tarjeta', '210')
+    expect(screen.getByLabelText('Motivo del descuadre')).toBeTruthy()
+
+    // Recounted, the till balances: no reason is needed nor sent
+    type('Efectivo contado', '1289,50')
+    expect(figure('Descuadre')).toBe('0,00 € Cuadra')
+    expect(screen.queryByLabelText('Motivo del descuadre')).toBeNull()
+    expect(screen.queryByText(/hace falta un motivo/)).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Cerrar caja' }))
+    expect(await screen.findByRole('button', { name: 'Reabrir' })).toBeTruthy()
+    expect(writes(calls).map((c) => `${c.method} ${c.path}`)).toEqual([
+      'PUT /cash-closings/77/close',
+      'PUT /cash-closings/77',
+      'PUT /cash-closings/77/close',
+    ])
+    expect(writes(calls)[2].body).toEqual({})
+  })
+
   it('reloads a day that was closed from another phone instead of asking for a reason', async () => {
     const draft = closingFrom(baseInput, { differenceReason: null })
     let closedElsewhere = false

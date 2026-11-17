@@ -21,6 +21,8 @@ type AmountKey = 'cashSales' | 'cardSales' | 'otherSales' | 'openingFloat' | 'ca
 
 const SALES: AmountKey[] = ['cashSales', 'cardSales', 'otherSales']
 const TILL: AmountKey[] = ['openingFloat', 'cashWithdrawals', 'countedCash']
+/** The amounts the difference is worked out from */
+const DIFFERENCE_INPUTS: AmountKey[] = ['openingFloat', 'cashSales', 'cashWithdrawals', 'countedCash']
 
 export const NOTES_MAX = 500
 export const REASON_MAX = 255
@@ -151,7 +153,8 @@ export function CashClosingForm({
   const [notes, setNotes] = useState(closing?.notes ?? '')
   const [reason, setReason] = useState(closing?.differenceReason ?? '')
   const [submitted, setSubmitted] = useState(false)
-  // The API asked for a reason even if the difference looks small here (its limit can be set lower)
+  // The API asked for a reason even if the difference looks small here (its limit can be set lower).
+  // It holds for the difference it was asked for: changing an amount behind it asks the API again.
   const [reasonAsked, setReasonAsked] = useState(false)
   const [discarding, setDiscarding] = useState(false)
   // What this form saved last, so a second click updates the draft instead of creating it again
@@ -243,7 +246,10 @@ export function CashClosingForm({
           id={id}
           value={texts[k]}
           placeholder={fmt.amount(0)}
-          onChange={(text) => setTexts((all) => ({ ...all, [k]: text }))}
+          onChange={(text) => {
+            setTexts((all) => ({ ...all, [k]: text }))
+            if (DIFFERENCE_INPUTS.includes(k)) setReasonAsked(false)
+          }}
           onBlur={() => setTouched((all) => ({ ...all, [k]: true }))}
         />
       )}
