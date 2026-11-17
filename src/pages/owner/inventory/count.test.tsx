@@ -119,7 +119,7 @@ describe('the physical count', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Revisar y confirmar' }))
     expect(screen.getByRole('alert').textContent).toBe('Hay 1 cantidad que no se entiende. Corrígela para seguir.')
     expect(field('Hielo').getAttribute('aria-invalid')).toBe('true')
-    expect(within(rowOf('Hielo')).getByText('Escribe 0 o más, con 3 decimales como mucho')).toBeTruthy()
+    expect(within(rowOf('Hielo')).getByText('Escribe 0 o más, con 9 cifras enteras y 3 decimales como mucho')).toBeTruthy()
     expect(screen.queryByRole('dialog')).toBeNull()
 
     fireEvent.change(field('Hielo'), { target: { value: '' } })

@@ -10,7 +10,7 @@ import { api } from '../api/endpoints'
 import type { ManualMovementType, Product, ProductCategory, ProductInput, StockUnit, Supplier } from '../api/types'
 import { inventoryRefusal } from '../lib/apiMessages'
 import { useFmt, useT } from '../lib/i18n'
-import { isBlank, parseAmount } from '../lib/money'
+import { isBlank } from '../lib/money'
 import { useApplyMovements, useInvalidate } from '../lib/queries'
 import {
   MOVEMENT_TYPES,
@@ -23,6 +23,7 @@ import {
   movementInput,
   movementIssues,
   needsReason,
+  parseCost,
   parseQuantity,
   stockChange,
   toMilli,
@@ -93,7 +94,7 @@ export function MovementDialog({
   const m = t.inventory.movement
 
   const quantity = parseQuantity(quantityText)
-  const unitCost = isBlank(costText) ? null : (parseAmount(costText) ?? 'invalid')
+  const unitCost = isBlank(costText) ? null : (parseCost(costText) ?? 'invalid')
   const draft: MovementDraft = { type, quantity, direction, unitCost, reason, date }
   const issues = movementIssues(draft, today)
   const valid = Object.keys(issues).length === 0
@@ -248,7 +249,7 @@ export function ProductFormDialog({
   // Some stock means some movements, so the unit is locked; with 0 the API still has the last word
   const unitLocked = !!product && (toMilli(product.currentStock) !== 0 || unitRefused)
   const minStock = isBlank(minText) ? null : parseQuantity(minText)
-  const unitCost = isBlank(costText) ? null : parseAmount(costText)
+  const unitCost = isBlank(costText) ? null : parseCost(costText)
   const errors = {
     name: name.trim().length === 0 || name.trim().length > NAME_MAX ? p.nameError : undefined,
     minStock: !isBlank(minText) && minStock === null ? p.minStockError : undefined,

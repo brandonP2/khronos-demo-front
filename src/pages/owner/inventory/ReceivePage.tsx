@@ -18,9 +18,9 @@ import { QuantityInput } from '../../../components/QuantityInput'
 import { Button, Empty, ErrorNote, Field, Loading, PageHead, errorMessage, useToast } from '../../../components/ui'
 import { cashRefusal, inventoryRefusal, refusalDay } from '../../../lib/apiMessages'
 import { useFmt, useT } from '../../../lib/i18n'
-import { isBlank, parseAmount, toCents } from '../../../lib/money'
+import { isBlank, toCents } from '../../../lib/money'
 import { keys, useInvalidate, useProducts, usePurchaseOrder } from '../../../lib/queries'
-import { orderTotal, parseQuantity, quantityValue, toMilli, useQuantityText } from '../../../lib/stock'
+import { orderTotal, parseCost, parseQuantity, quantityValue, toMilli, useQuantityText } from '../../../lib/stock'
 import { venueTimeZone, zonedToday } from '../../../lib/time'
 import { useVenue } from '../../../lib/VenueContext'
 import { CancelOrderDialog } from './OrderPage'
@@ -113,7 +113,7 @@ function ReceiveForm({
 
   const parsed = rows.map((r, i) => {
     const quantity = parseQuantity(r.receivedText)
-    const typed = isBlank(r.costText) ? null : parseAmount(r.costText)
+    const typed = isBlank(r.costText) ? null : parseCost(r.costText)
     return {
       quantity,
       /** Received with 0: it does not come in, and its cost is neither sent nor checked */

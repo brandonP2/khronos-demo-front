@@ -17,12 +17,13 @@ import { SupplierFormDialog } from '../../../components/SupplierDialogs'
 import { Button, ConfirmDialog, Empty, ErrorNote, Field, Loading, PageHead, errorMessage, useToast } from '../../../components/ui'
 import { inventoryRefusal } from '../../../lib/apiMessages'
 import { useFmt, useT } from '../../../lib/i18n'
-import { isBlank, parseAmount } from '../../../lib/money'
+import { isBlank } from '../../../lib/money'
 import { useInvalidate, useProducts, usePurchaseOrder, useSuppliers } from '../../../lib/queries'
 import {
   ORDER_LINES_MAX,
   ORDER_NOTES_MAX,
   orderTotal,
+  parseCost,
   parseQuantity,
   proposeOrderLines,
   quantityValue,
@@ -193,8 +194,8 @@ function OrderEditor({
   const parsed = lines.map((l) => ({
     product: productById.get(l.productId),
     quantity: parseQuantity(l.quantityText),
-    unitCost: isBlank(l.costText) ? null : parseAmount(l.costText),
-    costInvalid: !isBlank(l.costText) && parseAmount(l.costText) === null,
+    unitCost: isBlank(l.costText) ? null : parseCost(l.costText),
+    costInvalid: !isBlank(l.costText) && parseCost(l.costText) === null,
   }))
   const { total, withoutCost } = orderTotal(
     parsed.map((l, i) => ({ hasProduct: !!lines[i].productId, quantity: l.quantity, unitCost: l.unitCost })),

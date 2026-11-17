@@ -12,7 +12,7 @@ import type {
 } from '../api/types'
 import { DRAFT_PREFIXES } from './drafts'
 import { useFmt, useT, type Messages } from './i18n'
-import { fromCents, toCents } from './money'
+import { fromCents, parseAmount, toCents } from './money'
 import type { Fmt } from './time'
 
 export const PRODUCT_CATEGORIES: ProductCategory[] = ['SPIRITS', 'BEER', 'WINE', 'SOFT_DRINKS', 'COFFEE', 'FOOD', 'SUPPLIES', 'OTHER']
@@ -23,6 +23,10 @@ export const MOVEMENT_TYPES: ManualMovementType[] = ['PURCHASE', 'WASTE', 'CONSU
 
 /** Limits the API checks */
 export const NAME_MAX = 100
+/** The most a quantity can be: 9 digits before the decimal mark and 3 after */
+export const QUANTITY_MAX = 999_999_999.999
+/** The most a cost per unit can be: 8 digits before the decimal mark and 2 after */
+export const COST_MAX = 99_999_999.99
 export const REASON_MIN = 3
 export const REASON_MAX = 255
 export const COUNT_NOTES_MAX = 255
@@ -47,8 +51,8 @@ export function subtractQuantities(a: number, b: number): number {
 
 /**
  * A quantity typed by hand, or null when it is not one (an empty field included). Up to three
- * decimals, never negative. A lone separator is always the decimal mark ("4,5", "4.5", "0,250"),
- * since quantities have three decimals; with both kinds the last one is ("1.234,5").
+ * decimals and QUANTITY_MAX, never negative. A lone separator is always the decimal mark ("4,5",
+ * "4.5", "0,250"), since quantities have three decimals; with both kinds the last one is ("1.234,5").
  */
 export function parseQuantity(text: string): number | null {
   const plain = text.replace(/[\s\u00a0\u202f]/g, '')
@@ -69,7 +73,14 @@ export function parseQuantity(text: string): number | null {
     whole = whole.replace(/[.,]/g, '')
   }
   if (!/^\d+$/.test(whole) || (separators.length > 0 && !/^\d{1,3}$/.test(decimals))) return null
-  return fromMilli(Number(whole) * 1000 + Number(decimals.padEnd(3, '0') || 0))
+  const quantity = fromMilli(Number(whole) * 1000 + Number(decimals.padEnd(3, '0') || 0))
+  return quantity <= QUANTITY_MAX ? quantity : null
+}
+
+/** A cost per unit typed by hand, as parseAmount reads it, or null above COST_MAX */
+export function parseCost(text: string): number | null {
+  const cost = parseAmount(text)
+  return cost !== null && cost <= COST_MAX ? cost : null
 }
 
 /** How a quantity reads with its unit, in the current language */

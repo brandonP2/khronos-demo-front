@@ -13,6 +13,7 @@ import {
   movementInput,
   movementIssues,
   orderTotal,
+  parseCost,
   parseQuantity,
   proposeOrderLines,
   quantityText,
@@ -43,12 +44,34 @@ describe('quantities typed by hand', () => {
     // A lone separator is the decimal mark: quantities have three decimals
     ['1,500', 1.5],
     ['0,1', 0.1],
+    // The most the API takes: 9 digits before the decimal mark and 3 after
+    ['999999999,999', 999999999.999],
+    ['999.999.999,999', 999999999.999],
   ])('reads %s as %s', (text, value) => {
     expect(parseQuantity(text)).toBe(value)
   })
 
-  it.each(['', '  ', 'abc', '-2', '1,2345', '4,', ',5', '1.2.3', '1.234.5', '2 botellas'])('refuses %j', (text) => {
-    expect(parseQuantity(text)).toBeNull()
+  it.each(['', '  ', 'abc', '-2', '1,2345', '4,', ',5', '1.2.3', '1.234.5', '2 botellas', '1000000000', '1.000.000.000'])(
+    'refuses %j',
+    (text) => {
+      expect(parseQuantity(text)).toBeNull()
+    },
+  )
+
+  it('reads a cost per unit up to the 8 digits and 2 decimals the API takes', () => {
+    expect(parseCost('12,50')).toBe(12.5)
+    expect(parseCost('99.999.999,99')).toBe(99999999.99)
+    expect(parseCost('100.000.000')).toBeNull()
+    expect(parseCost('12,5,0')).toBeNull()
+  })
+
+  it('reads the quantities the API answers with three decimals, and shows them without trailing zeros', () => {
+    // The API sends its decimals with their scale: 2.500 and 11.50 as JSON numbers
+    const answered = JSON.parse('{"currentStock": 2.500, "minStock": 0.000, "unitCost": 11.50}') as Product
+    expect(answered.currentStock).toBe(2.5)
+    expect(es.quantity(answered.currentStock, 'BOTTLE')).toBe('2,5 botellas')
+    expect(es.quantity(answered.minStock ?? -1, 'KG')).toBe('0 kg')
+    expect(es.perUnit(answered.unitCost ?? 0, 'BOTTLE').replace(/\s/g, ' ')).toBe('11,50 €/botella')
   })
 })
 

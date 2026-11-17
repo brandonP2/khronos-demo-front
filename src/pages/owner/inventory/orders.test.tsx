@@ -162,7 +162,7 @@ describe('purchase orders', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Marcar como pedido' }))
     expect(screen.getByText('Elige el proveedor')).toBeTruthy()
     expect(screen.getByText('Elige el producto')).toBeTruthy()
-    expect(screen.getByText('Escribe una cantidad mayor que 0')).toBeTruthy()
+    expect(screen.getByText('Escribe una cantidad mayor que 0, con 9 cifras enteras y 3 decimales como mucho')).toBeTruthy()
     expect(calls.some((c) => c.method === 'POST')).toBe(false)
 
     fireEvent.change(screen.getByLabelText('Proveedor'), { target: { value: '8' } })
@@ -200,13 +200,13 @@ describe('purchase orders', () => {
     expect(line.querySelector('.quantity-unit')).toBeNull()
     expect(screen.getByLabelText('Cantidad').getAttribute('aria-describedby')).toBeNull()
     fireEvent.change(screen.getByLabelText('Cantidad'), { target: { value: '0' } })
-    expect(screen.queryByText('Escribe una cantidad mayor que 0')).toBeNull()
+    expect(screen.queryByText('Escribe una cantidad mayor que 0, con 9 cifras enteras y 3 decimales como mucho')).toBeNull()
 
     fireEvent.change(screen.getByLabelText('Producto'), { target: { value: '4' } })
     expect(line.querySelector('.quantity-unit')!.textContent).toBe('kg')
-    expect(screen.getByText('Escribe una cantidad mayor que 0')).toBeTruthy()
+    expect(screen.getByText('Escribe una cantidad mayor que 0, con 9 cifras enteras y 3 decimales como mucho')).toBeTruthy()
     fireEvent.change(screen.getByLabelText('Cantidad'), { target: { value: '1.50' } })
-    expect(screen.queryByText('Escribe una cantidad mayor que 0')).toBeNull()
+    expect(screen.queryByText('Escribe una cantidad mayor que 0, con 9 cifras enteras y 3 decimales como mucho')).toBeNull()
     // Another product keeps the quantity, written as this one reads it
     fireEvent.change(screen.getByLabelText('Producto'), { target: { value: '1' } })
     expect((screen.getByLabelText('Cantidad') as HTMLInputElement).value).toBe('1,5')

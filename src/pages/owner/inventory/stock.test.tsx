@@ -272,7 +272,7 @@ describe('quick movements', () => {
 
     fireEvent.change(within(dialog).getByLabelText('Cantidad'), { target: { value: '0' } })
     fireEvent.click(within(dialog).getByRole('button', { name: 'Anotar entrada' }))
-    expect(within(dialog).getByText('Escribe una cantidad mayor que 0, con 3 decimales como mucho')).toBeTruthy()
+    expect(within(dialog).getByText('Escribe una cantidad mayor que 0, con 9 cifras enteras y 3 decimales como mucho')).toBeTruthy()
 
     fireEvent.change(within(dialog).getByLabelText('Cantidad'), { target: { value: '2,5' } })
     fireEvent.change(within(dialog).getByLabelText('Coste por unidad'), { target: { value: '16' } })
