@@ -503,6 +503,231 @@ export interface BusinessSummary {
   previous: SummaryPrevious
 }
 
+/* ---------- Inventory: suppliers, products, stock, counts and purchase orders (owner and admin only) ---------- */
+
+/** establishmentId is only sent on creation */
+export interface SupplierInput {
+  establishmentId?: number
+  /** 1 to 100 characters, unique in the venue (case does not matter) */
+  name: string
+  /** At most 30 characters */
+  phone: string | null
+  email: string | null
+  /** At most 500 characters */
+  notes: string | null
+}
+
+export interface Supplier {
+  id: number
+  establishmentId: number
+  name: string
+  phone: string | null
+  email: string | null
+  notes: string | null
+}
+
+/** SOFT_DRINKS includes water; SUPPLIES is material such as napkins, ice and cleaning */
+export type ProductCategory = 'SPIRITS' | 'BEER' | 'WINE' | 'SOFT_DRINKS' | 'COFFEE' | 'FOOD' | 'SUPPLIES' | 'OTHER'
+
+/** How a product is counted. There are no conversions between units. */
+export type StockUnit = 'BOTTLE' | 'UNIT' | 'KG' | 'L' | 'BOX' | 'KEG'
+
+/** establishmentId is only sent on creation. The unit cannot change once the product has movements (409). */
+export interface ProductInput {
+  establishmentId?: number
+  /** 1 to 100 characters, unique in the venue (case does not matter) */
+  name: string
+  category: ProductCategory
+  unit: StockUnit
+  /** 0 or more */
+  minStock: number | null
+  /** Cost per unit, 0 or more */
+  unitCost: number | null
+  supplierId: number | null
+}
+
+/** The stock is never edited: it is the sum of the product's movements */
+export interface Product {
+  id: number
+  establishmentId: number
+  name: string
+  category: ProductCategory
+  unit: StockUnit
+  minStock: number | null
+  /** The last known cost per unit; updated when purchases with a cost come in */
+  unitCost: number | null
+  supplierId: number | null
+  supplierName: string | null
+  isActive: boolean
+  /** Up to three decimals; can be negative when a purchase was not recorded */
+  currentStock: number
+  /** currentStock × unitCost; null with no cost, 0 when the stock is 0 or less */
+  stockValue: number | null
+  /** minStock != null && currentStock <= minStock */
+  isLowStock: boolean
+}
+
+/** COUNT is only made by a physical count */
+export type StockMovementType = 'PURCHASE' | 'WASTE' | 'CONSUMPTION' | 'ADJUSTMENT' | 'COUNT'
+
+export type ManualMovementType = Exclude<StockMovementType, 'COUNT'>
+
+export interface StockMovementInput {
+  productId: number
+  type: ManualMovementType
+  /** Above 0 for PURCHASE, WASTE and CONSUMPTION (the type gives the sign); not 0 and signed for ADJUSTMENT */
+  quantity: number
+  /** PURCHASE only; when sent it becomes the product's cost per unit */
+  unitCost: number | null
+  /** Required (3 to 255 characters) for WASTE and ADJUSTMENT */
+  reason: string | null
+  /** Service day, not in the future; today on the venue's clock when null */
+  date: string | null
+}
+
+/** Movements are never changed or deleted: a mistake is corrected with an adjustment */
+export interface StockMovement {
+  id: number
+  productId: number
+  productName: string
+  unit: StockUnit
+  type: StockMovementType
+  /** Signed: positive comes in, negative goes out */
+  quantity: number
+  /** The cost per unit applied to the movement */
+  unitCost: number | null
+  /** |quantity| × unitCost */
+  value: number | null
+  reason: string | null
+  date: string
+  /** ISO instant */
+  createdAt: string
+  createdByName: string
+  purchaseOrderId: number | null
+  /** The product's stock right after this movement */
+  stockAfter: number
+}
+
+/** Every filter is optional; from and to apply to `date`, inclusive. Newest first. */
+export interface StockMovementQuery extends DateRange {
+  productId?: number
+  type?: StockMovementType
+}
+
+/** A physical count: one COUNT movement per item, countedQuantity - currentStock, in one transaction */
+export interface StockCountInput {
+  establishmentId: number
+  date: string | null
+  /** At most 255 characters; becomes each movement's reason */
+  notes: string | null
+  /** 1 to 500 items, no product twice */
+  items: { productId: number; countedQuantity: number }[]
+}
+
+export type PurchaseOrderStatus = 'DRAFT' | 'ORDERED' | 'RECEIVED' | 'CANCELLED'
+
+export interface PurchaseOrderLineInput {
+  productId: number
+  /** Above 0 */
+  quantity: number
+  unitCost: number | null
+}
+
+/** Creating and editing a draft. establishmentId is only sent on creation. */
+export interface PurchaseOrderInput {
+  establishmentId?: number
+  supplierId: number
+  expectedDate: string | null
+  /** At most 500 characters */
+  notes: string | null
+  /** 1 to 200 lines, no product twice, active products of the venue */
+  lines: PurchaseOrderLineInput[]
+}
+
+export interface PurchaseOrderLine {
+  id: number
+  productId: number
+  productName: string
+  unit: StockUnit
+  quantity: number
+  unitCost: number | null
+  receivedQuantity: number | null
+  /** (received quantity once received, else the ordered one) × unitCost */
+  lineTotal: number | null
+}
+
+export interface PurchaseOrder {
+  id: number
+  establishmentId: number
+  supplierId: number
+  supplierName: string
+  status: PurchaseOrderStatus
+  /** Set when it is marked as ordered */
+  orderDate: string | null
+  expectedDate: string | null
+  receivedDate: string | null
+  notes: string | null
+  lines: PurchaseOrderLine[]
+  /** Sum of the line totals; null when no line has a cost */
+  total: number | null
+  /** The expense created on receiving it, if one was asked for */
+  expenseId: number | null
+  createdAt: string
+  createdByName: string
+}
+
+/** Every filter is optional; from and to apply to the creation date. Newest first. */
+export interface PurchaseOrderQuery extends DateRange {
+  status?: PurchaseOrderStatus
+}
+
+/**
+ * Receiving an ordered order, all its lines included, in one transaction: a PURCHASE movement per
+ * line received, the products' costs updated and, when asked for, an expense of the total
+ * (SUPPLIES, dated receivedDate). A cash expense on a day whose till is closed answers 409 and
+ * nothing is received.
+ */
+export interface ReceiveOrderInput {
+  receivedDate: string | null
+  lines: { lineId: number; receivedQuantity: number; unitCost: number | null }[]
+  createExpense: boolean
+  /** Required when createExpense is true */
+  paymentMethod: PaymentMethod | null
+}
+
+/**
+ * The stock now (stockValue, the counts and lowStock) and what happened in the period (purchases,
+ * waste and count differences, valued with the cost kept on each movement; movements with no
+ * cost do not add up).
+ */
+export interface InventoryReport {
+  from: string
+  to: string
+  currency: 'EUR'
+  /** Active products with a cost and stock above 0 */
+  stockValue: number
+  /** Active products */
+  productsCount: number
+  lowStockCount: number
+  negativeStockCount: number
+  purchasesValue: number
+  /** Positive */
+  wasteValue: number
+  /** Net value of the period's counts; negative when goods were missing */
+  countDifferenceValue: number
+  /** Largest value first, at most 10 */
+  wasteByProduct: { productId: number; productName: string; unit: StockUnit; quantity: number; value: number | null }[]
+  lowStock: {
+    productId: number
+    productName: string
+    unit: StockUnit
+    currentStock: number
+    minStock: number
+    supplierId: number | null
+    supplierName: string | null
+  }[]
+}
+
 export interface ApiErrorBody {
   timestamp?: string
   status: number

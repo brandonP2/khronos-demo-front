@@ -16,11 +16,24 @@ import type {
   ExpenseInput,
   ExpenseQuery,
   HoursReport,
+  InventoryReport,
   KEvent,
   Period,
+  Product,
+  ProductInput,
+  PurchaseOrder,
+  PurchaseOrderInput,
+  PurchaseOrderQuery,
+  ReceiveOrderInput,
   Role,
   Shift,
   ShiftInput,
+  StockCountInput,
+  StockMovement,
+  StockMovementInput,
+  StockMovementQuery,
+  Supplier,
+  SupplierInput,
   TimeEntry,
   TimeEntryChange,
   TimeEntryCreate,
@@ -39,12 +52,15 @@ import type {
 } from './types'
 
 /** "?from=2026-11-16&to=2026-11-22", or nothing when the range is open on both sides */
-function rangeQuery(range: TimeEntryQuery & ExpenseQuery = {}): string {
+function rangeQuery(range: TimeEntryQuery & ExpenseQuery & StockMovementQuery & PurchaseOrderQuery = {}): string {
   const params = new URLSearchParams()
   if (range.from) params.set('from', range.from)
   if (range.to) params.set('to', range.to)
   if (range.includeVoided) params.set('includeVoided', 'true')
   if (range.category) params.set('category', range.category)
+  if (range.productId) params.set('productId', String(range.productId))
+  if (range.type) params.set('type', range.type)
+  if (range.status) params.set('status', range.status)
   const query = params.toString()
   return query ? `?${query}` : ''
 }
@@ -176,6 +192,14 @@ export const api = {
     /** One row per expense */
     expensesCsv: (establishmentId: number, period: Period) =>
       download(`/reports/establishment/${establishmentId}/expenses.csv${rangeQuery(period)}`),
+    /** Owner only: the stock now, and the period's purchases, waste and count differences */
+    inventory: (establishmentId: number, period: Period) =>
+      request<InventoryReport>('GET', `/reports/establishment/${establishmentId}/inventory${rangeQuery(period)}`),
+    /** The stock now: one row per active product */
+    inventoryCsv: (establishmentId: number) => download(`/reports/establishment/${establishmentId}/inventory.csv`),
+    /** One row per stock movement */
+    stockMovementsCsv: (establishmentId: number, period: Period) =>
+      download(`/reports/establishment/${establishmentId}/stock-movements.csv${rangeQuery(period)}`),
   },
   /** Owner and admin only: the end-of-day cash count, one per venue and service day */
   cashClosings: {
@@ -205,5 +229,58 @@ export const api = {
     create: (input: ExpenseInput) => request<Expense>('POST', '/expenses', input),
     update: (id: number, input: ExpenseInput) => request<Expense>('PUT', `/expenses/${id}`, input),
     remove: (id: number) => request<void>('DELETE', `/expenses/${id}`),
+  },
+  /* Inventory: owner and admin only, a worker gets 403 from all of it */
+  suppliers: {
+    /** By name */
+    byEstablishment: (establishmentId: number) => request<Supplier[]>('GET', `/suppliers/establishment/${establishmentId}`),
+    /** 409 when the venue already has a supplier with that name */
+    create: (input: SupplierInput) => request<Supplier>('POST', '/suppliers', input),
+    update: (id: number, input: SupplierInput) => request<Supplier>('PUT', `/suppliers/${id}`, input),
+    /** 409 when it has purchase orders; its products are left with no usual supplier */
+    remove: (id: number) => request<void>('DELETE', `/suppliers/${id}`),
+  },
+  products: {
+    /** By category and name */
+    byEstablishment: (establishmentId: number, includeInactive = false) =>
+      request<Product[]>('GET', `/products/establishment/${establishmentId}?includeInactive=${includeInactive}`),
+    get: (id: number) => request<Product>('GET', `/products/${id}`),
+    /** 409 when the venue already has a product with that name */
+    create: (input: ProductInput) => request<Product>('POST', '/products', input),
+    /** 409 when the unit changes and the product already has movements */
+    update: (id: number, input: ProductInput) => request<Product>('PUT', `/products/${id}`, input),
+    /** An inactive product takes no new movements or order lines */
+    setActive: (id: number, active: boolean) => request<Product>('PUT', `/products/${id}/active`, { active }),
+    /** Only with no movements and no order lines; otherwise 409, and deactivating is the way */
+    remove: (id: number) => request<void>('DELETE', `/products/${id}`),
+  },
+  /** The stock is the sum of these; there is no PUT or DELETE */
+  stockMovements: {
+    create: (input: StockMovementInput) => request<StockMovement>('POST', '/stock-movements', input),
+    /** Newest first */
+    byEstablishment: (establishmentId: number, query?: StockMovementQuery) =>
+      request<StockMovement[]>('GET', `/stock-movements/establishment/${establishmentId}${rangeQuery(query)}`),
+  },
+  stockCounts: {
+    /** One COUNT movement per item, also when nothing changed, in one transaction */
+    create: (input: StockCountInput) => request<StockMovement[]>('POST', '/stock-counts', input),
+  },
+  purchaseOrders: {
+    /** Newest first */
+    byEstablishment: (establishmentId: number, query?: PurchaseOrderQuery) =>
+      request<PurchaseOrder[]>('GET', `/purchase-orders/establishment/${establishmentId}${rangeQuery(query)}`),
+    get: (id: number) => request<PurchaseOrder>('GET', `/purchase-orders/${id}`),
+    /** Starts as a draft */
+    create: (input: PurchaseOrderInput) => request<PurchaseOrder>('POST', '/purchase-orders', input),
+    /** Drafts only */
+    update: (id: number, input: PurchaseOrderInput) => request<PurchaseOrder>('PUT', `/purchase-orders/${id}`, input),
+    /** Drafts only */
+    remove: (id: number) => request<void>('DELETE', `/purchase-orders/${id}`),
+    /** DRAFT to ORDERED; the order date is today */
+    order: (id: number) => request<PurchaseOrder>('PUT', `/purchase-orders/${id}/order`),
+    /** From DRAFT or ORDERED */
+    cancel: (id: number) => request<PurchaseOrder>('PUT', `/purchase-orders/${id}/cancel`),
+    /** ORDERED only; 409 for a cash expense on a day whose till is closed, and then nothing is received */
+    receive: (id: number, input: ReceiveOrderInput) => request<PurchaseOrder>('PUT', `/purchase-orders/${id}/receive`, input),
   },
 }
