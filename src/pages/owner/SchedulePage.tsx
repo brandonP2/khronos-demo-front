@@ -5,11 +5,12 @@ import type { KEvent, Shift } from '../../api/types'
 import { useMe } from '../../auth/AuthContext'
 import { Board } from '../../components/Board'
 import { EventDrawer, EventFormDialog } from '../../components/EventDialogs'
+import { NowCard } from '../../components/NowCard'
 import { CopyWeekDialog, ShiftBatchDialog, ShiftEditDialog, type ShiftDraft } from '../../components/ShiftDialogs'
 import { Button, Empty, ErrorNote, Loading, PageHead } from '../../components/ui'
 import { useFmt, useT } from '../../lib/i18n'
 import { useAssignments, useEvents, useShifts, useStaff, useZones } from '../../lib/queries'
-import { addDays, endsNextDay, eventDate, shiftMinutes, today, weekDays } from '../../lib/time'
+import { addDays, endsNextDay, eventDate, shiftMinutes, today, venueTimeZone, weekDays } from '../../lib/time'
 import { useVenue } from '../../lib/VenueContext'
 
 type Modal =
@@ -130,6 +131,8 @@ export default function SchedulePage() {
           {t.schedule.addShifts}
         </Button>
       </PageHead>
+
+      {venue && <NowCard venueId={venue.id} staff={staffList} timeZone={venueTimeZone(venue)} />}
 
       <div className="week">
         <Button variant="ghost" iconOnly icon={ChevronLeft} aria-label={t.common.previousWeek} onClick={() => goTo(addDays(date, -7))} />

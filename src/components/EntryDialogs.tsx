@@ -2,12 +2,13 @@
 // corrected or voided, and each of those asks for a reason that stays in the entry's history.
 import { useState } from 'react'
 import { useMutation } from '@tanstack/react-query'
-import { Ban, Moon } from 'lucide-react'
+import { Ban, LogIn, LogOut, Moon } from 'lucide-react'
 import { api } from '../api/endpoints'
 import type { TimeEntry } from '../api/types'
 import { useFmt, useT } from '../lib/i18n'
-import { useInvalidate } from '../lib/queries'
-import { addDays, minutes, minutesLabel, zonedDate, zonedInstant, zonedTime, zonedToday } from '../lib/time'
+import { useInvalidate, type StaffMember } from '../lib/queries'
+import { addDays, minutes, minutesLabel, minutesSince, nowInstant, zonedDate, zonedInstant, zonedTime, zonedToday } from '../lib/time'
+import { useNow } from '../lib/useNow'
 import { Button, Dialog, ErrorNote, Field, useToast } from './ui'
 
 export const REASON_MIN = 3
@@ -251,6 +252,178 @@ export function VoidEntryDialog({
         <p className="secondary" style={{ margin: 0 }}>
           {t.voidEntry.body}
         </p>
+        <ReasonField value={reason} onChange={setReason} touched={touched} onBlur={() => setTouched(true)} />
+        <ErrorNote error={mutation.error} />
+        <button type="submit" hidden />
+      </form>
+    </Dialog>
+  )
+}
+
+/** The owner clocks someone in at the current time, with a short reason that has a default */
+export function ClockInForDialog({
+  people,
+  timeZone,
+  onClose,
+}: {
+  /** Active people who are not in */
+  people: StaffMember[]
+  timeZone: string
+  onClose: () => void
+}) {
+  const t = useT()
+  const toast = useToast()
+  const invalidate = useInvalidate()
+  const now = useNow(10_000)
+  const [workerId, setWorkerId] = useState<number | ''>(people[0]?.userId ?? '')
+  const [reason, setReason] = useState(t.now.defaultReason)
+  const [touched, setTouched] = useState(false)
+  const name = people.find((p) => p.userId === workerId)?.name ?? ''
+
+  const mutation = useMutation({
+    mutationFn: () => api.timeEntries.create({ workerId: Number(workerId), clockIn: nowInstant(), reason: reason.trim() }),
+    onSuccess: async (created) => {
+      await invalidate.timeEntries()
+      toast(t.now.clockedIn(name, zonedTime(created.clockIn, timeZone)))
+      onClose()
+    },
+  })
+  const valid = workerId !== '' && !isReasonInvalid(reason)
+  const submit = () => {
+    setTouched(true)
+    if (valid) mutation.mutate()
+  }
+
+  return (
+    <Dialog
+      title={t.now.inTitle}
+      sub={t.now.inSub(zonedTime(now, timeZone))}
+      onClose={onClose}
+      busy={mutation.isPending}
+      footer={
+        <>
+          <Button variant="ghost" onClick={onClose}>
+            {t.common.cancel}
+          </Button>
+          <Button variant="primary" icon={LogIn} disabled={!valid} loading={mutation.isPending} onClick={submit}>
+            {t.now.clockIn}
+          </Button>
+        </>
+      }
+    >
+      <form
+        className="form"
+        onSubmit={(e) => {
+          e.preventDefault()
+          submit()
+        }}
+      >
+        <Field label={t.now.person}>
+          {(id) => (
+            <select id={id} className="select" value={workerId} onChange={(e) => setWorkerId(Number(e.target.value))}>
+              {people.map((p) => (
+                <option key={p.userId} value={p.userId}>
+                  {p.name}
+                </option>
+              ))}
+            </select>
+          )}
+        </Field>
+        <ReasonField value={reason} onChange={setReason} touched={touched} onBlur={() => setTouched(true)} />
+        <ErrorNote error={mutation.error} />
+        <button type="submit" hidden />
+      </form>
+    </Dialog>
+  )
+}
+
+/**
+ * The owner clocks someone out at the current time. The API has no clock-out on someone else's
+ * behalf, so this is a correction that sets the clock-out, and it shows as one in the history.
+ */
+export function ClockOutForDialog({
+  entry,
+  name,
+  timeZone,
+  onClose,
+}: {
+  entry: TimeEntry
+  name: string
+  timeZone: string
+  onClose: () => void
+}) {
+  const t = useT()
+  const toast = useToast()
+  const invalidate = useInvalidate()
+  const now = useNow(10_000)
+  const [breakText, setBreakText] = useState(String(entry.breakMinutes))
+  const [reason, setReason] = useState(t.now.defaultReason)
+  const [touched, setTouched] = useState(false)
+  const breakMinutes = /^\d+$/.test(breakText.trim()) ? Number(breakText.trim()) : NaN
+  const elapsed = minutesSince(entry.clockIn, now)
+  const breakInvalid = !Number.isInteger(breakMinutes) || breakMinutes > 600 || breakMinutes > elapsed
+
+  const mutation = useMutation({
+    mutationFn: () =>
+      api.timeEntries.update(entry.id, {
+        clockIn: entry.clockIn,
+        clockOut: new Date().toISOString(),
+        breakMinutes,
+        reason: reason.trim(),
+      }),
+    onSuccess: async (closed) => {
+      await invalidate.timeEntries()
+      toast(t.now.clockedOut(name, closed.clockOut ? zonedTime(closed.clockOut, timeZone) : zonedTime(Date.now(), timeZone)))
+      onClose()
+    },
+  })
+  const valid = !breakInvalid && !isReasonInvalid(reason)
+  const submit = () => {
+    setTouched(true)
+    if (valid) mutation.mutate()
+  }
+
+  return (
+    <Dialog
+      title={t.now.outTitle(name)}
+      sub={t.now.outSub(zonedTime(entry.clockIn, timeZone), zonedTime(now, timeZone))}
+      onClose={onClose}
+      busy={mutation.isPending}
+      footer={
+        <>
+          <span className="spacer muted">{!breakInvalid ? t.entryForm.worked(minutesLabel(elapsed - breakMinutes)) : ''}</span>
+          <Button variant="ghost" onClick={onClose}>
+            {t.common.cancel}
+          </Button>
+          <Button variant="primary" icon={LogOut} disabled={!valid} loading={mutation.isPending} onClick={submit}>
+            {t.now.clockOut}
+          </Button>
+        </>
+      }
+    >
+      <form
+        className="form"
+        onSubmit={(e) => {
+          e.preventDefault()
+          submit()
+        }}
+      >
+        <div className="row-2">
+          <Field label={t.entryForm.breakMinutes} error={breakInvalid ? t.entryForm.breakError : undefined}>
+            {(id) => (
+              <input
+                id={id}
+                type="number"
+                inputMode="numeric"
+                min={0}
+                max={600}
+                className="input mono"
+                value={breakText}
+                onChange={(e) => setBreakText(e.target.value)}
+              />
+            )}
+          </Field>
+        </div>
         <ReasonField value={reason} onChange={setReason} touched={touched} onBlur={() => setTouched(true)} />
         <ErrorNote error={mutation.error} />
         <button type="submit" hidden />

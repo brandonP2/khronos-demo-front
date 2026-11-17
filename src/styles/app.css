@@ -1659,6 +1659,73 @@ a {
   transform: translateX(-1px);
 }
 
+/* "Now" on the schedule: who is clocked in */
+.now-card .card-head {
+  padding-top: 12px;
+  padding-bottom: 12px;
+}
+
+.now-card .card-head h2 {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.now-count {
+  font-size: 12px;
+  font-weight: 400;
+}
+
+.now-empty {
+  margin: 0;
+  padding: 12px 20px;
+  font-size: 13px;
+}
+
+.now-list {
+  list-style: none;
+  margin: 0;
+  padding: 8px 10px;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 2px 8px;
+}
+
+.now-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  padding: 4px 6px 4px 10px;
+  border-radius: 10px;
+  transition: background-color 150ms var(--ease);
+}
+
+.now-item:hover {
+  background: var(--raised);
+}
+
+.now-item .grow {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.now-item .name {
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.now-item .sub {
+  font-family: var(--mono);
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--text-3);
+}
+
 /* A person's page */
 .back-link {
   display: inline-flex;

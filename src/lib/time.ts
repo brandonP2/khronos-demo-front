@@ -252,6 +252,14 @@ export function shiftWindow(
   }
 }
 
+/**
+ * Now as a UTC instant, cut to the minute. Used when an owner clocks someone in "now": the API
+ * refuses a clock-in in the future, so a device clock a few seconds fast must not get there.
+ */
+export function nowInstant(now: number = Date.now()): string {
+  return new Date(Math.floor(now / 60_000) * 60_000).toISOString().replace('.000Z', 'Z')
+}
+
 /** Whole minutes from an instant to another (now by default) */
 export function minutesSince(instant: string, until: number = Date.now()): number {
   return Math.max(0, Math.floor((until - Date.parse(instant)) / 60_000))
