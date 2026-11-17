@@ -3302,6 +3302,20 @@ a {
   text-align: right;
 }
 
+/* A line received with 0: it does not come in, and says so */
+.receive-out {
+  font-size: 13px;
+  color: var(--text-2);
+}
+
+.receive-line.out .receive-product .name {
+  color: var(--text-2);
+}
+
+.receive-cost-hint {
+  padding: 12px 20px 0;
+}
+
 /* Suppliers */
 .supplier-row {
   flex-wrap: wrap;

@@ -1214,6 +1214,11 @@ export const es = {
       received: 'Recibido',
       receivedError: 'Escribe 0 o más, con 3 decimales como mucho',
       zeroHint: 'Pon 0 en lo que no ha llegado.',
+      costHint:
+        'Cada línea empieza con su coste del pedido o, si no tiene, con el del producto, y puedes cambiarlo; si la dejas vacía se usa ese mismo. Lo que llega pasa a costar eso en el producto. Una línea solo queda fuera del total si tampoco el producto tiene coste.',
+      notArrived: 'No ha llegado: no entra',
+      noCost: 'Sin coste: fuera del total',
+      nothingReceived: 'Todas las líneas están a 0, así que no hay nada que recibir. Si el pedido no va a llegar, cancélalo.',
       date: 'Fecha de recepción',
       futureDate: 'No puede ser un día futuro',
       createExpense: 'Crear el gasto correspondiente',

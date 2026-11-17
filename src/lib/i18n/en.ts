@@ -1186,6 +1186,11 @@ export const en: Messages = {
       received: 'Received',
       receivedError: 'Enter 0 or more, with 3 decimals at most',
       zeroHint: 'Enter 0 for what has not arrived.',
+      costHint:
+        'Each line starts with its cost on the order or, without one, its product’s, and you can change it; left empty, that same one is used. What arrives makes it the product’s cost. A line is only left out of the total when its product has no cost either.',
+      notArrived: 'Not arrived: left out',
+      noCost: 'No cost: left out of the total',
+      nothingReceived: 'Every line is at 0, so there is nothing to receive. If the order is not coming, cancel it.',
       date: 'Received on',
       futureDate: 'Can’t be a future day',
       createExpense: 'Create the matching expense',

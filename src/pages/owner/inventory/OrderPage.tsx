@@ -498,7 +498,8 @@ function OrderEditor({
   )
 }
 
-function CancelOrderDialog({ order, onClose, onCancelled }: { order: PurchaseOrder; onClose: () => void; onCancelled?: () => void }) {
+/** Cancelling a draft or an ordered order: it stays on record as cancelled and can no longer be received */
+export function CancelOrderDialog({ order, onClose, onCancelled }: { order: PurchaseOrder; onClose: () => void; onCancelled?: () => void }) {
   const t = useT()
   const toast = useToast()
   const invalidate = useInvalidate()

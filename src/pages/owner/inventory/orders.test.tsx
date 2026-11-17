@@ -373,6 +373,8 @@ describe('receiving an order', () => {
   it('needs a total for the expense, and receives without one when it is not created', async () => {
     const noCost = { ...ordered, lines: ordered.lines.map((l) => ({ ...l, unitCost: null, lineTotal: null })), total: null }
     const calls = ordersApi((call) => {
+      // Neither the lines nor their products have a cost
+      if (call.method === 'GET' && call.path.startsWith('/products/establishment/1?')) return json(200, products.map((p) => ({ ...p, unitCost: null })))
       if (call.method === 'GET' && call.path === '/purchase-orders/12') return json(200, noCost)
       if (call.method === 'PUT' && call.path === '/purchase-orders/12/receive') return json(200, { ...noCost, status: 'RECEIVED' })
     })
@@ -396,6 +398,71 @@ describe('receiving an order', () => {
       createExpense: false,
       paymentMethod: null,
     })
+  })
+
+  it('starts a line with no cost of its own at its product’s, and adds it to the expense', async () => {
+    // The rum was ordered with no cost: it is received at the product's 11,00 € unless another is typed
+    const mixed = { ...ordered, lines: [ordered.lines[0], { ...ordered.lines[1], unitCost: null, lineTotal: null }], total: 25 }
+    const calls = ordersApi((call) => {
+      if (call.method === 'GET' && call.path === '/purchase-orders/12') return json(200, mixed)
+      if (call.method === 'PUT' && call.path === '/purchase-orders/12/receive') return json(200, { ...mixed, status: 'RECEIVED' })
+    })
+    renderApp('/inventory/orders/12/receive')
+    await screen.findByRole('heading', { name: 'Recibir el pedido #12' })
+    const rum = screen.getByLabelText('Coste por unidad de Ron Brugal') as HTMLInputElement
+    expect(rum.value).toBe('11,00')
+    expect(plain(screen.getByTestId('receive-total').textContent)).toBe('69,00 €')
+    expect(screen.getByText(/Una línea solo queda fuera del total si tampoco el producto tiene coste/)).toBeTruthy()
+    // Left empty, the same cost still applies, as the API picks it
+    fireEvent.change(rum, { target: { value: '' } })
+    expect(rum.getAttribute('placeholder')).toBe('11,00')
+    expect(plain(screen.getByTestId('receive-total').textContent)).toBe('69,00 €')
+    fireEvent.change(screen.getByLabelText('Medio de pago'), { target: { value: 'CARD' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Recibir pedido' }))
+    await waitFor(() => expect(calls.some((c) => c.method === 'PUT')).toBe(true))
+    expect((calls.find((c) => c.method === 'PUT')!.body as { lines: unknown[] }).lines).toEqual([
+      { lineId: 101, receivedQuantity: 2, unitCost: 12.5 },
+      { lineId: 102, receivedQuantity: 4, unitCost: null },
+    ])
+  })
+
+  it('leaves a line received with 0 out, and sends it with no cost', async () => {
+    const calls = ordersApi((call) =>
+      call.method === 'PUT' && call.path === '/purchase-orders/12/receive' ? json(200, { ...ordered, status: 'RECEIVED' }) : undefined,
+    )
+    renderApp('/inventory/orders/12/receive')
+    await screen.findByRole('heading', { name: 'Recibir el pedido #12' })
+    fireEvent.change(screen.getByLabelText('Recibido de Ron Brugal'), { target: { value: '0' } })
+    const rum = screen.getByLabelText('Coste por unidad de Ron Brugal') as HTMLInputElement
+    expect(rum.disabled).toBe(true)
+    expect(plain(rum.closest('li')!.querySelector('.receive-total')!.textContent)).toBe('No ha llegado: no entra')
+    expect(plain(screen.getByTestId('receive-total').textContent)).toBe('25,00 €')
+    fireEvent.change(screen.getByLabelText('Medio de pago'), { target: { value: 'CARD' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Recibir pedido' }))
+    await waitFor(() => expect(calls.some((c) => c.method === 'PUT')).toBe(true))
+    expect((calls.find((c) => c.method === 'PUT')!.body as { lines: unknown[] }).lines).toEqual([
+      { lineId: 101, receivedQuantity: 2, unitCost: 12.5 },
+      { lineId: 102, receivedQuantity: 0, unitCost: null },
+    ])
+  })
+
+  it('says there is nothing to receive when every line is at 0, and offers to cancel the order', async () => {
+    const calls = ordersApi((call) =>
+      call.method === 'PUT' && call.path === '/purchase-orders/12/cancel' ? json(200, { ...ordered, status: 'CANCELLED' }) : undefined,
+    )
+    renderApp('/inventory/orders/12/receive')
+    await screen.findByRole('heading', { name: 'Recibir el pedido #12' })
+    fireEvent.change(screen.getByLabelText('Recibido de Ginebra Puerto'), { target: { value: '0' } })
+    fireEvent.change(screen.getByLabelText('Recibido de Ron Brugal'), { target: { value: '0' } })
+    fireEvent.click(screen.getByLabelText('Crear el gasto correspondiente'))
+    fireEvent.click(screen.getByRole('button', { name: 'Recibir pedido' }))
+    expect(screen.getByText('Todas las líneas están a 0, así que no hay nada que recibir. Si el pedido no va a llegar, cancélalo.')).toBeTruthy()
+    expect(calls.some((c) => c.method === 'PUT')).toBe(false)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Cancelar pedido' }))
+    fireEvent.click(within(screen.getByRole('dialog', { name: 'Cancelar el pedido #12' })).getByRole('button', { name: 'Cancelar pedido' }))
+    expect(await screen.findByText('Pedido cancelado')).toBeTruthy()
+    expect(calls.filter((c) => c.method === 'PUT').map((c) => c.path)).toEqual(['/purchase-orders/12/cancel'])
   })
 
   it('does not receive an order that is not marked as ordered', async () => {

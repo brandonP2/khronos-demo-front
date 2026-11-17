@@ -1,12 +1,14 @@
-// Receiving an ordered order: what arrived and at what cost, line by line (the ordered figures to
-// start with), the day, and whether to create the matching expense and how it was paid. The API
-// does it all at once: the stock goes up, each product's cost is updated and the expense is
-// created. A cash expense on a day whose till is closed is refused (409) and nothing is
-// received; the screen says so and links to that day's till, as Expenses does.
+// Receiving an ordered order: what arrived and at what cost, line by line (the ordered quantities
+// to start with, and each line's cost, else its product's), the day, and whether to create the
+// matching expense and how it was paid. The API does it all at once: the stock goes up for each line
+// that arrived, its cost becomes the product's and the expense of the total is created. A line
+// received with 0 is left out of all of it. A cash expense on a day whose till is closed is refused
+// (409) and nothing is received; the screen says so and links to that day's till, as Expenses does.
+// When nothing arrived at all there is nothing to receive: the screen offers to cancel the order.
 import { useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { ArrowLeft, PackageCheck, Truck } from 'lucide-react'
+import { ArrowLeft, Ban, PackageCheck, Truck } from 'lucide-react'
 import { ApiError, isConflict } from '../../../api/client'
 import { api } from '../../../api/endpoints'
 import type { PaymentMethod, PurchaseOrder, ReceiveOrderInput } from '../../../api/types'
@@ -17,10 +19,11 @@ import { Button, Empty, ErrorNote, Field, Loading, PageHead, useToast } from '..
 import { closedCashDay } from '../../../lib/apiMessages'
 import { useFmt, useT } from '../../../lib/i18n'
 import { isBlank, parseAmount, toCents } from '../../../lib/money'
-import { keys, useInvalidate, usePurchaseOrder } from '../../../lib/queries'
-import { orderTotal, parseQuantity, quantityValue, useQuantityText } from '../../../lib/stock'
+import { keys, useInvalidate, useProducts, usePurchaseOrder } from '../../../lib/queries'
+import { orderTotal, parseQuantity, quantityValue, toMilli, useQuantityText } from '../../../lib/stock'
 import { venueTimeZone, zonedToday } from '../../../lib/time'
 import { useVenue } from '../../../lib/VenueContext'
+import { CancelOrderDialog } from './OrderPage'
 
 export default function ReceivePage() {
   const t = useT()
@@ -29,6 +32,8 @@ export default function ReceivePage() {
   const asked = Number(params.orderId)
   const orderId = Number.isInteger(asked) && asked > 0 ? asked : null
   const order = usePurchaseOrder(orderId)
+  // A line with no cost of its own is received at its product's
+  const products = useProducts(venue?.id)
   const o = t.inventory.order
 
   const back = (
@@ -49,7 +54,7 @@ export default function ReceivePage() {
         <div className="card">
           <Empty icon={Truck} title={o.notFound} />
         </div>
-      ) : !venue || order.isLoading ? (
+      ) : !venue || order.isLoading || products.isLoading ? (
         <Loading rows={5} />
       ) : order.error ? (
         <ErrorNote error={order.error} />
@@ -61,13 +66,28 @@ export default function ReceivePage() {
           </div>
         </>
       ) : (
-        order.data && <ReceiveForm order={order.data} today={zonedToday(venueTimeZone(venue))} />
+        order.data && (
+          <ReceiveForm
+            order={order.data}
+            productCosts={new Map((products.data ?? []).map((p) => [p.id, p.unitCost]))}
+            today={zonedToday(venueTimeZone(venue))}
+          />
+        )
       )}
     </div>
   )
 }
 
-function ReceiveForm({ order, today }: { order: PurchaseOrder; today: string }) {
+function ReceiveForm({
+  order,
+  productCosts,
+  today,
+}: {
+  order: PurchaseOrder
+  /** Each active product's cost per unit now */
+  productCosts: Map<number, number | null>
+  today: string
+}) {
   const t = useT()
   const fmt = useFmt()
   const q = useQuantityText()
@@ -76,33 +96,48 @@ function ReceiveForm({ order, today }: { order: PurchaseOrder; today: string }) 
   const qc = useQueryClient()
   const invalidate = useInvalidate()
   const rc = t.inventory.receive
+  // The cost a line is received at when its field is left empty, as the API picks it: the line's, else the product's
+  const fallbackCost = order.lines.map((l) => l.unitCost ?? productCosts.get(l.productId) ?? null)
   const [rows, setRows] = useState(() =>
-    order.lines.map((l) => ({
+    order.lines.map((l, i) => ({
       lineId: l.id,
       receivedText: fmt.quantityInput(l.quantity),
-      costText: l.unitCost === null ? '' : fmt.amount(l.unitCost),
+      costText: fallbackCost[i] === null ? '' : fmt.amount(fallbackCost[i]),
     })),
   )
   const [date, setDate] = useState(today)
   const [createExpense, setCreateExpense] = useState(true)
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('TRANSFER')
   const [submitted, setSubmitted] = useState(false)
+  const [cancelling, setCancelling] = useState(false)
 
-  const parsed = rows.map((r) => ({
-    quantity: parseQuantity(r.receivedText),
-    unitCost: isBlank(r.costText) ? null : parseAmount(r.costText),
-    costInvalid: !isBlank(r.costText) && parseAmount(r.costText) === null,
-  }))
-  const { total } = orderTotal(parsed.map((p) => ({ ...p, hasProduct: true })))
+  const parsed = rows.map((r, i) => {
+    const quantity = parseQuantity(r.receivedText)
+    const typed = isBlank(r.costText) ? null : parseAmount(r.costText)
+    return {
+      quantity,
+      /** Received with 0: it does not come in, and its cost is neither sent nor checked */
+      out: quantity !== null && toMilli(quantity) === 0,
+      typed,
+      unitCost: typed ?? fallbackCost[i],
+      costInvalid: !isBlank(r.costText) && typed === null,
+    }
+  })
+  const { total } = orderTotal(parsed.map((p) => ({ hasProduct: true, quantity: p.quantity, unitCost: p.unitCost })))
+  const nothing = parsed.every((p) => p.out)
   const errors = {
     date: !date || date > today ? rc.futureDate : undefined,
     expense: createExpense && (total === null || toCents(total) <= 0) ? rc.expenseNeedsTotal : undefined,
   }
-  const valid = !errors.date && !errors.expense && parsed.every((p) => p.quantity !== null && !p.costInvalid)
+  const valid = !nothing && !errors.date && !errors.expense && parsed.every((p) => p.quantity !== null && (p.out || !p.costInvalid))
 
   const input: ReceiveOrderInput = {
     receivedDate: date,
-    lines: rows.map((r, i) => ({ lineId: r.lineId, receivedQuantity: parsed[i].quantity ?? 0, unitCost: parsed[i].unitCost })),
+    lines: rows.map((r, i) => ({
+      lineId: r.lineId,
+      receivedQuantity: parsed[i].quantity ?? 0,
+      unitCost: parsed[i].out ? null : parsed[i].typed,
+    })),
     createExpense,
     paymentMethod: createExpense ? paymentMethod : null,
   }
@@ -149,10 +184,11 @@ function ReceiveForm({ order, today }: { order: PurchaseOrder; today: string }) 
         <ul className="list receive-lines">
           {order.lines.map((line, i) => {
             const row = rows[i]
-            const quantity = parsed[i].quantity
-            const value = quantity === null ? null : quantityValue(quantity, parsed[i].unitCost)
+            const { quantity, out } = parsed[i]
+            const value = quantity === null || out ? null : quantityValue(quantity, parsed[i].unitCost)
+            const costShown = submitted && !out && parsed[i].costInvalid
             return (
-              <li key={line.id} className="list-row receive-line">
+              <li key={line.id} className={out ? 'list-row receive-line out' : 'list-row receive-line'}>
                 <div className="receive-product">
                   <span className="name">{line.productName}</span>
                   <span className="muted cell-sub">{rc.ordered(q.quantity(line.quantity, line.unit))}</span>
@@ -170,18 +206,22 @@ function ReceiveForm({ order, today }: { order: PurchaseOrder; today: string }) 
                 <div className="receive-field">
                   <AmountInput
                     value={row.costText}
-                    placeholder="—"
+                    placeholder={fallbackCost[i] === null ? '—' : fmt.amount(fallbackCost[i])}
                     aria-label={rc.costOf(line.productName)}
-                    aria-invalid={(submitted && parsed[i].costInvalid) || undefined}
+                    aria-invalid={costShown || undefined}
+                    disabled={out}
                     onChange={(text) => update(line.id, { costText: text })}
                   />
-                  {submitted && parsed[i].costInvalid && <span className="error">{t.inventory.order.costError}</span>}
+                  {costShown && <span className="error">{t.inventory.order.costError}</span>}
                 </div>
-                <span className="mono receive-total">{value === null ? '—' : fmt.money(value)}</span>
+                <span className={out ? 'receive-total receive-out' : 'mono receive-total'}>
+                  {out ? rc.notArrived : value === null ? rc.noCost : fmt.money(value)}
+                </span>
               </li>
             )
           })}
         </ul>
+        <p className="muted inventory-hint receive-cost-hint">{rc.costHint}</p>
         <div className="order-total" aria-live="polite">
           <span>{rc.total}</span>
           <span className="figure mono" data-testid="receive-total">
@@ -226,6 +266,14 @@ function ReceiveForm({ order, today }: { order: PurchaseOrder; today: string }) 
         </div>
       </section>
 
+      {submitted && nothing && (
+        <div className="notice" role="alert">
+          <span className="grow">{rc.nothingReceived}</span>
+          <Button size="sm" icon={Ban} onClick={() => setCancelling(true)}>
+            {t.inventory.order.cancel}
+          </Button>
+        </div>
+      )}
       {closedDay ? <DayClosedNote day={closedDay} message={rc.cashClosed(fmt.long(closedDay))} /> : <ErrorNote error={mutation.error} />}
       <div className="actions order-actions">
         <span className="spacer" />
@@ -233,6 +281,13 @@ function ReceiveForm({ order, today }: { order: PurchaseOrder; today: string }) 
           {rc.submit}
         </Button>
       </div>
+      {cancelling && (
+        <CancelOrderDialog
+          order={order}
+          onClose={() => setCancelling(false)}
+          onCancelled={() => navigate(`/inventory/orders/${order.id}`, { replace: true })}
+        />
+      )}
     </form>
   )
 }
