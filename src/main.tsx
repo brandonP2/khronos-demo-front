@@ -8,6 +8,7 @@ import './styles/app.css'
 import { ApiError } from './api/client'
 import { AuthProvider } from './auth/AuthContext'
 import { ToastProvider } from './components/ui'
+import { LocaleProvider } from './lib/i18n'
 import App from './App'
 
 const queryClient = new QueryClient({
@@ -25,11 +26,13 @@ createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
-        <AuthProvider>
-          <ToastProvider>
-            <App />
-          </ToastProvider>
-        </AuthProvider>
+        <LocaleProvider>
+          <AuthProvider>
+            <ToastProvider>
+              <App />
+            </ToastProvider>
+          </AuthProvider>
+        </LocaleProvider>
       </BrowserRouter>
     </QueryClientProvider>
   </StrictMode>,

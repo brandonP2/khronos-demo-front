@@ -3,6 +3,7 @@ import { Building2 } from 'lucide-react'
 import { useAuth, useMe } from './auth/AuthContext'
 import { Layout, VenuePicker } from './components/Layout'
 import { Empty, ErrorNote, Loading } from './components/ui'
+import { useT } from './lib/i18n'
 import { VenueProvider, useVenue } from './lib/VenueContext'
 import Login from './pages/Login'
 import Account from './pages/Account'
@@ -59,12 +60,12 @@ function OwnerApp() {
 }
 
 function NoVenue() {
+  const t = useT()
   return (
     <div className="page">
       <div className="card">
-        <Empty icon={Building2} title="No venue linked to your account yet">
-          Venues are set up by the Khronos team during onboarding. Once yours is added, its zones, team and schedule
-          will show up here.
+        <Empty icon={Building2} title={t.noVenue.title}>
+          {t.noVenue.body}
         </Empty>
       </div>
     </div>

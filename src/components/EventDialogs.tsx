@@ -4,9 +4,10 @@ import { Pencil, Plus, Trash2, X } from 'lucide-react'
 import { ApiError } from '../api/client'
 import { api } from '../api/endpoints'
 import type { Assignment, EventInput, KEvent, Shift, Zone } from '../api/types'
+import { useFmt, useT } from '../lib/i18n'
 import { useInvalidate, type StaffMember } from '../lib/queries'
-import { eventDate, eventTime, fmt, hhmm, minutes, shiftCovers, toDateTime, today } from '../lib/time'
-import { Avatar, Button, ConfirmDialog, Dialog, Drawer, ErrorNote, Field, pluralize, useToast } from './ui'
+import { eventDate, eventTime, hhmm, minutes, shiftCovers, toDateTime, today } from '../lib/time'
+import { Avatar, Button, ConfirmDialog, Dialog, Drawer, ErrorNote, Field, useToast } from './ui'
 import type { ShiftDraft } from './ShiftDialogs'
 
 /**
@@ -33,6 +34,8 @@ export function EventDrawer({
   onEdit: () => void
   onAddShift: (draft: ShiftDraft) => void
 }) {
+  const t = useT()
+  const fmt = useFmt()
   const invalidate = useInvalidate()
   const toast = useToast()
   const [confirmDelete, setConfirmDelete] = useState(false)
@@ -49,7 +52,7 @@ export function EventDrawer({
       api.assignments.create(workerIds.map((workerId) => ({ workerId, eventId: event.id }))),
     onSuccess: async (created) => {
       await invalidate.schedule()
-      toast(created.length === 1 ? 'Assigned' : `${created.length} people assigned`)
+      toast(t.eventDrawer.assigned(created.length))
     },
   })
 
@@ -61,48 +64,46 @@ export function EventDrawer({
   if (confirmDelete) {
     return (
       <ConfirmDialog
-        title={`Delete ${event.title}`}
-        confirmLabel="Delete event"
+        title={t.eventDrawer.deleteTitle(event.title)}
+        confirmLabel={t.eventDrawer.deleteConfirm}
         onClose={() => setConfirmDelete(false)}
         onConfirm={async () => {
           await api.events.remove(event.id)
           await invalidate.schedule()
-          toast('Event deleted')
+          toast(t.eventDrawer.deleted)
           onClose()
         }}
       >
-        {assignments.length > 0
-          ? `${pluralize(assignments.length, 'person', 'people')} on this event will be told it is no longer theirs.`
-          : 'Nobody is assigned yet, so no one is notified.'}
+        {t.eventDrawer.deleteBody(assignments.length)}
       </ConfirmDialog>
     )
   }
 
-  const t = eventTime(event.dateTime)
-  const suggestedEnd = `${String(Math.min(23, Math.floor(minutes(t) / 60) + 4)).padStart(2, '0')}:${t.slice(3)}`
+  const time = eventTime(event.dateTime)
+  const suggestedEnd = `${String(Math.min(23, Math.floor(minutes(time) / 60) + 4)).padStart(2, '0')}:${time.slice(3)}`
 
   return (
     <Drawer
       title={event.title}
-      sub={`${fmt.relative(eventDate(event.dateTime))} · ${t} · ${event.zoneName}`}
+      sub={`${fmt.relative(eventDate(event.dateTime))} · ${time} · ${event.zoneName}`}
       onClose={onClose}
       footer={
         <>
           <Button variant="danger" icon={Trash2} className="spacer" onClick={() => setConfirmDelete(true)}>
-            Delete
+            {t.eventDrawer.delete}
           </Button>
           <Button icon={Pencil} onClick={onEdit}>
-            Edit event
+            {t.eventDrawer.edit}
           </Button>
         </>
       }
     >
       <dl className="kv">
-        <dt>Guests</dt>
+        <dt>{t.eventDrawer.guests}</dt>
         <dd className="num">{event.peopleNumber}</dd>
         {event.description && (
           <>
-            <dt>Notes</dt>
+            <dt>{t.eventDrawer.notes}</dt>
             <dd>{event.description}</dd>
           </>
         )}
@@ -110,11 +111,11 @@ export function EventDrawer({
 
       <section>
         <div className="group-label">
-          On this event <span className="mono">{assignments.length}</span>
+          {t.eventDrawer.onEvent} <span className="mono">{assignments.length}</span>
         </div>
         {isLoading ? null : assigned.length === 0 ? (
           <p className="unstaffed" style={{ margin: 0 }}>
-            Nobody yet
+            {t.eventDrawer.nobodyYet}
           </p>
         ) : (
           assigned.map(({ a, person }) => {
@@ -123,12 +124,8 @@ export function EventDrawer({
               <div key={a.id} className="pick-row">
                 <Avatar size="sm" initials={person?.initials ?? '?'} />
                 <span className="grow">
-                  {person?.name ?? `Worker ${a.workerId}`}
-                  {s && (
-                    <span className="sub">
-                      Shift {hhmm(s.startTime)}–{hhmm(s.endTime)}
-                    </span>
-                  )}
+                  {person?.name ?? t.common.unknownPerson(a.workerId)}
+                  {s && <span className="sub">{t.eventDrawer.shift(hhmm(s.startTime), hhmm(s.endTime))}</span>}
                 </span>
                 <Button
                   size="sm"
@@ -137,7 +134,7 @@ export function EventDrawer({
                   loading={unassign.isPending && unassign.variables === a.id}
                   onClick={() => unassign.mutate(a.id)}
                 >
-                  Take off
+                  {t.eventDrawer.takeOff}
                 </Button>
               </div>
             )
@@ -147,16 +144,16 @@ export function EventDrawer({
 
       <section>
         <div className="group-label">
-          <span>On shift at {t}</span>
+          <span>{t.eventDrawer.onShiftAt(time)}</span>
           {available.length > 1 && (
             <Button size="sm" variant="ghost" onClick={() => assign.mutate(available.map((s) => s.userId))} disabled={assign.isPending}>
-              Assign all {available.length}
+              {t.eventDrawer.assignAll(available.length)}
             </Button>
           )}
         </div>
         {available.length === 0 ? (
           <p className="muted" style={{ margin: 0 }}>
-            Nobody else has a shift in {event.zoneName} at {t}
+            {t.eventDrawer.nobodyElse(event.zoneName, time)}
           </p>
         ) : (
           available.map((s) => {
@@ -166,9 +163,7 @@ export function EventDrawer({
                 <Avatar size="sm" initials={s.initials} />
                 <span className="grow">
                   {s.name}
-                  <span className="sub">
-                    Shift {hhmm(shift.startTime)}–{hhmm(shift.endTime)}
-                  </span>
+                  <span className="sub">{t.eventDrawer.shift(hhmm(shift.startTime), hhmm(shift.endTime))}</span>
                 </span>
                 <Button
                   size="sm"
@@ -176,7 +171,7 @@ export function EventDrawer({
                   loading={assign.isPending && assign.variables?.length === 1 && assign.variables[0] === s.userId}
                   onClick={() => assign.mutate([s.userId])}
                 >
-                  Assign
+                  {t.eventDrawer.assign}
                 </Button>
               </div>
             )
@@ -188,7 +183,7 @@ export function EventDrawer({
       {notOnShift.length > 0 && !isPast && (
         <section>
           <div className="group-label">
-            <span>Not on shift</span>
+            <span>{t.eventDrawer.notOnShift}</span>
             <span className="mono">{notOnShift.length}</span>
           </div>
           {notOnShift.map((s) => (
@@ -203,12 +198,12 @@ export function EventDrawer({
                     workerIds: [s.userId],
                     zoneId: event.zoneId,
                     dates: [eventDate(event.dateTime)],
-                    startTime: t,
+                    startTime: time,
                     endTime: suggestedEnd,
                   })
                 }
               >
-                Add a shift
+                {t.eventDrawer.addShift}
               </Button>
             </div>
           ))}
@@ -243,6 +238,7 @@ export function EventFormDialog({
   defaultDate: string
   onClose: () => void
 }) {
+  const t = useT()
   const invalidate = useInvalidate()
   const toast = useToast()
   const [rows, setRows] = useState<EventRow[]>(() =>
@@ -275,7 +271,7 @@ export function EventFormDialog({
     },
     onSuccess: async (saved) => {
       await invalidate.schedule()
-      toast(event ? 'Event updated' : `${pluralize(saved.length, 'event')} added`)
+      toast(event ? t.eventForm.updated : t.eventForm.added(saved.length))
       onClose()
     },
   })
@@ -293,12 +289,8 @@ export function EventFormDialog({
 
   return (
     <Dialog
-      title={event ? 'Edit event' : 'New events'}
-      sub={
-        event
-          ? 'People on it are emailed the change. Anyone whose shift no longer covers the new time is taken off.'
-          : 'Add one or several. They are saved together, so if one has a problem none are saved.'
-      }
+      title={event ? t.eventForm.editTitle : t.eventForm.newTitle}
+      sub={event ? t.eventForm.editSub : t.eventForm.newSub}
       onClose={onClose}
       wide
       footer={
@@ -313,14 +305,14 @@ export function EventFormDialog({
                 setRows((rs) => [...rs, { ...emptyRow(last.date, last.zoneId), time: last.time }])
               }}
             >
-              Another event
+              {t.eventForm.another}
             </Button>
           )}
           <Button variant="ghost" onClick={onClose}>
-            Cancel
+            {t.common.cancel}
           </Button>
           <Button variant="primary" disabled={!valid} loading={mutation.isPending} onClick={() => mutation.mutate()}>
-            {event ? 'Save' : rows.length > 1 ? `Add ${rows.length} events` : 'Add event'}
+            {event ? t.common.save : t.eventForm.submit(rows.length)}
           </Button>
         </>
       }
@@ -331,19 +323,19 @@ export function EventFormDialog({
         ) : (
           <div className="batch-rows">
             <div className="batch-head">
-              <span>Title</span>
-              <span>Date</span>
-              <span>Time</span>
-              <span>Zone</span>
-              <span>Guests</span>
+              <span>{t.eventForm.title}</span>
+              <span>{t.eventForm.date}</span>
+              <span>{t.eventForm.time}</span>
+              <span>{t.eventForm.zone}</span>
+              <span>{t.eventForm.guests}</span>
               <span />
             </div>
             {rows.map((r, i) => (
               <div key={i} className={i === failedIndex ? 'batch-row failed' : 'batch-row'}>
                 <input
                   className="input"
-                  placeholder="Title"
-                  aria-label="Title"
+                  placeholder={t.eventForm.title}
+                  aria-label={t.eventForm.title}
                   value={r.title}
                   onChange={(e) => set(i, { title: e.target.value })}
                   aria-invalid={!!fieldError(i, 'title')}
@@ -351,20 +343,20 @@ export function EventFormDialog({
                 <input
                   className="input mono"
                   type="date"
-                  aria-label="Date"
+                  aria-label={t.eventForm.date}
                   value={r.date}
                   onChange={(e) => set(i, { date: e.target.value })}
                 />
                 <input
                   className="input mono"
                   type="time"
-                  aria-label="Time"
+                  aria-label={t.eventForm.time}
                   value={r.time}
                   onChange={(e) => set(i, { time: e.target.value })}
                 />
                 <select
                   className="select"
-                  aria-label="Zone"
+                  aria-label={t.eventForm.zone}
                   value={r.zoneId}
                   onChange={(e) => set(i, { zoneId: Number(e.target.value) })}
                 >
@@ -378,7 +370,7 @@ export function EventFormDialog({
                   className="input mono"
                   type="number"
                   min={1}
-                  aria-label="Guests"
+                  aria-label={t.eventForm.guests}
                   placeholder="0"
                   value={r.peopleNumber}
                   onChange={(e) => set(i, { peopleNumber: e.target.value })}
@@ -388,7 +380,7 @@ export function EventFormDialog({
                   variant="ghost"
                   iconOnly
                   icon={X}
-                  aria-label="Remove row"
+                  aria-label={t.eventForm.removeRow}
                   onClick={() => setRows((rs) => rs.filter((_, j) => j !== i))}
                   style={{ marginTop: 3 }}
                 />
@@ -413,14 +405,15 @@ function SingleEventFields({
   onChange: (patch: Partial<EventRow>) => void
   error: (field: string) => string | undefined
 }) {
+  const t = useT()
   return (
     <>
-      <Field label="Title" error={error('title')}>
+      <Field label={t.eventForm.title} error={error('title')}>
         {(id) => (
           <input
             id={id}
             className="input"
-            placeholder="Wedding dinner"
+            placeholder={t.eventForm.titlePlaceholder}
             value={row.title}
             maxLength={100}
             onChange={(e) => onChange({ title: e.target.value })}
@@ -428,15 +421,15 @@ function SingleEventFields({
         )}
       </Field>
       <div className="row-2">
-        <Field label="Date" error={error('dateTime')}>
+        <Field label={t.eventForm.date} error={error('dateTime')}>
           {(id) => <input id={id} type="date" className="input mono" value={row.date} onChange={(e) => onChange({ date: e.target.value })} />}
         </Field>
-        <Field label="Starts" hint="Staff need a shift running at this time">
+        <Field label={t.eventForm.starts} hint={t.eventForm.startsHint}>
           {(id) => <input id={id} type="time" className="input mono" value={row.time} onChange={(e) => onChange({ time: e.target.value })} />}
         </Field>
       </div>
       <div className="row-2">
-        <Field label="Zone">
+        <Field label={t.eventForm.zone}>
           {(id) => (
             <select id={id} className="select" value={row.zoneId} onChange={(e) => onChange({ zoneId: Number(e.target.value) })}>
               {zones.map((z) => (
@@ -447,7 +440,7 @@ function SingleEventFields({
             </select>
           )}
         </Field>
-        <Field label="Guests" error={error('peopleNumber')}>
+        <Field label={t.eventForm.guests} error={error('peopleNumber')}>
           {(id) => (
             <input
               id={id}
@@ -461,13 +454,13 @@ function SingleEventFields({
           )}
         </Field>
       </div>
-      <Field label="Notes" hint="Optional, up to 500 characters" error={error('description')}>
+      <Field label={t.eventForm.notes} hint={t.eventForm.notesHint} error={error('description')}>
         {(id) => (
           <textarea
             id={id}
             className="textarea"
             maxLength={500}
-            placeholder="Set menu, 2 vegetarian tables"
+            placeholder={t.eventForm.notesPlaceholder}
             value={row.description}
             onChange={(e) => onChange({ description: e.target.value })}
           />

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { addDays, durationLabel, hhmm, minutes, shiftCovers, toDateTime, weekDays, weekStart } from './time'
+import { addDays, durationLabel, hhmm, makeFmt, minutes, shiftCovers, toDateTime, today, weekDays, weekStart } from './time'
 
 describe('dates', () => {
   it('starts the week on Monday', () => {
@@ -58,5 +58,40 @@ describe('shiftCovers', () => {
     expect(shiftCovers(shift, at('2026-11-17T15:59:00'))).toBe(false)
     expect(shiftCovers(shift, at('2026-11-17T18:00:00', 2))).toBe(false)
     expect(shiftCovers(shift, at('2026-11-18T18:00:00'))).toBe(false)
+  })
+})
+
+describe('makeFmt', () => {
+  const es = makeFmt('es-ES', { today: 'Hoy', tomorrow: 'Mañana', yesterday: 'Ayer' })
+  const en = makeFmt('en-GB', { today: 'Today', tomorrow: 'Tomorrow', yesterday: 'Yesterday' })
+
+  it('formats dates in Spanish with capitals where a line starts', () => {
+    expect(es.long('2026-11-16')).toBe('Lunes, 16 de noviembre')
+    expect(es.weekday('2026-11-16')).toBe('Lun')
+    expect(es.weekdayLong('2026-11-21')).toBe('sábado')
+    expect(es.month('2026-11-16')).toBe('Noviembre de 2026')
+    expect(es.week('2026-11-18')).toBe('16 nov – 22 nov')
+  })
+
+  it('keeps the English formats', () => {
+    expect(en.long('2026-11-16')).toBe('Monday 16 November')
+    expect(en.weekday('2026-11-16')).toBe('Mon')
+    expect(en.week('2026-11-18')).toBe('16 Nov – 22 Nov')
+  })
+
+  it('uses a 24-hour clock and local decimals', () => {
+    const evening = new Date(2026, 10, 16, 21, 5).getTime()
+    expect(es.time(evening)).toBe('21:05')
+    expect(en.time(evening)).toBe('21:05')
+    expect(es.number(7.5)).toBe('7,5')
+    expect(en.number(7.5)).toBe('7.5')
+    expect(es.number(8)).toBe('8')
+  })
+
+  it('names the days around today', () => {
+    expect(es.relative(today())).toBe('Hoy')
+    expect(es.relative(addDays(today(), 1))).toBe('Mañana')
+    expect(en.relative(addDays(today(), -1))).toBe('Yesterday')
+    expect(es.agenda(addDays(today(), 1)).title).toBe('Mañana')
   })
 })

@@ -5,8 +5,9 @@ import { ApiError } from '../api/client'
 import { api } from '../api/endpoints'
 import type { Shift, ShiftInput, Zone } from '../api/types'
 import { useInvalidate, type StaffMember } from '../lib/queries'
-import { addDays, durationLabel, fmt, hhmm, minutes, today, weekDays } from '../lib/time'
-import { Avatar, Button, ConfirmDialog, Dialog, ErrorNote, Field, pluralize, useToast } from './ui'
+import { useFmt, useT } from '../lib/i18n'
+import { addDays, durationLabel, hhmm, minutes, today, weekDays } from '../lib/time'
+import { Avatar, Button, ConfirmDialog, Dialog, ErrorNote, Field, useToast } from './ui'
 
 export interface ShiftDraft {
   workerIds?: number[]
@@ -33,6 +34,8 @@ export function ShiftBatchDialog({
   draft?: ShiftDraft
   onClose: () => void
 }) {
+  const t = useT()
+  const fmt = useFmt()
   const invalidate = useInvalidate()
   const toast = useToast()
   const active = staff.filter((s) => s.isActive)
@@ -44,7 +47,8 @@ export function ShiftBatchDialog({
   const [endTime, setEndTime] = useState(draft?.endTime ?? '17:00')
   const [failedIndex, setFailedIndex] = useState<number | null>(null)
 
-  const timeError = startTime && endTime && minutes(endTime) <= minutes(startTime) ? 'Ends before it starts' : undefined
+  const timeError =
+    startTime && endTime && minutes(endTime) <= minutes(startTime) ? t.shiftBatch.endsBeforeStart : undefined
 
   const batch: ShiftInput[] = useMemo(() => {
     if (!zoneId) return []
@@ -59,7 +63,7 @@ export function ShiftBatchDialog({
     onMutate: () => setFailedIndex(null),
     onSuccess: async (created) => {
       await invalidate.schedule()
-      toast(`${pluralize(created.length, 'shift')} added`)
+      toast(t.shiftBatch.added(created.length))
       onClose()
     },
     onError: (e) => setFailedIndex(e instanceof ApiError ? e.batchIndex : null),
@@ -68,35 +72,35 @@ export function ShiftBatchDialog({
   const toggle = <T,>(list: T[], value: T) =>
     list.includes(value) ? list.filter((v) => v !== value) : [...list, value]
 
-  const nameOf = (id: number) => staff.find((s) => s.userId === id)?.name ?? `Worker ${id}`
+  const nameOf = (id: number) => staff.find((s) => s.userId === id)?.name ?? t.common.unknownPerson(id)
   const zoneName = zones.find((z) => z.id === zoneId)?.name
   const canSave = batch.length > 0 && !timeError
 
   return (
     <Dialog
-      title="Add shifts"
-      sub="Pick the people and the days. One shift is made for each person on each day."
+      title={t.shiftBatch.title}
+      sub={t.shiftBatch.sub}
       onClose={onClose}
       wide
       footer={
         <>
           <span className="spacer muted">
-            {batch.length > 0 ? `${pluralize(batch.length, 'shift')} · ${durationLabel(startTime, endTime)} each` : ''}
+            {batch.length > 0 ? t.shiftBatch.summary(batch.length, durationLabel(startTime, endTime)) : ''}
           </span>
           <Button variant="ghost" onClick={onClose}>
-            Cancel
+            {t.common.cancel}
           </Button>
           <Button variant="primary" disabled={!canSave} loading={mutation.isPending} onClick={() => mutation.mutate()}>
-            {batch.length > 1 ? `Add ${batch.length} shifts` : 'Add shift'}
+            {t.shiftBatch.submit(batch.length)}
           </Button>
         </>
       }
     >
       <div className="form">
         <div className="field">
-          <span className="label">People</span>
+          <span className="label">{t.shiftBatch.people}</span>
           {active.length === 0 ? (
-            <span className="hint">Nobody active on the team yet. Add people from the Team page first.</span>
+            <span className="hint">{t.shiftBatch.nobodyActive}</span>
           ) : (
             <div className="chips">
               {active.map((s) => (
@@ -116,13 +120,13 @@ export function ShiftBatchDialog({
 
         <div className="field">
           <div className="label" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <span>Days</span>
+            <span>{t.shiftBatch.days}</span>
             <span className="actions">
-              <Button size="sm" variant="ghost" iconOnly icon={ChevronLeft} onClick={() => setWeek(addDays(week, -7))} aria-label="Previous week" />
+              <Button size="sm" variant="ghost" iconOnly icon={ChevronLeft} onClick={() => setWeek(addDays(week, -7))} aria-label={t.common.previousWeek} />
               <span className="mono muted" style={{ fontSize: 12 }}>
                 {fmt.week(week)}
               </span>
-              <Button size="sm" variant="ghost" iconOnly icon={ChevronRight} onClick={() => setWeek(addDays(week, 7))} aria-label="Next week" />
+              <Button size="sm" variant="ghost" iconOnly icon={ChevronRight} onClick={() => setWeek(addDays(week, 7))} aria-label={t.common.nextWeek} />
             </span>
           </div>
           <div className="chips">
@@ -140,18 +144,19 @@ export function ShiftBatchDialog({
           </div>
           {dates.some((d) => !weekDays(week).includes(d)) && (
             <span className="hint">
-              Also selected:{' '}
-              {dates
-                .filter((d) => !weekDays(week).includes(d))
-                .sort()
-                .map(fmt.day)
-                .join(', ')}
+              {t.shiftBatch.alsoSelected(
+                dates
+                  .filter((d) => !weekDays(week).includes(d))
+                  .sort()
+                  .map(fmt.day)
+                  .join(', '),
+              )}
             </span>
           )}
         </div>
 
         <div className="row-3">
-          <Field label="Zone">
+          <Field label={t.shiftBatch.zone}>
             {(id) => (
               <select id={id} className="select" value={zoneId} onChange={(e) => setZoneId(Number(e.target.value))}>
                 {zones.map((z) => (
@@ -162,12 +167,12 @@ export function ShiftBatchDialog({
               </select>
             )}
           </Field>
-          <Field label="Starts">
+          <Field label={t.shiftBatch.starts}>
             {(id) => (
               <input id={id} type="time" className="input mono" value={startTime} onChange={(e) => setStartTime(e.target.value)} />
             )}
           </Field>
-          <Field label="Ends" error={timeError} hint="Same day, before midnight">
+          <Field label={t.shiftBatch.ends} error={timeError} hint={t.shiftBatch.endsHint}>
             {(id) => (
               <input
                 id={id}
@@ -183,7 +188,7 @@ export function ShiftBatchDialog({
 
         {batch.length > 0 && (
           <div className="field">
-            <span className="label">Preview</span>
+            <span className="label">{t.shiftBatch.preview}</span>
             <div className="batch-preview">
               {batch.map((s, i) => (
                 <div key={`${s.workerId}-${s.date}`} className={i === failedIndex ? 'list-row failed' : 'list-row'}>
@@ -215,6 +220,7 @@ export function ShiftEditDialog({
   zones: Zone[]
   onClose: () => void
 }) {
+  const t = useT()
   const invalidate = useInvalidate()
   const toast = useToast()
   const [form, setForm] = useState<ShiftInput>({
@@ -226,13 +232,13 @@ export function ShiftEditDialog({
   })
   const [confirmDelete, setConfirmDelete] = useState(false)
   const set = <K extends keyof ShiftInput>(k: K, v: ShiftInput[K]) => setForm((f) => ({ ...f, [k]: v }))
-  const timeError = minutes(form.endTime) <= minutes(form.startTime) ? 'Ends before it starts' : undefined
+  const timeError = minutes(form.endTime) <= minutes(form.startTime) ? t.shiftBatch.endsBeforeStart : undefined
 
   const save = useMutation({
     mutationFn: () => api.shifts.update(shift.id, form),
     onSuccess: async () => {
       await invalidate.schedule()
-      toast('Shift updated')
+      toast(t.shiftEdit.updated)
       onClose()
     },
   })
@@ -240,44 +246,43 @@ export function ShiftEditDialog({
   if (confirmDelete) {
     return (
       <ConfirmDialog
-        title="Remove this shift"
-        confirmLabel="Remove shift"
+        title={t.shiftEdit.removeTitle}
+        confirmLabel={t.shiftEdit.removeConfirm}
         onClose={() => setConfirmDelete(false)}
         onConfirm={async () => {
           await api.shifts.remove(shift.id)
           await invalidate.schedule()
-          toast('Shift removed')
+          toast(t.shiftEdit.removed)
           onClose()
         }}
       >
-        {staff.find((s) => s.userId === shift.workerId)?.name ?? 'This person'} will get an email, and any events this
-        shift covered will lose them.
+        {t.shiftEdit.removeBody(staff.find((s) => s.userId === shift.workerId)?.name ?? null)}
       </ConfirmDialog>
     )
   }
 
   return (
     <Dialog
-      title="Edit shift"
-      sub="If the new times no longer cover an event this person is on, they are taken off it."
+      title={t.shiftEdit.title}
+      sub={t.shiftEdit.sub}
       onClose={onClose}
       footer={
         <>
           <Button variant="danger" icon={Trash2} className="spacer" onClick={() => setConfirmDelete(true)}>
-            Remove
+            {t.shiftEdit.remove}
           </Button>
           <Button variant="ghost" onClick={onClose}>
-            Cancel
+            {t.common.cancel}
           </Button>
           <Button variant="primary" loading={save.isPending} disabled={!!timeError} onClick={() => save.mutate()}>
-            Save
+            {t.common.save}
           </Button>
         </>
       }
     >
       <div className="form">
         <div className="row-2">
-          <Field label="Person">
+          <Field label={t.shiftEdit.person}>
             {(id) => (
               <select id={id} className="select" value={form.workerId} onChange={(e) => set('workerId', Number(e.target.value))}>
                 {staff
@@ -290,7 +295,7 @@ export function ShiftEditDialog({
               </select>
             )}
           </Field>
-          <Field label="Zone">
+          <Field label={t.shiftBatch.zone}>
             {(id) => (
               <select id={id} className="select" value={form.zoneId} onChange={(e) => set('zoneId', Number(e.target.value))}>
                 {zones.map((z) => (
@@ -303,15 +308,15 @@ export function ShiftEditDialog({
           </Field>
         </div>
         <div className="row-3">
-          <Field label="Date">
+          <Field label={t.shiftEdit.date}>
             {(id) => <input id={id} type="date" className="input mono" value={form.date} onChange={(e) => set('date', e.target.value)} />}
           </Field>
-          <Field label="Starts">
+          <Field label={t.shiftBatch.starts}>
             {(id) => (
               <input id={id} type="time" className="input mono" value={form.startTime} onChange={(e) => set('startTime', e.target.value)} />
             )}
           </Field>
-          <Field label="Ends" error={timeError}>
+          <Field label={t.shiftBatch.ends} error={timeError}>
             {(id) => (
               <input
                 id={id}
@@ -344,6 +349,8 @@ export function CopyWeekDialog({
   targetWeekDate: string
   onClose: () => void
 }) {
+  const t = useT()
+  const fmt = useFmt()
   const invalidate = useInvalidate()
   const toast = useToast()
   const target = weekDays(targetWeekDate)
@@ -368,43 +375,42 @@ export function CopyWeekDialog({
     onMutate: () => setFailedIndex(null),
     onSuccess: async (created) => {
       await invalidate.schedule()
-      toast(`${pluralize(created.length, 'shift')} copied`)
+      toast(t.copyWeek.copied(created.length))
       onClose()
     },
     onError: (e) => setFailedIndex(e instanceof ApiError ? e.batchIndex : null),
   })
 
-  const nameOf = (id: number) => staff.find((s) => s.userId === id)?.name ?? `Worker ${id}`
+  const nameOf = (id: number) => staff.find((s) => s.userId === id)?.name ?? t.common.unknownPerson(id)
   const zoneOf = (id: number) => zones.find((z) => z.id === id)?.name ?? ''
 
   return (
     <Dialog
-      title="Copy last week"
-      sub={`Repeats the rota of ${fmt.week(source[0])} on ${fmt.week(target[0])}.`}
+      title={t.copyWeek.title}
+      sub={t.copyWeek.sub(fmt.week(source[0]), fmt.week(target[0]))}
       onClose={onClose}
       wide
       footer={
         <>
           <Button variant="ghost" onClick={onClose}>
-            Cancel
+            {t.common.cancel}
           </Button>
           <Button variant="primary" disabled={batch.length === 0} loading={mutation.isPending} onClick={() => mutation.mutate()}>
-            {batch.length ? `Copy ${pluralize(batch.length, 'shift')}` : 'Nothing to copy'}
+            {t.copyWeek.submit(batch.length)}
           </Button>
         </>
       }
     >
       <div className="form">
         {sourceShifts.length === 0 ? (
-          <div className="notice info">Last week has no shifts in this venue.</div>
+          <div className="notice info">{t.copyWeek.empty}</div>
         ) : (
           <>
             {(skipped > 0 || alreadyThere > 0) && (
               <div className="notice info">
                 <span>
-                  {skipped > 0 && `${pluralize(skipped, 'shift')} left out because the person is inactive or the day has passed. `}
-                  {alreadyThere > 0 &&
-                    `This week already has ${pluralize(alreadyThere, 'shift')}; any copy that overlaps one stops the whole copy.`}
+                  {skipped > 0 && t.copyWeek.skipped(skipped)}
+                  {alreadyThere > 0 && t.copyWeek.alreadyThere(alreadyThere)}
                 </span>
               </div>
             )}

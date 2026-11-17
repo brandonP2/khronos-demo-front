@@ -56,40 +56,74 @@ export function toDateTime(date: string, time: string): string {
   return `${date}T${hhmm(time)}:00`
 }
 
-const dayFmt = new Intl.DateTimeFormat('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })
-const longFmt = new Intl.DateTimeFormat('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })
-const weekdayFmt = new Intl.DateTimeFormat('en-GB', { weekday: 'short' })
-const monthFmt = new Intl.DateTimeFormat('en-GB', { month: 'long', year: 'numeric' })
+/** Words that dates turn into near today, in the current language */
+export interface RelativeDayWords {
+  today: string
+  tomorrow: string
+  yesterday: string
+}
 
-export const fmt = {
-  day: (iso: string) => dayFmt.format(parseISODate(iso)),
-  long: (iso: string) => longFmt.format(parseISODate(iso)),
-  weekday: (iso: string) => weekdayFmt.format(parseISODate(iso)),
-  dayNumber: (iso: string) => String(parseISODate(iso).getDate()),
-  month: (iso: string) => monthFmt.format(parseISODate(iso)),
-  /** Two lines for agenda headers: "Tomorrow" over "17 November", or "Thursday" over "19 November" */
-  agenda(iso: string): { title: string; sub: string } {
-    const d = parseISODate(iso)
-    const rel = fmt.relative(iso)
-    const sub = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'long' }).format(d)
-    const weekday = new Intl.DateTimeFormat('en-GB', { weekday: 'long' }).format(d)
-    return { title: rel === longFmt.format(d) ? weekday : rel, sub: rel === longFmt.format(d) ? sub : `${weekday} ${sub}` }
-  },
-  relative(iso: string): string {
-    const t = today()
-    if (iso === t) return 'Today'
-    if (iso === addDays(t, 1)) return 'Tomorrow'
-    if (iso === addDays(t, -1)) return 'Yesterday'
-    return longFmt.format(parseISODate(iso))
-  },
-  /** "Week of 16 Nov" */
-  week(iso: string): string {
-    const days = weekDays(iso)
-    const a = parseISODate(days[0])
-    const b = parseISODate(days[6])
-    const short = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short' })
-    return `${short.format(a)} – ${short.format(b)}`
-  },
+export type Fmt = ReturnType<typeof makeFmt>
+
+/**
+ * Date formatting for one locale ("es-ES", "en-GB"): 24-hour clock, weeks from Monday.
+ * Components get the one for the current language from useFmt() in lib/i18n.
+ */
+export function makeFmt(locale: string, words: RelativeDayWords) {
+  const df = (options: Intl.DateTimeFormatOptions) => new Intl.DateTimeFormat(locale, options)
+  const dayFmt = df({ weekday: 'short', day: 'numeric', month: 'short' })
+  const longFmt = df({ weekday: 'long', day: 'numeric', month: 'long' })
+  const weekdayFmt = df({ weekday: 'short' })
+  const weekdayLongFmt = df({ weekday: 'long' })
+  const monthFmt = df({ month: 'long', year: 'numeric' })
+  const dayMonthFmt = df({ day: 'numeric', month: 'long' })
+  const shortFmt = df({ day: 'numeric', month: 'short' })
+  const timeFmt = df({ hour: '2-digit', minute: '2-digit', hourCycle: 'h23' })
+  const numberFmt = new Intl.NumberFormat(locale, { maximumFractionDigits: 1 })
+  // Spanish writes weekdays and months in lower case; lines that stand on their own start with a capital
+  const cap = (text: string) => text.charAt(0).toLocaleUpperCase(locale) + text.slice(1)
+  const date = parseISODate
+
+  const fmt = {
+    locale,
+    /** "lun, 16 nov" / "Mon 16 Nov" */
+    day: (iso: string) => dayFmt.format(date(iso)),
+    /** "Lunes, 16 de noviembre" / "Monday 16 November" */
+    long: (iso: string) => cap(longFmt.format(date(iso))),
+    /** "Lun" / "Mon" */
+    weekday: (iso: string) => cap(weekdayFmt.format(date(iso))),
+    /** "lunes" / "Monday", for use inside a sentence */
+    weekdayLong: (iso: string) => weekdayLongFmt.format(date(iso)),
+    dayNumber: (iso: string) => String(date(iso).getDate()),
+    /** "Noviembre de 2026" / "November 2026" */
+    month: (iso: string) => cap(monthFmt.format(date(iso))),
+    /** "14:05" from epoch milliseconds */
+    time: (epochMs: number) => timeFmt.format(new Date(epochMs)),
+    /** "7,5" / "7.5" */
+    number: (n: number) => numberFmt.format(n),
+    /** "Today", "Tomorrow", "Yesterday", or the long date */
+    relative(iso: string): string {
+      const t = today()
+      if (iso === t) return words.today
+      if (iso === addDays(t, 1)) return words.tomorrow
+      if (iso === addDays(t, -1)) return words.yesterday
+      return fmt.long(iso)
+    },
+    /** Two lines for agenda headers: "Tomorrow" over "Wednesday 18 November", or "Thursday" over "19 November" */
+    agenda(iso: string): { title: string; sub: string } {
+      const d = date(iso)
+      const weekday = cap(weekdayLongFmt.format(d))
+      const sub = dayMonthFmt.format(d)
+      const rel = fmt.relative(iso)
+      return rel === fmt.long(iso) ? { title: weekday, sub } : { title: rel, sub: `${weekday} ${sub}` }
+    },
+    /** "16 nov – 22 nov" for the week that holds the date */
+    week(iso: string): string {
+      const days = weekDays(iso)
+      return `${shortFmt.format(date(days[0]))} – ${shortFmt.format(date(days[6]))}`
+    },
+  }
+  return fmt
 }
 
 export function durationLabel(start: string, end: string): string {

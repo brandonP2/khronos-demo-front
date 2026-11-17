@@ -13,6 +13,7 @@ import {
 import { createPortal } from 'react-dom'
 import { AlertCircle, Check, Loader2, X, type LucideIcon } from 'lucide-react'
 import { ApiError } from '../api/client'
+import { useT, type Messages } from '../lib/i18n'
 
 type ButtonVariant = 'default' | 'primary' | 'ghost' | 'danger'
 
@@ -120,25 +121,36 @@ export function Empty({
   )
 }
 
-export function errorMessage(error: unknown): string {
-  if (error instanceof ApiError) return error.message
+/**
+ * Errors written by the API are shown as they come (in English for now). Errors the app
+ * itself detects, like a lost connection, are worded in the current language.
+ */
+export function errorMessage(error: unknown, t: Messages): string {
+  if (error instanceof ApiError) {
+    if (error.kind === 'network') return t.errors.network
+    if (error.kind === 'server') return t.errors.server
+    if (error.kind === 'rate-limited') return t.errors.rateLimited(error.retryAfter === null ? null : t.common.wait(error.retryAfter))
+    return error.message
+  }
   if (error instanceof Error) return error.message
-  return 'Something went wrong'
+  return t.errors.generic
 }
 
 export function ErrorNote({ error }: { error: unknown }) {
+  const t = useT()
   if (!error) return null
   return (
     <div className="notice" role="alert">
       <AlertCircle size={16} strokeWidth={1.5} />
-      <span>{errorMessage(error)}</span>
+      <span>{errorMessage(error, t)}</span>
     </div>
   )
 }
 
 export function Loading({ rows = 3 }: { rows?: number }) {
+  const t = useT()
   return (
-    <div className="form" aria-busy="true" aria-label="Loading">
+    <div className="form" aria-busy="true" aria-label={t.common.loading}>
       {Array.from({ length: rows }, (_, i) => (
         <div key={i} className="skeleton" style={{ height: 44, opacity: 1 - i * 0.2 }} />
       ))}
@@ -175,6 +187,7 @@ interface PanelProps {
 }
 
 export function Dialog({ title, sub, onClose, children, footer, wide }: PanelProps) {
+  const t = useT()
   useEscape(onClose)
   const ref = useFocusOnOpen()
   const titleId = useId()
@@ -194,7 +207,7 @@ export function Dialog({ title, sub, onClose, children, footer, wide }: PanelPro
             <h2 id={titleId}>{title}</h2>
             {sub && <p>{sub}</p>}
           </div>
-          <Button variant="ghost" size="sm" iconOnly icon={X} onClick={onClose} aria-label="Close" />
+          <Button variant="ghost" size="sm" iconOnly icon={X} onClick={onClose} aria-label={t.common.close} />
         </div>
         <div className="dialog-body">{children}</div>
         {footer && <div className="dialog-foot">{footer}</div>}
@@ -205,6 +218,7 @@ export function Dialog({ title, sub, onClose, children, footer, wide }: PanelPro
 }
 
 export function Drawer({ title, sub, onClose, children, footer }: PanelProps) {
+  const t = useT()
   useEscape(onClose)
   const ref = useFocusOnOpen()
   const titleId = useId()
@@ -217,7 +231,7 @@ export function Drawer({ title, sub, onClose, children, footer }: PanelProps) {
             <h2 id={titleId}>{title}</h2>
             {sub && <p>{sub}</p>}
           </div>
-          <Button variant="ghost" size="sm" iconOnly icon={X} onClick={onClose} aria-label="Close" />
+          <Button variant="ghost" size="sm" iconOnly icon={X} onClick={onClose} aria-label={t.common.close} />
         </div>
         <div className="dialog-body">{children}</div>
         {footer && <div className="dialog-foot">{footer}</div>}
@@ -241,6 +255,7 @@ export function ConfirmDialog({
   onConfirm: () => Promise<unknown>
   onClose: () => void
 }) {
+  const t = useT()
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<unknown>(null)
   const run = async () => {
@@ -261,7 +276,7 @@ export function ConfirmDialog({
       footer={
         <>
           <Button variant="ghost" onClick={onClose}>
-            Cancel
+            {t.common.cancel}
           </Button>
           <Button variant="primary" onClick={run} loading={busy} data-autofocus>
             {confirmLabel}
@@ -321,8 +336,4 @@ export function Logo() {
       <rect x="10.25" y="1" width="1.5" height="20" rx="0.75" fill="var(--accent)" />
     </svg>
   )
-}
-
-export function pluralize(n: number, one: string, many = `${one}s`) {
-  return `${n} ${n === 1 ? one : many}`
 }

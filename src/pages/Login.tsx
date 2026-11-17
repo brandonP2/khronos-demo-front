@@ -4,9 +4,11 @@ import type { Assignment, KEvent, Shift, Zone } from '../api/types'
 import { useAuth } from '../auth/AuthContext'
 import { Board } from '../components/Board'
 import { Button, ErrorNote, Field, Logo } from '../components/ui'
+import { useFmt, useT } from '../lib/i18n'
 import { today } from '../lib/time'
 
 export default function Login() {
+  const t = useT()
   const { login, signOutReason } = useAuth()
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
@@ -33,13 +35,11 @@ export default function Login() {
           Khronos
         </div>
         <div>
-          <h1>Shifts and events for your venue, checked before they go out</h1>
-          <p className="lede">
-            Plan who works where and when, staff each event from the people on shift, and let your team see their week.
-          </p>
+          <h1>{t.login.headline}</h1>
+          <p className="lede">{t.login.lede}</p>
         </div>
         <form className="form" onSubmit={submit}>
-          <Field label="Username">
+          <Field label={t.fields.username}>
             {(id) => (
               <input
                 id={id}
@@ -51,7 +51,7 @@ export default function Login() {
               />
             )}
           </Field>
-          <Field label="Password">
+          <Field label={t.fields.password}>
             {(id) => (
               <input
                 id={id}
@@ -66,12 +66,12 @@ export default function Login() {
           {signOutReason === 'expired' && !error && (
             <div className="notice info" role="status">
               <Clock size={16} strokeWidth={1.5} />
-              <span>Your session ended. For security, sessions last one hour. Sign in again to continue.</span>
+              <span>{t.login.sessionEnded}</span>
             </div>
           )}
           <ErrorNote error={error} />
           <Button type="submit" variant="primary" loading={busy} disabled={!username || !password}>
-            Sign in
+            {t.login.signIn}
           </Button>
         </form>
       </div>
@@ -84,10 +84,14 @@ export default function Login() {
 
 /** A sample day rendered by the real board, so the first screen shows what the product does */
 function PreviewBoard() {
+  const t = useT()
+  const fmt = useFmt()
   const d = today()
+  const [hall, terrace] = t.login.previewZones
+  const [dinner, cocktails] = t.login.previewEvents
   const zones: Zone[] = [
-    { id: 1, name: 'Main hall', establishmentId: 1 },
-    { id: 2, name: 'Terrace', establishmentId: 1 },
+    { id: 1, name: hall, establishmentId: 1 },
+    { id: 2, name: terrace, establishmentId: 1 },
   ]
   const people = [
     { userId: 1, name: 'Lucía Romero', initials: 'LR' },
@@ -112,8 +116,8 @@ function PreviewBoard() {
     s(5, 5, 2, '11:00', '17:00'),
   ]
   const events: KEvent[] = [
-    { id: 1, title: 'Wedding dinner', dateTime: `${d}T19:30:00`, zoneId: 1, zoneName: 'Main hall', peopleNumber: 120, establishmentId: 1, description: null },
-    { id: 2, title: 'Cocktail hour', dateTime: `${d}T21:00:00`, zoneId: 2, zoneName: 'Terrace', peopleNumber: 80, establishmentId: 1, description: null },
+    { id: 1, title: dinner, dateTime: `${d}T19:30:00`, zoneId: 1, zoneName: hall, peopleNumber: 120, establishmentId: 1, description: null },
+    { id: 2, title: cocktails, dateTime: `${d}T21:00:00`, zoneId: 2, zoneName: terrace, peopleNumber: 80, establishmentId: 1, description: null },
   ]
   const assignments = new Map<number, Assignment[]>([
     [1, [{ id: 1, workerId: 1, eventId: 1 }]],
@@ -122,9 +126,9 @@ function PreviewBoard() {
   return (
     <div className="card">
       <div className="card-head">
-        <h2>Saturday service</h2>
+        <h2>{t.login.previewTitle(fmt.weekdayLong(d))}</h2>
         <span className="muted mono" style={{ fontSize: 12 }}>
-          5 on shift · 2 events
+          {t.login.previewMeta}
         </span>
       </div>
       <Board zones={zones} people={people} shifts={shifts} events={events} assignments={assignments} selectedEventId={1} />

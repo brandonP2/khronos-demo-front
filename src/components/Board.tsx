@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { Plus } from 'lucide-react'
 import type { Assignment, KEvent, Shift, Zone } from '../api/types'
+import { useT } from '../lib/i18n'
 import { eventTime, hhmm, minutes, shiftCovers } from '../lib/time'
 import { Avatar, Button } from './ui'
 
@@ -56,6 +57,7 @@ export function Board({
   onShiftClick,
   onAddShift,
 }: BoardProps) {
+  const t = useT()
   const [hoverEvent, setHoverEvent] = useState<number | null>(null)
   const { lo, hi } = useMemo(() => hourRange(shifts, events), [shifts, events])
   const span = (hi - lo) * 60
@@ -105,10 +107,10 @@ export function Board({
                 </div>
                 <div className="board-lane">
                   {zoneEvents.map((ev) => {
-                    const t = minutes(eventTime(ev.dateTime))
-                    const pos = (t - lo * 60) / span
+                    const at = minutes(eventTime(ev.dateTime))
+                    const pos = (at - lo * 60) / span
                     const staffed = assignments.get(ev.id)?.length ?? 0
-                    const style = pos > 0.72 ? { right: `${(1 - pos) * 100}%` } : { left: x(t) }
+                    const style = pos > 0.72 ? { right: `${(1 - pos) * 100}%` } : { left: x(at) }
                     return (
                       <button
                         key={ev.id}
@@ -124,7 +126,7 @@ export function Board({
                       >
                         <span className="t">{eventTime(ev.dateTime)}</span>
                         {ev.title}
-                        <span className="staffed">{staffed} on</span>
+                        <span className="staffed">{t.board.staffed(staffed)}</span>
                       </button>
                     )
                   })}
@@ -134,7 +136,7 @@ export function Board({
               <div style={{ position: 'relative' }}>
                 {workerIds.length === 0 && !onAddShift && (
                   <div className="board-empty-zone">
-                    <span>No shifts</span>
+                    <span>{t.board.noShifts}</span>
                     <div className="board-lane">{gridlines}</div>
                   </div>
                 )}
@@ -146,7 +148,7 @@ export function Board({
                     <div key={workerId} className="board-row">
                       <div className="board-person">
                         <Avatar size="sm" initials={person?.initials ?? '?'} />
-                        <span>{person?.name ?? `Worker ${workerId}`}</span>
+                        <span>{person?.name ?? t.common.unknownPerson(workerId)}</span>
                       </div>
                       <div className="board-lane">
                         {gridlines}
@@ -161,7 +163,11 @@ export function Board({
                               style={{ left: x(start), width: `${((end - start) / span) * 100}%` }}
                               onClick={() => onShiftClick?.(s)}
                               disabled={!onShiftClick}
-                              aria-label={`${person?.name ?? 'Worker'} ${hhmm(s.startTime)} to ${hhmm(s.endTime)}`}
+                              aria-label={t.board.shiftLabel(
+                                person?.name ?? t.common.unknownPerson(workerId),
+                                hhmm(s.startTime),
+                                hhmm(s.endTime),
+                              )}
                             >
                               {hhmm(s.startTime)}–{hhmm(s.endTime)}
                             </button>
@@ -173,7 +179,7 @@ export function Board({
                               key={ev.id}
                               className="assigned-tick"
                               style={{ left: x(minutes(eventTime(ev.dateTime))) }}
-                              title={`On ${ev.title}`}
+                              title={t.board.assignedTo(ev.title)}
                             />
                           ) : null,
                         )}
@@ -185,7 +191,7 @@ export function Board({
                 {onAddShift && (
                   <div className="board-add-row">
                     <Button variant="ghost" size="sm" icon={Plus} onClick={() => onAddShift(zone.id)}>
-                      Add shift
+                      {t.board.addShift}
                     </Button>
                     <div className="board-lane">{gridlines}</div>
                   </div>

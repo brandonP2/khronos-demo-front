@@ -4,14 +4,17 @@ import type { KEvent } from '../../api/types'
 import { useMe } from '../../auth/AuthContext'
 import { EventDrawer, EventFormDialog } from '../../components/EventDialogs'
 import { ShiftBatchDialog, type ShiftDraft } from '../../components/ShiftDialogs'
-import { Avatar, Button, Empty, ErrorNote, Loading, PageHead, pluralize } from '../../components/ui'
+import { Avatar, Button, Empty, ErrorNote, Loading, PageHead } from '../../components/ui'
+import { useFmt, useT } from '../../lib/i18n'
 import { useAssignments, useEvents, useShifts, useStaff, useZones } from '../../lib/queries'
-import { addDays, eventDate, eventTime, fmt, today } from '../../lib/time'
+import { addDays, eventDate, eventTime, today } from '../../lib/time'
 import { useVenue } from '../../lib/VenueContext'
 
 type Modal = { kind: 'new' } | { kind: 'edit'; event: KEvent } | { kind: 'shift'; draft: ShiftDraft } | null
 
 export default function EventsPage() {
+  const t = useT()
+  const fmt = useFmt()
   const me = useMe()
   const { venue } = useVenue()
   const [when, setWhen] = useState<'upcoming' | 'past'>('upcoming')
@@ -19,8 +22,8 @@ export default function EventsPage() {
   const [modal, setModal] = useState<Modal>(null)
 
   // Upcoming fetches from today on, past fetches up to yesterday
-  const t = today()
-  const range = when === 'upcoming' ? { from: t } : { to: addDays(t, -1) }
+  const day = today()
+  const range = when === 'upcoming' ? { from: day } : { to: addDays(day, -1) }
   const zones = useZones(venue?.id)
   const staff = useStaff(venue?.id)
   const shifts = useShifts(me.id, zones.data?.map((z) => z.id), range)
@@ -31,9 +34,9 @@ export default function EventsPage() {
   const list = useMemo(() => {
     const all = events.data ?? []
     return when === 'upcoming'
-      ? all.filter((e) => eventDate(e.dateTime) >= t)
-      : all.filter((e) => eventDate(e.dateTime) < t).reverse()
-  }, [events.data, when, t])
+      ? all.filter((e) => eventDate(e.dateTime) >= day)
+      : all.filter((e) => eventDate(e.dateTime) < day).reverse()
+  }, [events.data, when, day])
 
   const staffList = staff.data ?? []
   const zoneList = zones.data ?? []
@@ -56,23 +59,19 @@ export default function EventsPage() {
   return (
     <div className="page">
       <PageHead
-        title="Events"
-        sub={
-          when === 'upcoming' && list.length
-            ? `${pluralize(list.length, 'upcoming event')}${unstaffed ? `, ${unstaffed} with nobody on them` : ''}`
-            : undefined
-        }
+        title={t.eventsPage.title}
+        sub={when === 'upcoming' && list.length ? t.eventsPage.summary(list.length, unstaffed) : undefined}
       >
-        <div className="segmented" role="group" aria-label="Show">
+        <div className="segmented" role="group" aria-label={t.common.show}>
           <button aria-pressed={when === 'upcoming'} onClick={() => setWhen('upcoming')}>
-            Upcoming
+            {t.common.upcoming}
           </button>
           <button aria-pressed={when === 'past'} onClick={() => setWhen('past')}>
-            Past
+            {t.common.past}
           </button>
         </div>
         <Button variant="primary" icon={Plus} onClick={() => setModal({ kind: 'new' })} disabled={!zoneList.length}>
-          New events
+          {t.eventsPage.newEvents}
         </Button>
       </PageHead>
 
@@ -84,19 +83,19 @@ export default function EventsPage() {
         <div className="card">
           <Empty
             icon={CalendarClock}
-            title={when === 'upcoming' ? 'No upcoming events' : 'No past events'}
+            title={when === 'upcoming' ? t.eventsPage.noUpcoming : t.eventsPage.noPast}
             action={
               when === 'upcoming' && zoneList.length > 0 ? (
                 <Button variant="primary" icon={Plus} onClick={() => setModal({ kind: 'new' })}>
-                  New events
+                  {t.eventsPage.newEvents}
                 </Button>
               ) : undefined
             }
           >
             {when === 'upcoming'
               ? zoneList.length
-                ? 'Weddings, private dinners, tastings. Add them here and staff them from the people on shift.'
-                : 'Add a zone on the Venue page first, then events can be placed in it.'
+                ? t.eventsPage.emptyBody
+                : t.eventsPage.emptyNoZones
               : undefined}
           </Empty>
         </div>
@@ -118,15 +117,15 @@ export default function EventsPage() {
                         <span className="title">{e.title}</span>
                         <br />
                         <span className="meta">
-                          {e.zoneName} · {e.peopleNumber} guests
+                          {e.zoneName} · {t.common.guests(e.peopleNumber)}
                         </span>
                       </span>
                       <span className="staffing">
                         {on.length === 0 ? (
                           when === 'upcoming' ? (
-                            <span className="unstaffed">Nobody on it</span>
+                            <span className="unstaffed">{t.eventsPage.nobodyOnIt}</span>
                           ) : (
-                            <span className="muted">Nobody</span>
+                            <span className="muted">{t.eventsPage.nobody}</span>
                           )
                         ) : (
                           <>
@@ -164,15 +163,15 @@ export default function EventsPage() {
           onAddShift={(draft) => setModal({ kind: 'shift', draft })}
         />
       )}
-      {modal?.kind === 'new' && <EventFormDialog zones={zoneList} defaultDate={t} onClose={() => setModal(null)} />}
+      {modal?.kind === 'new' && <EventFormDialog zones={zoneList} defaultDate={day} onClose={() => setModal(null)} />}
       {modal?.kind === 'edit' && (
-        <EventFormDialog zones={zoneList} event={modal.event} defaultDate={t} onClose={() => setModal(null)} />
+        <EventFormDialog zones={zoneList} event={modal.event} defaultDate={day} onClose={() => setModal(null)} />
       )}
       {modal?.kind === 'shift' && (
         <ShiftBatchDialog
           staff={staffList}
           zones={zoneList}
-          anchorDate={modal.draft.dates?.[0] ?? t}
+          anchorDate={modal.draft.dates?.[0] ?? day}
           draft={modal.draft}
           onClose={() => setModal(null)}
         />

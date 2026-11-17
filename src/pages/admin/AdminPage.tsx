@@ -5,10 +5,12 @@ import { ApiError } from '../../api/client'
 import { api } from '../../api/endpoints'
 import type { Establishment, UserCreate } from '../../api/types'
 import { Avatar, Button, ConfirmDialog, Dialog, Empty, ErrorNote, Field, Loading, PageHead, useToast } from '../../components/ui'
+import { useT } from '../../lib/i18n'
 import { displayName, initials } from '../../lib/queries'
 
 /** Platform admins onboard owners and their venues; everything after that is done by the owner */
 export default function AdminPage() {
+  const t = useT()
   const qc = useQueryClient()
   const toast = useToast()
   const users = useQuery({ queryKey: ['admin', 'users'], queryFn: api.users.all })
@@ -21,18 +23,18 @@ export default function AdminPage() {
 
   return (
     <div className="page">
-      <PageHead title="Owners and venues" sub="Onboard a business: create the owner's account, then their venue.">
+      <PageHead title={t.admin.title} sub={t.admin.sub}>
         <Button icon={UserPlus} onClick={() => setModal('owner')}>
-          New owner
+          {t.admin.newOwner}
         </Button>
         <Button variant="primary" icon={Plus} onClick={() => setModal('venue')} disabled={!owners.length}>
-          New venue
+          {t.admin.newVenue}
         </Button>
       </PageHead>
 
       <section className="card">
         <div className="card-head">
-          <h2>Venues</h2>
+          <h2>{t.admin.venues}</h2>
           <span className="muted mono" style={{ fontSize: 12 }}>
             {venues.data?.length ?? 0}
           </span>
@@ -46,16 +48,16 @@ export default function AdminPage() {
             <ErrorNote error={venues.error} />
           </div>
         ) : venues.data?.length === 0 ? (
-          <Empty icon={Building2} title="No venues yet" />
+          <Empty icon={Building2} title={t.admin.noVenues} />
         ) : (
           <div style={{ overflowX: 'auto' }}>
             <table className="table">
               <thead>
                 <tr>
-                  <th>Venue</th>
-                  <th>Owner</th>
-                  <th className="hide-sm">Contact</th>
-                  <th aria-label="Actions" />
+                  <th>{t.admin.venue}</th>
+                  <th>{t.admin.owner}</th>
+                  <th className="hide-sm">{t.admin.contact}</th>
+                  <th aria-label={t.common.actions} />
                 </tr>
               </thead>
               <tbody>
@@ -77,7 +79,7 @@ export default function AdminPage() {
                       </div>
                     </td>
                     <td className="right">
-                      <Button size="sm" variant="ghost" iconOnly icon={Trash2} aria-label={`Delete ${v.establishmentName}`} onClick={() => setDeleting(v)} />
+                      <Button size="sm" variant="ghost" iconOnly icon={Trash2} aria-label={t.admin.delete(v.establishmentName)} onClick={() => setDeleting(v)} />
                     </td>
                   </tr>
                 ))}
@@ -89,7 +91,7 @@ export default function AdminPage() {
 
       <section className="card">
         <div className="card-head">
-          <h2>Owners</h2>
+          <h2>{t.admin.owners}</h2>
           <span className="muted mono" style={{ fontSize: 12 }}>
             {owners.length}
           </span>
@@ -103,7 +105,7 @@ export default function AdminPage() {
             <ErrorNote error={users.error} />
           </div>
         ) : owners.length === 0 ? (
-          <Empty icon={UserPlus} title="No owners yet" />
+          <Empty icon={UserPlus} title={t.admin.noOwners} />
         ) : (
           <div className="list">
             {owners.map((o) => (
@@ -116,7 +118,7 @@ export default function AdminPage() {
                   </div>
                 </div>
                 <span className="muted mono" style={{ fontSize: 12 }}>
-                  {venueCount(o.id)} {venueCount(o.id) === 1 ? 'venue' : 'venues'}
+                  {t.admin.venueCount(venueCount(o.id))}
                 </span>
               </div>
             ))}
@@ -130,16 +132,16 @@ export default function AdminPage() {
       )}
       {deleting && (
         <ConfirmDialog
-          title={`Delete ${deleting.establishmentName}`}
-          confirmLabel="Delete venue"
+          title={t.admin.deleteTitle(deleting.establishmentName)}
+          confirmLabel={t.admin.deleteConfirm}
           onClose={() => setDeleting(null)}
           onConfirm={async () => {
             await api.establishments.remove(deleting.id)
             await qc.invalidateQueries({ queryKey: ['admin'] })
-            toast('Venue deleted')
+            toast(t.admin.deleted)
           }}
         >
-          Deletes its zones, team links, shifts and events. This cannot be undone.
+          {t.admin.deleteBody}
         </ConfirmDialog>
       )}
     </div>
@@ -147,6 +149,7 @@ export default function AdminPage() {
 }
 
 function NewOwnerDialog({ onClose }: { onClose: () => void }) {
+  const t = useT()
   const qc = useQueryClient()
   const toast = useToast()
   const [form, setForm] = useState<UserCreate>({ username: '', password: '', firstName: '', lastName: '', email: '', phoneNumber: '' })
@@ -155,48 +158,48 @@ function NewOwnerDialog({ onClose }: { onClose: () => void }) {
     mutationFn: () => api.users.create({ ...form, phoneNumber: form.phoneNumber?.trim() || null }, 'OWNER'),
     onSuccess: async () => {
       await qc.invalidateQueries({ queryKey: ['admin'] })
-      toast('Owner created')
+      toast(t.admin.ownerCreated)
       onClose()
     },
   })
   const fe = mutation.error instanceof ApiError ? mutation.error.fieldErrors : {}
   return (
     <Dialog
-      title="New owner"
+      title={t.admin.newOwner}
       onClose={onClose}
       footer={
         <>
           <Button variant="ghost" onClick={onClose}>
-            Cancel
+            {t.common.cancel}
           </Button>
           <Button variant="primary" loading={mutation.isPending} onClick={() => mutation.mutate()}>
-            Create owner
+            {t.admin.createOwner}
           </Button>
         </>
       }
     >
       <div className="form">
         <div className="row-2">
-          <Field label="First name" error={fe.firstName}>
+          <Field label={t.fields.firstName} error={fe.firstName}>
             {(id) => <input id={id} className="input" value={form.firstName} onChange={(e) => set('firstName', e.target.value)} />}
           </Field>
-          <Field label="Last name" error={fe.lastName}>
+          <Field label={t.fields.lastName} error={fe.lastName}>
             {(id) => <input id={id} className="input" value={form.lastName} onChange={(e) => set('lastName', e.target.value)} />}
           </Field>
         </div>
         <div className="row-2">
-          <Field label="Email" error={fe.email}>
+          <Field label={t.fields.email} error={fe.email}>
             {(id) => <input id={id} type="email" className="input" value={form.email} onChange={(e) => set('email', e.target.value)} />}
           </Field>
-          <Field label="Phone" error={fe.phoneNumber} hint="Optional">
+          <Field label={t.fields.phone} error={fe.phoneNumber} hint={t.common.optional}>
             {(id) => <input id={id} type="tel" className="input mono" value={form.phoneNumber ?? ''} onChange={(e) => set('phoneNumber', e.target.value)} />}
           </Field>
         </div>
         <div className="row-2">
-          <Field label="Username" error={fe.username}>
+          <Field label={t.fields.username} error={fe.username}>
             {(id) => <input id={id} className="input mono" autoComplete="off" value={form.username} onChange={(e) => set('username', e.target.value)} />}
           </Field>
-          <Field label="Password" error={fe.password} hint="At least 8 characters">
+          <Field label={t.fields.password} error={fe.password} hint={t.fields.passwordHint}>
             {(id) => (
               <input id={id} type="password" className="input" autoComplete="new-password" value={form.password} onChange={(e) => set('password', e.target.value)} />
             )}
@@ -209,6 +212,7 @@ function NewOwnerDialog({ onClose }: { onClose: () => void }) {
 }
 
 function NewVenueDialog({ owners, onClose }: { owners: { id: number; name: string }[]; onClose: () => void }) {
+  const t = useT()
   const qc = useQueryClient()
   const toast = useToast()
   const [name, setName] = useState('')
@@ -219,27 +223,27 @@ function NewVenueDialog({ owners, onClose }: { owners: { id: number; name: strin
       api.establishments.create({ establishmentName: name.trim(), establishmentAddress: address.trim(), ownerId }),
     onSuccess: async () => {
       await qc.invalidateQueries({ queryKey: ['admin'] })
-      toast('Venue created')
+      toast(t.admin.venueCreated)
       onClose()
     },
   })
   return (
     <Dialog
-      title="New venue"
+      title={t.admin.newVenue}
       onClose={onClose}
       footer={
         <>
           <Button variant="ghost" onClick={onClose}>
-            Cancel
+            {t.common.cancel}
           </Button>
           <Button variant="primary" disabled={!name.trim() || !address.trim()} loading={mutation.isPending} onClick={() => mutation.mutate()}>
-            Create venue
+            {t.admin.createVenue}
           </Button>
         </>
       }
     >
       <div className="form">
-        <Field label="Owner">
+        <Field label={t.admin.owner}>
           {(id) => (
             <select id={id} className="select" value={ownerId} onChange={(e) => setOwnerId(Number(e.target.value))}>
               {owners.map((o) => (
@@ -250,10 +254,10 @@ function NewVenueDialog({ owners, onClose }: { owners: { id: number; name: strin
             </select>
           )}
         </Field>
-        <Field label="Name">
-          {(id) => <input id={id} className="input" placeholder="Casa Lucía" value={name} onChange={(e) => setName(e.target.value)} />}
+        <Field label={t.admin.name}>
+          {(id) => <input id={id} className="input" placeholder={t.admin.namePlaceholder} value={name} onChange={(e) => setName(e.target.value)} />}
         </Field>
-        <Field label="Address" hint="Each venue needs its own address">
+        <Field label={t.admin.address} hint={t.admin.addressHint}>
           {(id) => <input id={id} className="input" value={address} onChange={(e) => setAddress(e.target.value)} />}
         </Field>
         <ErrorNote error={mutation.error} />

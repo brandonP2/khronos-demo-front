@@ -4,20 +4,23 @@ import { CalendarRange } from 'lucide-react'
 import { api } from '../../api/endpoints'
 import type { DateRange, KEvent, Shift } from '../../api/types'
 import { useMe } from '../../auth/AuthContext'
-import { Empty, ErrorNote, Loading, PageHead, pluralize } from '../../components/ui'
+import { Empty, ErrorNote, Loading, PageHead } from '../../components/ui'
+import { useFmt, useT } from '../../lib/i18n'
 import { keys } from '../../lib/queries'
-import { addDays, durationLabel, eventDate, eventTime, fmt, hhmm, minutes, shiftCovers, today, weekDays } from '../../lib/time'
+import { addDays, durationLabel, eventDate, eventTime, hhmm, minutes, shiftCovers, today, weekDays } from '../../lib/time'
 
 /** A worker's own view: their shifts by day, with the events they are on inside each shift */
 export default function MySchedule() {
+  const t = useT()
+  const fmt = useFmt()
   const me = useMe()
   const [when, setWhen] = useState<'upcoming' | 'past'>('upcoming')
 
-  const t = today()
-  const week = weekDays(t)
+  const now = today()
+  const week = weekDays(now)
   // From Monday of this week on, which also covers this week's hours; the past is fetched only when shown
   const ahead: DateRange = { from: week[0] }
-  const past: DateRange = { to: addDays(t, -1) }
+  const past: DateRange = { to: addDays(now, -1) }
 
   const worker = useQuery({ queryKey: keys.worker(me.id), queryFn: () => api.workers.get(me.id) })
   const venueId = worker.data?.establishmentId
@@ -56,7 +59,7 @@ export default function MySchedule() {
   const myEvents = useMemo(() => (events.data ?? []).filter((e) => assignedIds.has(e.id)), [assignedIds, events.data])
 
   const days = useMemo(() => {
-    const all = (shifts.data ?? []).filter((s) => (when === 'upcoming' ? s.date >= t : s.date < t))
+    const all = (shifts.data ?? []).filter((s) => (when === 'upcoming' ? s.date >= now : s.date < now))
     const map = new Map<string, Shift[]>()
     for (const s of all) map.set(s.date, [...(map.get(s.date) ?? []), s])
     const entries = [...map.entries()].map(
@@ -64,15 +67,15 @@ export default function MySchedule() {
     )
     entries.sort((a, b) => (when === 'upcoming' ? a[0].localeCompare(b[0]) : b[0].localeCompare(a[0])))
     return entries
-  }, [shifts.data, when, t])
+  }, [shifts.data, when, now])
 
   const weekMins = (shiftsAhead.data ?? [])
     .filter((s) => week.includes(s.date))
     .reduce((n, s) => n + minutes(s.endTime) - minutes(s.startTime), 0)
   const next = (shiftsAhead.data ?? [])
-    .filter((s) => s.date >= t)
+    .filter((s) => s.date >= now)
     .sort((a, b) => a.date.localeCompare(b.date) || a.startTime.localeCompare(b.startTime))[0]
-  const upcomingEvents = (eventsAhead.data ?? []).filter((e) => assignedIds.has(e.id) && eventDate(e.dateTime) >= t).length
+  const upcomingEvents = (eventsAhead.data ?? []).filter((e) => assignedIds.has(e.id) && eventDate(e.dateTime) >= now).length
 
   const loading = worker.isLoading || shiftsAhead.isLoading || shifts.isLoading || mine.isLoading || events.isLoading
   const error = worker.error ?? shiftsAhead.error ?? shifts.error ?? mine.error ?? events.error
@@ -80,15 +83,15 @@ export default function MySchedule() {
   return (
     <div className="page" style={{ maxWidth: 1040 }}>
       <PageHead
-        title="My schedule"
+        title={t.mySchedule.title}
         sub={venue.data ? `${venue.data.establishmentName} · ${venue.data.establishmentAddress}` : undefined}
       >
-        <div className="segmented" role="group" aria-label="Show">
+        <div className="segmented" role="group" aria-label={t.common.show}>
           <button aria-pressed={when === 'upcoming'} onClick={() => setWhen('upcoming')}>
-            Upcoming
+            {t.common.upcoming}
           </button>
           <button aria-pressed={when === 'past'} onClick={() => setWhen('past')}>
-            Past
+            {t.common.past}
           </button>
         </div>
       </PageHead>
@@ -101,30 +104,30 @@ export default function MySchedule() {
         <>
           <div className="stats" style={{ gridTemplateColumns: 'repeat(3, minmax(0, 1fr))' }}>
             <div className="card stat">
-              <span className="label">Next shift</span>
+              <span className="label">{t.mySchedule.nextShift}</span>
               <span className="figure" style={{ fontSize: 22 }}>
                 {next ? fmt.agenda(next.date).title : '—'}
               </span>
               <span className="meta mono">
-                {next ? `${hhmm(next.startTime)}–${hhmm(next.endTime)} · ${zoneName(next.zoneId)}` : 'Nothing planned yet'}
+                {next ? `${hhmm(next.startTime)}–${hhmm(next.endTime)} · ${zoneName(next.zoneId)}` : t.mySchedule.nothingPlanned}
               </span>
             </div>
             <div className="card stat">
-              <span className="label">Hours this week</span>
-              <span className="figure">{Math.round((weekMins / 60) * 10) / 10}</span>
-              <span className="meta">{fmt.week(t)}</span>
+              <span className="label">{t.mySchedule.hoursThisWeek}</span>
+              <span className="figure">{fmt.number(weekMins / 60)}</span>
+              <span className="meta">{fmt.week(now)}</span>
             </div>
             <div className="card stat">
-              <span className="label">Events ahead</span>
+              <span className="label">{t.mySchedule.eventsAhead}</span>
               <span className="figure">{upcomingEvents}</span>
-              <span className="meta">You are emailed when one changes</span>
+              <span className="meta">{t.mySchedule.eventsAheadHint}</span>
             </div>
           </div>
 
           {days.length === 0 ? (
             <div className="card">
-              <Empty icon={CalendarRange} title={when === 'upcoming' ? 'No shifts planned yet' : 'No past shifts'}>
-                {when === 'upcoming' ? 'New shifts show up here, and you get an email for each one.' : undefined}
+              <Empty icon={CalendarRange} title={when === 'upcoming' ? t.mySchedule.noUpcoming : t.mySchedule.noPast}>
+                {when === 'upcoming' ? t.mySchedule.noUpcomingBody : undefined}
               </Empty>
             </div>
           ) : (
@@ -151,6 +154,7 @@ export default function MySchedule() {
 }
 
 function ShiftCard({ shift, zone, events }: { shift: Shift; zone: string; events: KEvent[] }) {
+  const t = useT()
   return (
     <div className="card" style={{ padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 8 }}>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 16 }}>
@@ -165,7 +169,7 @@ function ShiftCard({ shift, zone, events }: { shift: Shift; zone: string; events
       {events.length > 0 && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 4, paddingTop: 8, borderTop: '1px solid var(--line)' }}>
           <span className="muted" style={{ fontSize: 12 }}>
-            {pluralize(events.length, 'event')} during this shift
+            {t.mySchedule.eventsDuring(events.length)}
           </span>
           {events.map((e) => (
             <div key={e.id} style={{ display: 'flex', alignItems: 'baseline', gap: 12 }}>
@@ -174,7 +178,7 @@ function ShiftCard({ shift, zone, events }: { shift: Shift; zone: string; events
                 {eventTime(e.dateTime)}
               </span>
               <span style={{ fontWeight: 500 }}>{e.title}</span>
-              <span className="muted">{e.peopleNumber} guests</span>
+              <span className="muted">{t.common.guests(e.peopleNumber)}</span>
               {e.description && <span className="muted hide-sm">· {e.description}</span>}
             </div>
           ))}

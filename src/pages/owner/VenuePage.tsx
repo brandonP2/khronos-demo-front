@@ -4,12 +4,14 @@ import { Check, Map as MapIcon, Pencil, Plus, Trash2, X } from 'lucide-react'
 import { api } from '../../api/endpoints'
 import type { Zone } from '../../api/types'
 import { useMe } from '../../auth/AuthContext'
-import { Button, ConfirmDialog, Empty, ErrorNote, Field, Loading, PageHead, pluralize, useToast } from '../../components/ui'
+import { Button, ConfirmDialog, Empty, ErrorNote, Field, Loading, PageHead, useToast } from '../../components/ui'
+import { useT } from '../../lib/i18n'
 import { useEvents, useInvalidate, useShifts, useZones } from '../../lib/queries'
 import { eventDate, today } from '../../lib/time'
 import { useVenue } from '../../lib/VenueContext'
 
 export default function VenuePage() {
+  const t = useT()
   const me = useMe()
   const { venue } = useVenue()
   // Only what is ahead matters here: it is what a zone delete would cancel
@@ -34,7 +36,7 @@ export default function VenuePage() {
       }),
     onSuccess: async () => {
       await invalidate.venues()
-      toast('Venue saved')
+      toast(t.venuePage.saved)
     },
   })
 
@@ -43,7 +45,7 @@ export default function VenuePage() {
     onSuccess: async (z) => {
       setNewZone('')
       await invalidate.zones()
-      toast(`${z.name} added`)
+      toast(t.venuePage.zoneAdded(z.name))
     },
   })
 
@@ -56,20 +58,20 @@ export default function VenuePage() {
   })
 
   if (!venue) return null
-  const t = today()
+  const now = today()
   const upcoming = (zoneId: number) => ({
-    shifts: (shifts.data ?? []).filter((s) => s.zoneId === zoneId && s.date >= t).length,
-    events: (events.data ?? []).filter((e) => e.zoneId === zoneId && eventDate(e.dateTime) >= t).length,
+    shifts: (shifts.data ?? []).filter((s) => s.zoneId === zoneId && s.date >= now).length,
+    events: (events.data ?? []).filter((e) => e.zoneId === zoneId && eventDate(e.dateTime) >= now).length,
   })
   const venueDirty = name.trim() !== venue.establishmentName || address.trim() !== venue.establishmentAddress
 
   return (
     <div className="page" style={{ maxWidth: 880 }}>
-      <PageHead title="Venue and zones" sub="Zones are the areas people work in, like Terrace, Kitchen or Main hall." />
+      <PageHead title={t.venuePage.title} sub={t.venuePage.sub} />
 
       <section className="card">
         <div className="card-head">
-          <h2>Zones</h2>
+          <h2>{t.venuePage.zones}</h2>
           <span className="muted mono" style={{ fontSize: 12 }}>
             {zones.data?.length ?? 0}
           </span>
@@ -79,8 +81,8 @@ export default function VenuePage() {
             <Loading rows={2} />
           </div>
         ) : zones.data?.length === 0 ? (
-          <Empty icon={MapIcon} title="No zones yet">
-            Add the first one below. Every shift and event belongs to a zone.
+          <Empty icon={MapIcon} title={t.venuePage.noZones}>
+            {t.venuePage.noZonesBody}
           </Empty>
         ) : (
           <div className="list">
@@ -101,29 +103,29 @@ export default function VenuePage() {
                       <input
                         className="input"
                         style={{ maxWidth: 280 }}
-                        aria-label="Zone name"
+                        aria-label={t.venuePage.zoneName}
                         autoFocus
                         maxLength={50}
                         value={editing.name}
                         onChange={(e) => setEditing({ id: z.id, name: e.target.value })}
                       />
                       <Button size="sm" variant="primary" type="submit" icon={Check} loading={renameZone.isPending}>
-                        Save
+                        {t.common.save}
                       </Button>
-                      <Button size="sm" variant="ghost" iconOnly icon={X} aria-label="Cancel" onClick={() => setEditing(null)} />
+                      <Button size="sm" variant="ghost" iconOnly icon={X} aria-label={t.common.cancel} onClick={() => setEditing(null)} />
                     </form>
                   ) : (
                     <>
                       <span style={{ flex: 1, fontWeight: 500 }}>{z.name}</span>
                       <span className="muted mono hide-sm" style={{ fontSize: 12 }}>
-                        {pluralize(u.shifts, 'shift')} · {pluralize(u.events, 'event')} ahead
+                        {t.venuePage.ahead(u.shifts, u.events)}
                       </span>
                       <Button
                         size="sm"
                         variant="ghost"
                         iconOnly
                         icon={Pencil}
-                        aria-label={`Rename ${z.name}`}
+                        aria-label={t.venuePage.rename(z.name)}
                         onClick={() => setEditing({ id: z.id, name: z.name })}
                       />
                       <Button
@@ -131,7 +133,7 @@ export default function VenuePage() {
                         variant="ghost"
                         iconOnly
                         icon={Trash2}
-                        aria-label={`Delete ${z.name}`}
+                        aria-label={t.venuePage.delete(z.name)}
                         onClick={() => setDeleting(z)}
                       />
                     </>
@@ -151,14 +153,14 @@ export default function VenuePage() {
         >
           <input
             className="input"
-            placeholder="New zone name"
-            aria-label="New zone name"
+            placeholder={t.venuePage.newZone}
+            aria-label={t.venuePage.newZone}
             maxLength={50}
             value={newZone}
             onChange={(e) => setNewZone(e.target.value)}
           />
           <Button type="submit" icon={Plus} disabled={!newZone.trim()} loading={addZone.isPending}>
-            Add zone
+            {t.venuePage.addZone}
           </Button>
         </form>
         {(addZone.error || renameZone.error) && (
@@ -170,7 +172,7 @@ export default function VenuePage() {
 
       <section className="card">
         <div className="card-head">
-          <h2>Venue details</h2>
+          <h2>{t.venuePage.details}</h2>
         </div>
         <form
           className="card-body form"
@@ -180,10 +182,10 @@ export default function VenuePage() {
           }}
         >
           <div className="row-2">
-            <Field label="Name">
+            <Field label={t.venuePage.name}>
               {(id) => <input id={id} className="input" maxLength={100} value={name} onChange={(e) => setName(e.target.value)} />}
             </Field>
-            <Field label="Address">
+            <Field label={t.venuePage.address}>
               {(id) => (
                 <input id={id} className="input" maxLength={255} value={address} onChange={(e) => setAddress(e.target.value)} />
               )}
@@ -192,7 +194,7 @@ export default function VenuePage() {
           <ErrorNote error={saveVenue.error} />
           <div>
             <Button type="submit" variant="primary" disabled={!venueDirty || !name.trim() || !address.trim()} loading={saveVenue.isPending}>
-              Save details
+              {t.venuePage.saveDetails}
             </Button>
           </div>
         </form>
@@ -200,20 +202,18 @@ export default function VenuePage() {
 
       {deleting && (
         <ConfirmDialog
-          title={`Delete ${deleting.name}`}
-          confirmLabel="Delete zone"
+          title={t.venuePage.deleteTitle(deleting.name)}
+          confirmLabel={t.venuePage.deleteConfirm}
           onClose={() => setDeleting(null)}
           onConfirm={async () => {
             await api.zones.remove(deleting.id)
             await Promise.all([invalidate.zones(), invalidate.schedule()])
-            toast(`${deleting.name} deleted`)
+            toast(t.venuePage.deleted(deleting.name))
           }}
         >
           {(() => {
             const u = upcoming(deleting.id)
-            return u.shifts || u.events
-              ? `This also deletes every shift and event in it, including ${pluralize(u.shifts, 'upcoming shift')} and ${pluralize(u.events, 'upcoming event')}. People on those events are emailed. This cannot be undone.`
-              : 'This also deletes any past shifts and events recorded in it. This cannot be undone.'
+            return u.shifts || u.events ? t.venuePage.deleteBodyAhead(u.shifts, u.events) : t.venuePage.deleteBody
           })()}
         </ConfirmDialog>
       )}

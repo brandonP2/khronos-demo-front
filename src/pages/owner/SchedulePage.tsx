@@ -7,8 +7,9 @@ import { Board } from '../../components/Board'
 import { EventDrawer, EventFormDialog } from '../../components/EventDialogs'
 import { CopyWeekDialog, ShiftBatchDialog, ShiftEditDialog, type ShiftDraft } from '../../components/ShiftDialogs'
 import { Button, Empty, ErrorNote, Loading, PageHead } from '../../components/ui'
+import { useFmt, useT } from '../../lib/i18n'
 import { useAssignments, useEvents, useShifts, useStaff, useZones } from '../../lib/queries'
-import { addDays, eventDate, fmt, minutes, today, weekDays } from '../../lib/time'
+import { addDays, eventDate, minutes, today, weekDays } from '../../lib/time'
 import { useVenue } from '../../lib/VenueContext'
 
 type Modal =
@@ -20,6 +21,8 @@ type Modal =
   | null
 
 export default function SchedulePage() {
+  const t = useT()
+  const fmt = useFmt()
   const me = useMe()
   const { venue } = useVenue()
   const [date, setDate] = useState(today())
@@ -55,7 +58,7 @@ export default function SchedulePage() {
   if (loading) {
     return (
       <div className="page">
-        <PageHead title="Schedule" />
+        <PageHead title={t.schedule.title} />
         <Loading rows={5} />
       </div>
     )
@@ -64,7 +67,7 @@ export default function SchedulePage() {
   if (error) {
     return (
       <div className="page">
-        <PageHead title="Schedule" />
+        <PageHead title={t.schedule.title} />
         <ErrorNote error={error} />
       </div>
     )
@@ -76,18 +79,18 @@ export default function SchedulePage() {
   if (zoneList.length === 0) {
     return (
       <div className="page">
-        <PageHead title="Schedule" />
+        <PageHead title={t.schedule.title} />
         <div className="card">
           <Empty
             icon={MapIcon}
-            title="Start by adding the zones of your venue"
+            title={t.schedule.noZonesTitle}
             action={
               <Link to="/venue" className="btn btn-primary">
-                Set up zones
+                {t.schedule.setUpZones}
               </Link>
             }
           >
-            Shifts and events happen in a zone, like Terrace, Kitchen or Main hall. Add at least one to start scheduling.
+            {t.schedule.noZonesBody}
           </Empty>
         </div>
       </div>
@@ -98,18 +101,18 @@ export default function SchedulePage() {
     <div className="page">
       <PageHead title={fmt.relative(date)} sub={date === today() ? fmt.long(date) : fmt.month(date)}>
         <Button icon={Copy} onClick={() => setModal({ kind: 'copy-week' })}>
-          Copy last week
+          {t.schedule.copyLastWeek}
         </Button>
         <Button icon={CalendarPlus} onClick={() => setModal({ kind: 'new-event' })}>
-          New event
+          {t.schedule.newEvent}
         </Button>
         <Button variant="primary" icon={Plus} onClick={() => setModal({ kind: 'add-shifts' })}>
-          Add shifts
+          {t.schedule.addShifts}
         </Button>
       </PageHead>
 
       <div className="week">
-        <Button variant="ghost" iconOnly icon={ChevronLeft} aria-label="Previous week" onClick={() => setDate(addDays(date, -7))} />
+        <Button variant="ghost" iconOnly icon={ChevronLeft} aria-label={t.common.previousWeek} onClick={() => setDate(addDays(date, -7))} />
         <div className="week-days">
           {days.map((d) => {
             const c = countOn(d)
@@ -125,42 +128,42 @@ export default function SchedulePage() {
               >
                 <span className="wd">
                   {fmt.weekday(d)}
-                  {c.events > 0 && <span className="dot accent" title={`${c.events} events`} />}
+                  {c.events > 0 && <span className="dot accent" title={t.schedule.dayEvents(c.events)} />}
                 </span>
                 <span className="dn">{fmt.dayNumber(d)}</span>
-                <span className="counts">{c.shifts ? `${c.shifts} shifts` : 'No shifts'}</span>
+                <span className="counts">{t.schedule.dayShifts(c.shifts)}</span>
               </button>
             )
           })}
         </div>
-        <Button variant="ghost" iconOnly icon={ChevronRight} aria-label="Next week" onClick={() => setDate(addDays(date, 7))} />
+        <Button variant="ghost" iconOnly icon={ChevronRight} aria-label={t.common.nextWeek} onClick={() => setDate(addDays(date, 7))} />
         {!days.includes(today()) && (
           <Button size="sm" onClick={() => setDate(today())}>
-            Today
+            {t.common.today}
           </Button>
         )}
       </div>
 
       <div className="stats">
         <div className="card stat">
-          <span className="label">People on shift</span>
+          <span className="label">{t.schedule.peopleOnShift}</span>
           <span className="figure">{people}</span>
-          <span className="meta">of {staffList.filter((s) => s.isActive).length} active on the team</span>
+          <span className="meta">{t.schedule.ofActive(staffList.filter((s) => s.isActive).length)}</span>
         </div>
         <div className="card stat">
-          <span className="label">Hours scheduled</span>
-          <span className="figure">{hours % 1 ? hours.toFixed(1) : hours}</span>
-          <span className="meta">across {dayShifts.length} shifts</span>
+          <span className="label">{t.schedule.hoursScheduled}</span>
+          <span className="figure">{fmt.number(hours)}</span>
+          <span className="meta">{t.schedule.acrossShifts(dayShifts.length)}</span>
         </div>
         <div className="card stat">
-          <span className="label">Events</span>
+          <span className="label">{t.schedule.events}</span>
           <span className="figure">{dayEvents.length}</span>
-          <span className="meta">{dayEvents.reduce((n, e) => n + e.peopleNumber, 0)} guests expected</span>
+          <span className="meta">{t.schedule.guestsExpected(dayEvents.reduce((n, e) => n + e.peopleNumber, 0))}</span>
         </div>
         <div className="card stat">
-          <span className="label">Events with nobody on them</span>
+          <span className="label">{t.schedule.unstaffed}</span>
           <span className={unstaffed ? 'figure accent' : 'figure'}>{unstaffed}</span>
-          <span className="meta">{unstaffed ? 'Pick one on the board to assign people' : 'Every event has someone'}</span>
+          <span className="meta">{unstaffed ? t.schedule.unstaffedHint : t.schedule.allStaffed}</span>
         </div>
       </div>
 

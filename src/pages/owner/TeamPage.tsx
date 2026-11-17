@@ -15,9 +15,9 @@ import {
   Field,
   Loading,
   PageHead,
-  pluralize,
   useToast,
 } from '../../components/ui'
+import { useFmt, useT } from '../../lib/i18n'
 import { useInvalidate, useShifts, useStaff, useZones, type StaffMember } from '../../lib/queries'
 import { minutes, today, weekDays } from '../../lib/time'
 import { useVenue } from '../../lib/VenueContext'
@@ -25,6 +25,8 @@ import { useVenue } from '../../lib/VenueContext'
 type Modal = { kind: 'add' } | { kind: 'edit'; member: StaffMember } | { kind: 'toggle'; member: StaffMember } | null
 
 export default function TeamPage() {
+  const t = useT()
+  const fmt = useFmt()
   const me = useMe()
   const { venue } = useVenue()
   const week = weekDays(today())
@@ -38,7 +40,7 @@ export default function TeamPage() {
   const weekLoad = (id: number) => {
     const mine = (shifts.data ?? []).filter((s) => s.workerId === id && week.includes(s.date))
     const mins = mine.reduce((n, s) => n + minutes(s.endTime) - minutes(s.startTime), 0)
-    return { count: mine.length, hours: Math.round((mins / 60) * 10) / 10 }
+    return { count: mine.length, hours: fmt.number(mins / 60) }
   }
 
   const list = staff.data ?? []
@@ -47,11 +49,11 @@ export default function TeamPage() {
   return (
     <div className="page">
       <PageHead
-        title="Team"
-        sub={list.length ? `${active} active${list.length > active ? `, ${list.length - active} inactive` : ''}` : undefined}
+        title={t.team.title}
+        sub={list.length ? t.team.summary(active, list.length - active) : undefined}
       >
         <Button variant="primary" icon={UserPlus} onClick={() => setModal({ kind: 'add' })}>
-          Add person
+          {t.team.addPerson}
         </Button>
       </PageHead>
 
@@ -63,14 +65,14 @@ export default function TeamPage() {
         <div className="card">
           <Empty
             icon={Users}
-            title="Nobody on the team yet"
+            title={t.team.emptyTitle}
             action={
               <Button variant="primary" icon={UserPlus} onClick={() => setModal({ kind: 'add' })}>
-                Add person
+                {t.team.addPerson}
               </Button>
             }
           >
-            Each person gets their own login to see their shifts, and an email whenever their schedule changes.
+            {t.team.emptyBody}
           </Empty>
         </div>
       ) : (
@@ -78,11 +80,11 @@ export default function TeamPage() {
           <table className="table">
             <thead>
               <tr>
-                <th>Name</th>
-                <th className="hide-sm">Contact</th>
-                <th>Status</th>
-                <th className="right">This week</th>
-                <th className="right" aria-label="Actions" />
+                <th>{t.team.name}</th>
+                <th className="hide-sm">{t.team.contact}</th>
+                <th>{t.team.status}</th>
+                <th className="right">{t.team.thisWeek}</th>
+                <th className="right" aria-label={t.common.actions} />
               </tr>
             </thead>
             <tbody>
@@ -110,19 +112,19 @@ export default function TeamPage() {
                     <td>
                       <span className="status">
                         <span className={m.isActive ? 'dot on' : 'dot'} />
-                        {m.isActive ? 'Active' : 'Inactive'}
+                        {m.isActive ? t.team.active : t.team.inactive}
                       </span>
                     </td>
                     <td className="right mono">
-                      {load.count ? `${load.hours}h · ${pluralize(load.count, 'shift')}` : <span className="muted">—</span>}
+                      {load.count ? t.team.load(load.hours, load.count) : <span className="muted">—</span>}
                     </td>
                     <td className="right">
                       <div className="actions" style={{ justifyContent: 'flex-end', flexWrap: 'nowrap' }}>
                         <Button size="sm" variant="ghost" icon={Pencil} onClick={() => setModal({ kind: 'edit', member: m })}>
-                          Edit
+                          {t.common.edit}
                         </Button>
                         <Button size="sm" variant="ghost" onClick={() => setModal({ kind: 'toggle', member: m })}>
-                          {m.isActive ? 'Deactivate' : 'Reactivate'}
+                          {m.isActive ? t.team.deactivate : t.team.reactivate}
                         </Button>
                       </div>
                     </td>
@@ -138,18 +140,16 @@ export default function TeamPage() {
       {modal?.kind === 'edit' && <EditPersonDialog member={modal.member} onClose={() => setModal(null)} />}
       {modal?.kind === 'toggle' && (
         <ConfirmDialog
-          title={modal.member.isActive ? `Deactivate ${modal.member.name}` : `Reactivate ${modal.member.name}`}
-          confirmLabel={modal.member.isActive ? 'Deactivate' : 'Reactivate'}
+          title={modal.member.isActive ? t.team.deactivateTitle(modal.member.name) : t.team.reactivateTitle(modal.member.name)}
+          confirmLabel={modal.member.isActive ? t.team.deactivate : t.team.reactivate}
           onClose={() => setModal(null)}
           onConfirm={async () => {
             await api.workers.setActive(modal.member.userId, !modal.member.isActive)
             await invalidate.staff()
-            toast(modal.member.isActive ? 'Deactivated' : 'Reactivated')
+            toast(modal.member.isActive ? t.team.deactivated : t.team.reactivated)
           }}
         >
-          {modal.member.isActive
-            ? 'They stay on the team and keep the shifts already planned, but no new shifts can be given to them.'
-            : 'They can be scheduled again.'}
+          {modal.member.isActive ? t.team.deactivateBody : t.team.reactivateBody}
         </ConfirmDialog>
       )}
     </div>
@@ -159,6 +159,7 @@ export default function TeamPage() {
 const blank: UserCreate = { username: '', password: '', firstName: '', lastName: '', phoneNumber: '', email: '' }
 
 function AddPersonDialog({ venueId, onClose }: { venueId: number; onClose: () => void }) {
+  const t = useT()
   const invalidate = useInvalidate()
   const toast = useToast()
   const [form, setForm] = useState<UserCreate>(blank)
@@ -169,7 +170,7 @@ function AddPersonDialog({ venueId, onClose }: { venueId: number; onClose: () =>
     mutationFn: () => api.workers.createWithUser(venueId, { ...form, phoneNumber: form.phoneNumber?.trim() || null }),
     onSuccess: async ({ user }) => {
       await invalidate.staff()
-      toast(`${user.firstName} added to the team`)
+      toast(t.team.added(user.firstName))
       onClose()
     },
   })
@@ -184,46 +185,46 @@ function AddPersonDialog({ venueId, onClose }: { venueId: number; onClose: () =>
 
   return (
     <Dialog
-      title="Add person"
-      sub="They sign in with this username and password. Share them in person; Khronos does not send passwords."
+      title={t.team.addTitle}
+      sub={t.team.addSub}
       onClose={onClose}
       footer={
         <>
           <Button variant="ghost" onClick={onClose}>
-            Cancel
+            {t.common.cancel}
           </Button>
           <Button variant="primary" disabled={!valid} loading={mutation.isPending} onClick={() => mutation.mutate()}>
-            Add to team
+            {t.team.addSubmit}
           </Button>
         </>
       }
     >
       <form className="form" onSubmit={(e) => (e.preventDefault(), valid && mutation.mutate())}>
         <div className="row-2">
-          <Field label="First name" error={fe.firstName}>
+          <Field label={t.fields.firstName} error={fe.firstName}>
             {(id) => <input id={id} className="input" value={form.firstName} onChange={(e) => set('firstName', e.target.value)} />}
           </Field>
-          <Field label="Last name" error={fe.lastName}>
+          <Field label={t.fields.lastName} error={fe.lastName}>
             {(id) => <input id={id} className="input" value={form.lastName} onChange={(e) => set('lastName', e.target.value)} />}
           </Field>
         </div>
         <div className="row-2">
-          <Field label="Email" error={fe.email} hint="Schedule changes are emailed here">
+          <Field label={t.fields.email} error={fe.email} hint={t.team.emailHint}>
             {(id) => <input id={id} type="email" className="input" value={form.email} onChange={(e) => set('email', e.target.value)} />}
           </Field>
-          <Field label="Phone" error={fe.phoneNumber} hint="Optional">
+          <Field label={t.fields.phone} error={fe.phoneNumber} hint={t.common.optional}>
             {(id) => (
               <input id={id} type="tel" className="input mono" value={form.phoneNumber ?? ''} onChange={(e) => set('phoneNumber', e.target.value)} />
             )}
           </Field>
         </div>
         <div className="row-2">
-          <Field label="Username" error={fe.username} hint="3 to 50 characters">
+          <Field label={t.fields.username} error={fe.username} hint={t.fields.usernameHint}>
             {(id) => (
               <input id={id} className="input mono" autoComplete="off" value={form.username} onChange={(e) => set('username', e.target.value)} />
             )}
           </Field>
-          <Field label="Password" error={fe.password} hint="At least 8 characters">
+          <Field label={t.fields.password} error={fe.password} hint={t.fields.passwordHint}>
             {(id) => (
               <input
                 id={id}
@@ -244,6 +245,7 @@ function AddPersonDialog({ venueId, onClose }: { venueId: number; onClose: () =>
 }
 
 function EditPersonDialog({ member, onClose }: { member: StaffMember; onClose: () => void }) {
+  const t = useT()
   const invalidate = useInvalidate()
   const toast = useToast()
   const u = member.user
@@ -260,7 +262,7 @@ function EditPersonDialog({ member, onClose }: { member: StaffMember; onClose: (
     mutationFn: () => api.users.update(u.id, { ...form, phoneNumber: form.phoneNumber.trim() || null }),
     onSuccess: async () => {
       await invalidate.staff()
-      toast('Saved')
+      toast(t.team.saved)
       onClose()
     },
   })
@@ -268,37 +270,37 @@ function EditPersonDialog({ member, onClose }: { member: StaffMember; onClose: (
 
   return (
     <Dialog
-      title={`Edit ${member.name}`}
+      title={t.team.editTitle(member.name)}
       onClose={onClose}
       footer={
         <>
           <Button variant="ghost" onClick={onClose}>
-            Cancel
+            {t.common.cancel}
           </Button>
           <Button variant="primary" loading={mutation.isPending} onClick={() => mutation.mutate()}>
-            Save
+            {t.common.save}
           </Button>
         </>
       }
     >
       <div className="form">
         <div className="row-2">
-          <Field label="First name" error={fe.firstName}>
+          <Field label={t.fields.firstName} error={fe.firstName}>
             {(id) => <input id={id} className="input" value={form.firstName} onChange={(e) => set('firstName', e.target.value)} />}
           </Field>
-          <Field label="Last name" error={fe.lastName}>
+          <Field label={t.fields.lastName} error={fe.lastName}>
             {(id) => <input id={id} className="input" value={form.lastName} onChange={(e) => set('lastName', e.target.value)} />}
           </Field>
         </div>
         <div className="row-2">
-          <Field label="Email" error={fe.email}>
+          <Field label={t.fields.email} error={fe.email}>
             {(id) => <input id={id} type="email" className="input" value={form.email} onChange={(e) => set('email', e.target.value)} />}
           </Field>
-          <Field label="Phone" error={fe.phoneNumber}>
+          <Field label={t.fields.phone} error={fe.phoneNumber}>
             {(id) => <input id={id} type="tel" className="input mono" value={form.phoneNumber} onChange={(e) => set('phoneNumber', e.target.value)} />}
           </Field>
         </div>
-        <Field label="Username" error={fe.username}>
+        <Field label={t.fields.username} error={fe.username}>
           {(id) => <input id={id} className="input mono" value={form.username} onChange={(e) => set('username', e.target.value)} />}
         </Field>
         <ErrorNote error={mutation.error} />
