@@ -54,7 +54,7 @@ export default function EventsPage() {
   const unstaffed = list.filter((e) => (byEvent.get(e.id)?.length ?? 0) === 0).length
   // While another range loads, the previous one is still in events.data
   const loading = zones.isLoading || staff.isLoading || events.isLoading || events.isPlaceholderData
-  const error = zones.error ?? staff.error ?? events.error ?? shifts.error
+  const error = zones.error ?? staff.error ?? events.error ?? shifts.error ?? assignments.error
 
   return (
     <div className="page">

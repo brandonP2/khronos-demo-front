@@ -49,7 +49,7 @@ export default function SchedulePage() {
     setEventId(null)
   }
   const loading = zones.isLoading || staff.isLoading || shifts.isLoading || events.isLoading
-  const error = zones.error ?? staff.error ?? shifts.error ?? events.error
+  const error = zones.error ?? staff.error ?? shifts.error ?? events.error ?? assignments.error
 
   const people = new Set(dayShifts.map((s) => s.workerId)).size
   const hours = dayShifts.reduce((sum, s) => sum + (minutes(s.endTime) - minutes(s.startTime)), 0) / 60
