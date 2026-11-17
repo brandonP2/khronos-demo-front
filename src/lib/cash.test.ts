@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { cashFigures, needsDifferenceReason, suggestedServiceDay } from './cash'
+import { cashFigures, differenceTone, needsDifferenceReason, suggestedServiceDay } from './cash'
 
 const count = {
   openingFloat: 150,
@@ -12,6 +12,14 @@ const count = {
 }
 
 describe('cash closing figures', () => {
+  it('reads a difference as cash over, short or balanced, in cents', () => {
+    expect(differenceTone(0.5)).toBe('over')
+    expect(differenceTone(-0.01)).toBe('short')
+    expect(differenceTone(0)).toBe('even')
+    // Float noise below half a cent is no difference
+    expect(differenceTone(0.1 + 0.2 - 0.3)).toBe('even')
+  })
+
   it('works out total sales, expected cash and the difference like the API', () => {
     // 150 + 820,40 - 38,50 - 200 = 731,90
     expect(cashFigures(count)).toEqual({ totalSales: 2175.5, expectedCash: 731.9, difference: 0 })

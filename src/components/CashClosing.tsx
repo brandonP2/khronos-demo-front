@@ -9,7 +9,7 @@ import { ApiError } from '../api/client'
 import { api } from '../api/endpoints'
 import type { CashClosing, CashClosingChange, CashClosingInput, CashClosingStatus, Expense } from '../api/types'
 import { isClosedBefore, isClosingTaken, isReasonRequired } from '../lib/apiMessages'
-import { cashFigures, DIFFERENCE_REASON_LIMIT, needsDifferenceReason, type CashFigures } from '../lib/cash'
+import { cashFigures, DIFFERENCE_REASON_LIMIT, differenceTone, needsDifferenceReason, type CashFigures, type DifferenceTone } from '../lib/cash'
 import { useFmt, useT } from '../lib/i18n'
 import { isBlank, parseAmount, sumMoney, toCents } from '../lib/money'
 import { useCashClosingHistory, useInvalidate } from '../lib/queries'
@@ -36,17 +36,18 @@ export function ClosingStatusTag({ status }: { status: CashClosingStatus | 'NEW'
   return <span className={cls}>{t.cash.status[status]}</span>
 }
 
+/** The class of a signed difference for each tone, shared with worked against planned time */
+const DIFF_CLASS: Record<DifferenceTone, string> = { over: 'diff over', short: 'diff under', even: 'diff' }
+
 /** Counted minus expected, signed, with the words for it: over, short or balanced */
 export function CashDifference({ value }: { value: number }) {
   const t = useT()
   const fmt = useFmt()
-  const cents = toCents(value)
-  const cls = cents > 0 ? 'diff over' : cents < 0 ? 'diff under' : 'diff'
-  const words = cents > 0 ? t.cash.over : cents < 0 ? t.cash.short : t.cash.even
+  const tone = differenceTone(value)
   return (
-    <span className={cls}>
+    <span className={DIFF_CLASS[tone]}>
       {fmt.signedMoney(value)}
-      <span className="visually-hidden"> {words}</span>
+      <span className="visually-hidden"> {t.cash[tone]}</span>
     </span>
   )
 }
@@ -55,8 +56,7 @@ export function CashDifference({ value }: { value: number }) {
 export function CashFiguresPanel({ figures, cashExpenses, day }: { figures: CashFigures; cashExpenses: number; day: string }) {
   const t = useT()
   const fmt = useFmt()
-  const cents = figures.difference === null ? null : toCents(figures.difference)
-  const tone = cents === null ? '' : cents > 0 ? 'over' : cents < 0 ? 'short' : 'even'
+  const tone = figures.difference === null ? null : differenceTone(figures.difference)
   return (
     <dl className="cash-figures">
       <div className="cash-figure">
@@ -79,14 +79,14 @@ export function CashFiguresPanel({ figures, cashExpenses, day }: { figures: Cash
         </dt>
         <dd className="mono">{fmt.money(figures.expectedCash)}</dd>
       </div>
-      <div className={`cash-figure cash-difference ${tone}`} aria-live="polite">
+      <div className={`cash-figure cash-difference ${tone ?? ''}`} aria-live="polite">
         <dt>{t.cash.difference}</dt>
-        {figures.difference === null ? (
+        {figures.difference === null || tone === null ? (
           <dd className="cash-figure-hint">{t.cash.notCounted}</dd>
         ) : (
           <dd>
             <span className="mono">{fmt.signedMoney(figures.difference)}</span>{' '}
-            <span className="cash-difference-words">{tone === 'over' ? t.cash.over : tone === 'short' ? t.cash.short : t.cash.even}</span>
+            <span className="cash-difference-words">{t.cash[tone]}</span>
           </dd>
         )}
       </div>

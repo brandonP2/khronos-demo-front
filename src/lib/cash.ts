@@ -40,6 +40,15 @@ export function cashFigures(count: CashCount): CashFigures {
   }
 }
 
+/** Counted against expected: more cash than expected, less, or the same */
+export type DifferenceTone = 'over' | 'short' | 'even'
+
+/** Compared in whole cents, so float noise never reads as cash over or short */
+export function differenceTone(difference: number): DifferenceTone {
+  const cents = toCents(difference)
+  return cents > 0 ? 'over' : cents < 0 ? 'short' : 'even'
+}
+
 /** More than 5,00 € either way needs a reason to close */
 export function needsDifferenceReason(difference: number | null, limit = DIFFERENCE_REASON_LIMIT): boolean {
   return difference !== null && Math.abs(toCents(difference)) > toCents(limit)
