@@ -212,3 +212,59 @@ describe('expenses', () => {
     expect(screen.getByRole('dialog', { name: 'Añadir gasto' })).toBeTruthy()
   })
 })
+
+describe('an expense from a received order', () => {
+  const fromOrder = expense(4, {
+    date: '2026-11-14',
+    description: 'Pedido #12',
+    supplier: 'Distribuciones Sur',
+    amount: 58,
+    paymentMethod: 'TRANSFER',
+    purchaseOrderId: 12,
+  })
+
+  it('says which order it came from, cannot be edited, and can be deleted', async () => {
+    const calls = ownerApi((call) => {
+      if (call.method === 'GET' && call.path.startsWith('/expenses/establishment/1?')) return json(200, [fromOrder, ...all])
+      if (call.method === 'DELETE' && call.path === '/expenses/4') return noContent()
+    })
+    renderApp('/expenses?from=2026-11-09&to=2026-11-15')
+    expect(await screen.findByRole('link', { name: 'Del pedido #12' })).toBeTruthy()
+    expect(screen.getByRole('link', { name: 'Del pedido #12' }).getAttribute('href')).toBe('/inventory/orders/12')
+    const edit = screen.getByRole('button', { name: 'Editar «Pedido #12»' }) as HTMLButtonElement
+    expect(edit.disabled).toBe(true)
+    expect(plain(document.getElementById(edit.getAttribute('aria-describedby')!)!.textContent)).toBe(
+      'Del pedido #12 · No se puede editar: para corregirlo, bórralo y anótalo de nuevo',
+    )
+    // The others are edited as always
+    expect((screen.getByRole('button', { name: 'Editar «Hielo»' }) as HTMLButtonElement).disabled).toBe(false)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Eliminar «Pedido #12»' }))
+    const dialog = screen.getByRole('dialog', { name: 'Eliminar este gasto' })
+    expect(dialog.textContent).toMatch(/El pedido #12 sigue recibido y conserva su entrada de stock/)
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Eliminar gasto' }))
+    await waitFor(() => expect(calls.some((c) => c.method === 'DELETE' && c.path === '/expenses/4')).toBe(true))
+  })
+
+  it('words the API refusing to edit it', async () => {
+    ownerApi((call) => {
+      if (call.method === 'GET' && call.path.startsWith('/expenses/establishment/1?')) return json(200, [{ ...fromOrder, purchaseOrderId: undefined }])
+      if (call.method === 'PUT' && call.path === '/expenses/4') {
+        return json(409, {
+          status: 409,
+          code: 'EXPENSE_FROM_PURCHASE_ORDER',
+          details: { purchaseOrderId: '12' },
+          message: 'This expense was created when purchase order #12 was received and cannot be edited; to correct it, delete it and enter it again',
+        })
+      }
+    })
+    renderApp('/expenses?from=2026-11-09&to=2026-11-15')
+    // An API that does not say where it came from yet: the 409 still explains it
+    fireEvent.click(await screen.findByRole('button', { name: 'Editar «Pedido #12»' }))
+    const dialog = screen.getByRole('dialog')
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Guardar' }))
+    expect(
+      await within(dialog).findByText('Este gasto se creó al recibir el pedido #12 y no se puede editar. Para corregirlo, bórralo y anótalo de nuevo.'),
+    ).toBeTruthy()
+  })
+})

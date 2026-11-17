@@ -417,6 +417,12 @@ export interface Expense {
   notes: string | null
   createdAt: string
   createdByName: string
+  /**
+   * The purchase order whose receipt created this expense; null (or missing, from an API before
+   * the inventory) otherwise. Such an expense is deleted, never edited: PUT answers 409
+   * EXPENSE_FROM_PURCHASE_ORDER
+   */
+  purchaseOrderId?: number | null
 }
 
 /** Every filter is optional; the list comes newest first */

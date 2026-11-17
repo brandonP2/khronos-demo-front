@@ -828,6 +828,9 @@ export const en: Messages = {
     removeTitle: 'Delete this expense',
     removeConfirm: 'Delete expense',
     removeBody: (description: string, amount: string) => `“${description}”, ${amount}. This cannot be undone.`,
+    fromOrder: (orderId: number) => `From order #${orderId}`,
+    fromOrderLocked: 'Can’t be edited: to correct it, delete it and enter it again',
+    removeFromOrder: (orderId: number) => `Order #${orderId} stays received and keeps its stock in.`,
     dayClosed: (day: string) =>
       `The till for ${day} is closed, so its cash expenses cannot change. Reopen that day’s closing on Cash first.`,
     goToCash: (day: string) => `Go to the till for ${day}`,

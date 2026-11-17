@@ -855,6 +855,9 @@ export const es = {
     removeTitle: 'Eliminar este gasto',
     removeConfirm: 'Eliminar gasto',
     removeBody: (description: string, amount: string) => `«${description}», ${amount}. No se puede deshacer.`,
+    fromOrder: (orderId: number) => `Del pedido #${orderId}`,
+    fromOrderLocked: 'No se puede editar: para corregirlo, bórralo y anótalo de nuevo',
+    removeFromOrder: (orderId: number) => `El pedido #${orderId} sigue recibido y conserva su entrada de stock.`,
     dayClosed: (day: string) =>
       `La caja del ${day} está cerrada, así que sus gastos en efectivo no se pueden cambiar. Reabre antes el cierre de ese día en Caja.`,
     goToCash: (day: string) => `Ir a la caja del ${day}`,

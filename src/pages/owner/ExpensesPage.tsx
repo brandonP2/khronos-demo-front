@@ -1,8 +1,9 @@
 // Expenses: what the venue pays for, filtered by period and category, with the filter's total.
 // Added and edited in a dialog; on phones the table turns into cards. ?new=1 opens the dialog
-// (from the summary), and ?from&to pick the period (from a day's cash closing).
+// (from the summary), and ?from&to pick the period (from a day's cash closing or a received
+// order). An expense created by receiving an order links to it and is deleted, never edited.
 import { useState } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { Download, Pencil, Plus, ReceiptText, Trash2 } from 'lucide-react'
 import { api } from '../../api/endpoints'
 import type { Expense, ExpenseCategory } from '../../api/types'
@@ -142,6 +143,12 @@ export default function ExpensesPage() {
                     {(e.supplier || e.notes) && (
                       <span className="muted cell-sub">{[e.supplier, e.notes].filter(Boolean).join(' · ')}</span>
                     )}
+                    {e.purchaseOrderId != null && (
+                      <span className="muted cell-sub" id={`expense-order-${e.id}`}>
+                        <Link to={`/inventory/orders/${e.purchaseOrderId}`}>{t.expenses.fromOrder(e.purchaseOrderId)}</Link>
+                        {` · ${t.expenses.fromOrderLocked}`}
+                      </span>
+                    )}
                   </td>
                   <td data-label={t.expenses.columns.category}>{t.categories[e.category]}</td>
                   <td data-label={t.expenses.columns.method}>{t.paymentMethods[e.paymentMethod]}</td>
@@ -156,7 +163,10 @@ export default function ExpensesPage() {
                         icon={Pencil}
                         className="btn-compact"
                         aria-label={t.expenses.edit(e.description)}
-                        title={t.common.edit}
+                        title={e.purchaseOrderId != null ? t.expenses.fromOrderLocked : t.common.edit}
+                        // Created by receiving an order: it is deleted and entered again, never edited
+                        disabled={e.purchaseOrderId != null}
+                        aria-describedby={e.purchaseOrderId != null ? `expense-order-${e.id}` : undefined}
                         onClick={() => setModal({ kind: 'edit', expense: e })}
                       >
                         <span className="btn-label">{t.common.edit}</span>
@@ -201,6 +211,7 @@ export default function ExpensesPage() {
           }}
         >
           {t.expenses.removeBody(modal.expense.description, fmt.money(modal.expense.amount))}
+          {modal.expense.purchaseOrderId != null && ` ${t.expenses.removeFromOrder(modal.expense.purchaseOrderId)}`}
         </ConfirmDialog>
       )}
     </div>
