@@ -56,7 +56,7 @@ return <PageHead title={t.schedule.title} sub={`${fmt.long(date)} · ${t.common.
 - Strings that take numbers or names are functions, so each language handles its own plurals and word order: `shifts: (n: number) => ...`.
 - Dates use the language's locale (`es-ES` or `en-GB`), a 24-hour clock and weeks that start on Monday.
 - The language is picked on the Account page and remembered in `localStorage`.
-- Messages written by the API are still in English and are shown as they come. Errors the app detects itself (no connection, server down, too many attempts, wrong password at sign-in) are translated.
+- Messages written by the API are in English. The ones a person meets while clocking in and out (already clocked in, overlaps, more than 24 hours, and so on) are matched exactly in `src/lib/apiMessages.ts` and shown in the current language; any other API message is shown as it comes. Errors the app detects itself (no connection, server down, too many attempts, wrong password at sign-in) are translated.
 
 ## How it maps to the API rules
 
@@ -64,8 +64,12 @@ return <PageHead title={t.schedule.title} sub={`${fmt.long(date)} · ${t.common.
 - **Shifts that end the next day.** A shift's `date` is its service day, the day it starts. An end at or before the start is on the next day: 18:00–02:00 is 8 hours. The dialogs say so ("Ends the next day at 02:00. Lasts 8h.") and refuse the same time twice and more than 16 hours, like the API. The board draws a night shift whole on an axis that runs past 24:00, with "+1" on the hours of the next day and a dashed midnight line; the night shifts of the day before are carried into the small hours, so an event at 01:00 shows who covers it. Hours use `durationMinutes` from the API.
 - **Time zone.** Shifts and events are local times with no zone. Time entries are UTC instants and are always shown, and typed, on the venue's clock (`timeZone`, `Europe/Madrid` by default), whatever the device's zone. The conversion, including the nights the clocks change, lives in `src/lib/time.ts`.
 - **Time entries are never deleted.** The owner adds a day that was not clocked, corrects or voids an entry, always with a reason (3 to 255 characters) that the API keeps in the entry's history. Corrected entries are marked, voided ones are struck through.
-- **Clocking someone out.** The API has no clock-out on someone else's behalf, so the owner's "Clock out" on the Now card is a correction that sets the clock-out to now, and shows as one in the history. "Clock in now" sends the time cut to the minute, so a device clock a few seconds fast does not send a clock-in in the future.
+- **Clocking someone out.** The owner's "Clock out" on the Now card calls `POST /time-entries/{id}/clock-out` with the break and a reason; the server sets the time and the history shows a clock-out. An entry open for more than 24 hours can't be clocked out (the API answers 409): the dialog says so, before sending when it can tell from the clock-in, and opens the correction with the clock-out left empty for the real time. "Clock in now" sends the time cut to the minute, so a device clock a few seconds fast does not send a clock-in in the future.
+- **Only workers clock themselves.** `me/open`, `clock-in` and `clock-out` are only called with a worker's session (owners and admins get 403 from them). A deactivated worker gets a 401 `ACCOUNT_DISABLED` on any call, clocking included, and is signed out with that reason.
 - **A forgotten clock-out.** When the open entry is `isStale` (open for more than 16 hours), the worker's card says so and sends them to their manager instead of offering to clock out, which would record a very long day.
+- **Voided entries** stop counting. The reports (Hours, the day by day of Person and My hours) leave them out; the entry list on the Person page asks for them (`includeVoided=true`) and strikes them through.
+- **Costs** are each day's minutes times the rate in force that day. When some minutes fall on a day with no rate, the API gives `null` instead of a sum that falls short, and the app shows "—" with "No rate for part of the period". Totals add up the known costs, and a notice says how many people are left out.
+- **Venues with time entries are kept.** Deleting one answers 409 so the time record is not lost; the admin page says so and suggests deactivating the team instead.
 - **Batches are all or nothing.** Shifts, events and assignments are sent as one list. When the API answers `Shift [2]: ...`, the app highlights that row and shows the message. When "Assign all" fails, the panel names the person it stopped at and offers to assign the rest.
 - **Automatic unassignment.** After a shift or event is changed, the app refetches assignments, because the API may have removed people whose shift no longer covers the event.
 - **Inactive people** can't get new shifts or sign in, so they are left out of the pickers.
@@ -128,18 +132,21 @@ The screens for hours and clocking in follow the delivery 2 API contract. Instan
 | `timeZone` (IANA, default `Europe/Madrid`) on `EstablishmentRequest` and `EstablishmentResponse` | | Venue page and the admin's new-venue dialog; every time entry is shown in it |
 | `endsNextDay` and `durationMinutes` on `WorkerShiftResponse`; an `endTime` at or before `startTime` means the next day, 16 hours at most | | Board, shift dialogs, hours on Schedule, Team and My schedule |
 | `GET /api/time-entries/me/open` → `TimeEntryResponse`, or 204 | Worker | Clock card |
-| `POST /api/time-entries/clock-in` `{ note? }` → 201; 409 if already in or inactive | Worker | Clock in |
-| `POST /api/time-entries/clock-out` `{ breakMinutes?, note? }` → 200; 409 if nothing open | Worker | Clock out |
+| `POST /api/time-entries/clock-in` `{ note? }` → 201; 409 if already in | Worker | Clock in |
+| `POST /api/time-entries/clock-out` `{ breakMinutes?, note? }` → 200; 409 if nothing open or open for more than 24 hours | Worker | Clock out |
 | `POST /api/time-entries` `{ workerId, clockIn, clockOut?, breakMinutes?, reason }` → 201 | Owner | Clock someone in now (Now card), add a day (Person) |
-| `PUT /api/time-entries/{id}` `{ clockIn, clockOut, breakMinutes, reason }` | Owner | Correct an entry (Person); clock someone out now (Now card) |
-| `PUT /api/time-entries/{id}/void` `{ reason }` | Owner | Void an entry (Person) |
+| `POST /api/time-entries/{id}/clock-out` `{ breakMinutes? (0..600), reason (3..255) }` → 200, kept in the history as `CLOCKED_OUT`; 409 if open for more than 24 hours | Owner | Clock someone out now (Now card) |
+| `PUT /api/time-entries/{id}` `{ clockIn, clockOut, breakMinutes, reason }`, `breakMinutes` and `reason` (3..255) required | Owner | Correct an entry (Person, and from the Now card for an entry open more than 24 hours) |
+| `PUT /api/time-entries/{id}/void` `{ reason }` (3..255) | Owner | Void an entry (Person) |
 | `GET /api/time-entries/{id}/history` → `TimeEntryChangeResponse[]` | Owner, or the worker on their own | History dialog |
 | `GET /api/time-entries/worker/{workerId}?from&to&includeVoided=true` | Owner | Entries on the Person page |
 | `GET /api/time-entries/establishment/{id}/open` | Owner | Now card |
 | `GET /api/workers/{workerId}/rates`, `POST` `{ hourlyRate, effectiveFrom }` (409 on a repeated date), `DELETE /{rateId}` | Owner | Hourly rate on the Person page |
-| `GET /api/reports/establishment/{id}/hours?from&to` | Owner | Hours page |
+| `GET /api/reports/establishment/{id}/hours?from&to`; voided entries never count, a cost is `null` when a rate is missing for part of it | Owner | Hours page |
 | `GET /api/reports/worker/{workerId}/days?from&to` | Owner, or the worker on their own (costs `null`) | Person page, My hours |
 | `GET /api/reports/establishment/{id}/hours.csv?from&to` and `/time-entries.csv?from&to` | Owner | "Export hours (CSV)" and "Export time record (CSV)" on Hours |
 | `GET /api/reports/worker/{workerId}/time-entries.csv?from&to` | Owner, or the worker on their own | "Download my record (CSV)" on My hours |
 
 `GET /api/time-entries/establishment/{id}?from&to` is typed in `src/api/endpoints.ts` but not used by any screen yet.
+
+A 401 with `code: "ACCOUNT_DISABLED"` on any call signs the person out with that reason. `DELETE /api/establishments/{id}` (and deleting a worker) answers 409 when there are time entries.
