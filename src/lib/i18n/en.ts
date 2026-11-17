@@ -570,7 +570,10 @@ export const en: Messages = {
     deleteTitle: (name: string) => `Delete ${name}`,
     deleteConfirm: 'Delete venue',
     deleted: 'Venue deleted',
-    deleteBody: 'Deletes its zones, team links, shifts and events. This cannot be undone.',
+    deleteBody:
+      'Deletes its zones, team links, shifts and events. This cannot be undone. A venue with time entries cannot be deleted, so its time record is not lost.',
+    deleteBlocked: (name: string) =>
+      `${name} has time entries and cannot be deleted without losing its time record. Deactivate the people on its team instead of deleting the venue.`,
     ownerCreated: 'Owner created',
     createOwner: 'Create owner',
     venueCreated: 'Venue created',

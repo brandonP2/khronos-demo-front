@@ -591,7 +591,10 @@ export const es = {
     deleteTitle: (name: string) => `Eliminar ${name}`,
     deleteConfirm: 'Eliminar local',
     deleted: 'Local eliminado',
-    deleteBody: 'Se eliminan sus zonas, la vinculación de su equipo, sus turnos y sus eventos. No se puede deshacer.',
+    deleteBody:
+      'Se eliminan sus zonas, la vinculación de su equipo, sus turnos y sus eventos. No se puede deshacer. Un local con fichajes no se puede eliminar, para no perder su registro de jornada.',
+    deleteBlocked: (name: string) =>
+      `${name} tiene fichajes registrados y no se puede eliminar sin perder su registro de jornada. Desactiva a las personas de su equipo en lugar de eliminar el local.`,
     ownerCreated: 'Propietario creado',
     createOwner: 'Crear propietario',
     venueCreated: 'Local creado',

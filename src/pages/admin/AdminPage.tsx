@@ -155,7 +155,12 @@ export default function AdminPage() {
           confirmLabel={t.admin.deleteConfirm}
           onClose={() => setDeleting(null)}
           onConfirm={async () => {
-            await api.establishments.remove(deleting.id)
+            try {
+              await api.establishments.remove(deleting.id)
+            } catch (e) {
+              // A venue with time entries is kept: the API answers 409 and recommends deactivating
+              throw e instanceof ApiError && e.status === 409 ? new Error(t.admin.deleteBlocked(deleting.establishmentName)) : e
+            }
             await qc.invalidateQueries({ queryKey: ['admin'] })
             toast(t.admin.deleted)
           }}
