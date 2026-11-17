@@ -500,6 +500,20 @@ describe('closings of the period', () => {
     fireEvent.click(within(list).getByRole('button', { name: 'Abrir el cierre del Domingo, 15 de noviembre' }))
     expect(await screen.findByRole('heading', { name: 'Cierre de caja del Domingo, 15 de noviembre' })).toBeTruthy()
   })
+
+  it('never asks for more than 366 days, the most the API lists', async () => {
+    const calls = cashServer(null)
+    renderApp(`/cash?date=${DAY}`)
+    await screen.findByLabelText('Ventas en efectivo')
+    fireEvent.click(screen.getByRole('button', { name: 'Personalizado' }))
+    fireEvent.change(screen.getByLabelText('Desde'), { target: { value: '2025-11-15' } })
+    fireEvent.change(screen.getByLabelText('Hasta'), { target: { value: '2026-11-16' } })
+    expect(screen.getByText('Elige un periodo de 366 días como máximo')).toBeTruthy()
+    const lists = calls.filter((c) => /^\/(cash-closings\/establishment|expenses\/establishment|reports\/establishment\/1\/summary\?)/.test(c.path))
+    expect(lists.some((c) => c.path.includes('from=2025-11-15'))).toBe(false)
+    // Every list asks with both dates
+    expect(lists.every((c) => /\?from=\d{4}-\d\d-\d\d&to=\d{4}-\d\d-\d\d/.test(c.path))).toBe(true)
+  })
 })
 
 describe('the day on the venue\'s clock', () => {

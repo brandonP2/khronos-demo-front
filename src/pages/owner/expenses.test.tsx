@@ -184,6 +184,20 @@ describe('expenses', () => {
     expect(calls.some((c) => c.method === 'POST')).toBe(false)
   })
 
+  it('never asks for more than 366 days, the most the API lists', async () => {
+    const calls = expensesApi()
+    renderApp('/expenses?from=2025-11-16&to=2026-11-16')
+    expect(await screen.findByText('Hielo')).toBeTruthy()
+    // 366 days counting both ends: asked for
+    expect(calls.some((c) => c.path === '/expenses/establishment/1?from=2025-11-16&to=2026-11-16')).toBe(true)
+
+    fireEvent.change(screen.getByLabelText('Desde'), { target: { value: '2025-11-15' } })
+    expect(screen.getByText('Elige un periodo de 366 días como máximo')).toBeTruthy()
+    expect(calls.some((c) => c.path.startsWith('/expenses/establishment/1?from=2025-11-15'))).toBe(false)
+    // Every list asks with both dates
+    expect(calls.filter((c) => c.path.startsWith('/expenses/')).every((c) => /\?from=\d{4}-\d\d-\d\d&to=\d{4}-\d\d-\d\d/.test(c.path))).toBe(true)
+  })
+
   it('opens the new expense straight away from a link', async () => {
     expensesApi()
     renderApp('/expenses?new=1')

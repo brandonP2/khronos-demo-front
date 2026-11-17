@@ -176,7 +176,7 @@ The Summary, Cash and Expenses pages follow the delivery 3 API contract. Every e
 |---|---|
 | `GET /api/reports/establishment/{id}/summary?from&to` → `{ from, to, currency, totals, days[], expensesByCategory[], previous }`; `totals` with `laborCostSource`, `laborCostPartial`, `workersWithoutCost`, `cashDifference` (closed days) and `draftCashDifference`, `previous` with `laborCostSource` | Summary: cards, chart, categories and alerts; the days with activity and no closing on Cash |
 | `GET /api/reports/establishment/{id}/summary.csv?from&to`, `/cash-closings.csv?from&to`, `/expenses.csv?from&to` | "Export summary", "Export closings" and "Export expenses" (CSV); the file name comes from `Content-Disposition` |
-| `GET /api/cash-closings/establishment/{id}?from&to` | The day's closing (`from` = `to` = the day) and the period's list |
+| `GET /api/cash-closings/establishment/{id}?from&to` | The day's closing (`from` = `to` = the day) and the period's list. Without dates the API lists the last 366 days, and a longer range is a 400: the app always sends both, from a period of 366 days at most, as for expenses |
 | `POST /api/cash-closings` `{ establishmentId, businessDate, openingFloat, cashSales, cardSales, otherSales, cashWithdrawals, countedCash, tips, notes }` → 201 draft; 409 if the day has one. `countedCash` is `null` until counted, and so is the `difference` in the answer | Save draft (first time) |
 | `PUT /api/cash-closings/{id}` (same body) → 200; 409 once closed | Save draft |
 | `PUT /api/cash-closings/{id}/close` `{ differenceReason? }` → 200; 409 when the cash is not counted, the difference is over the limit with no reason, or it is already closed | Close the till |
