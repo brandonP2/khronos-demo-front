@@ -2153,7 +2153,7 @@ a {
 .chart-axis {
   position: relative;
   height: var(--chart-h);
-  min-width: 44px;
+  min-width: 56px;
 }
 
 .chart-axis span {
@@ -2558,6 +2558,11 @@ a {
 @media (max-width: 1100px) {
   .stats.stats-5 {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  /* The fifth card takes the whole row instead of leaving a hole */
+  .stats.stats-5 > :last-child:nth-child(odd) {
+    grid-column: 1 / -1;
   }
 }
 
