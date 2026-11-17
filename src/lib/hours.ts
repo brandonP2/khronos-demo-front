@@ -33,6 +33,14 @@ export const HOURS_SORT_KEYS: HoursSortKey[] = [
   'cost',
 ]
 
+/** "12,50", "12.5" or "12 €" to 12.5; null unless above 0 with two decimals at most */
+export function parseRate(text: string): number | null {
+  const plain = text.trim().replace(/[\s€]/g, '').replace(',', '.')
+  if (!/^\d+(\.\d{1,2})?$/.test(plain)) return null
+  const value = Number(plain)
+  return value > 0 ? value : null
+}
+
 export const rowName = (row: Pick<HoursReportRow, 'firstName' | 'lastName'>) =>
   [row.firstName, row.lastName].filter(Boolean).join(' ').trim()
 

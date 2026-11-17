@@ -1659,6 +1659,108 @@ a {
   transform: translateX(-1px);
 }
 
+/* A person's page */
+.back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  align-self: flex-start;
+  margin-bottom: -16px;
+  font-size: 13px;
+  color: var(--text-2);
+  text-decoration: none;
+}
+
+.back-link:hover {
+  color: var(--text);
+}
+
+.person-sub {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 16px;
+}
+
+.person-sub .mono {
+  font-size: 13px;
+}
+
+.person .name.person-link {
+  display: inline-block;
+}
+
+.entry-row {
+  flex-wrap: wrap;
+}
+
+.entry-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.entry-line,
+.entry-meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+}
+
+.entry-meta {
+  font-size: 12px;
+}
+
+.entry-day {
+  min-width: 96px;
+  font-weight: 500;
+}
+
+.entry-row.voided .entry-line .mono {
+  text-decoration: line-through;
+  color: var(--text-3);
+}
+
+.entry-actions {
+  flex-wrap: nowrap;
+}
+
+.rate-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 12px;
+}
+
+.check {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--text-2);
+  cursor: pointer;
+}
+
+.check input {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: var(--accent);
+}
+
+@media (max-width: 560px) {
+  .rate-form {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .rate-form > .btn {
+    grid-column: 1 / -1;
+  }
+}
+
 /* Sorting picker, for when the table turns into cards */
 .hours-sort {
   display: none;

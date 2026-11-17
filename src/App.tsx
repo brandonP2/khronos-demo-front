@@ -12,6 +12,7 @@ import SchedulePage from './pages/owner/SchedulePage'
 import HoursPage from './pages/owner/HoursPage'
 import EventsPage from './pages/owner/EventsPage'
 import TeamPage from './pages/owner/TeamPage'
+import PersonPage from './pages/owner/PersonPage'
 import VenuePage from './pages/owner/VenuePage'
 import MySchedule from './pages/worker/MySchedule'
 import MyHours from './pages/worker/MyHours'
@@ -57,6 +58,7 @@ function OwnerApp() {
                 <Route path="hours" element={<HoursPage />} />
                 <Route path="events" element={<EventsPage />} />
                 <Route path="team" element={<TeamPage />} />
+                <Route path="team/:workerId" element={<PersonPage />} />
                 <Route path="venue" element={<VenuePage />} />
                 <Route path="*" element={<Navigate to="/" replace />} />
               </Routes>

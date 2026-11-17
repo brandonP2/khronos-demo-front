@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import { useMutation } from '@tanstack/react-query'
 import { KeyRound, Pencil, UserCheck, UserPlus, UserX, Users } from 'lucide-react'
 import { ApiError } from '../../api/client'
@@ -103,7 +104,9 @@ export default function TeamPage() {
                       <div className={m.isActive ? 'person' : 'person inactive'}>
                         <Avatar initials={m.initials} />
                         <div>
-                          <div className="name">{m.name}</div>
+                          <Link className="name person-link" to={`/team/${m.userId}`} title={t.hours.openPerson(m.name)}>
+                            {m.name}
+                          </Link>
                           <div className="muted mono" style={{ fontSize: 12 }}>
                             {m.user.username}
                           </div>
