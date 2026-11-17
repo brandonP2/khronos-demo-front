@@ -8,6 +8,7 @@ import { History, Lock, LockOpen, Save, Trash2 } from 'lucide-react'
 import { ApiError } from '../api/client'
 import { api } from '../api/endpoints'
 import type { CashClosing, CashClosingChange, CashClosingInput, CashClosingStatus, Expense } from '../api/types'
+import { isClosedBefore, isClosingTaken, isReasonRequired } from '../lib/apiMessages'
 import { cashFigures, DIFFERENCE_REASON_LIMIT, needsDifferenceReason, type CashFigures } from '../lib/cash'
 import { useFmt, useT } from '../lib/i18n'
 import { isBlank, parseAmount, sumMoney, toCents } from '../lib/money'
@@ -207,19 +208,22 @@ export function CashClosingForm({
     },
     onError: (e) => {
       if (!isConflict(e)) return
-      if (step.current === 'close' && !reasonNeeded) {
-        // Over the API's limit with no reason: ask for it here
+      if (step.current === 'close' && isReasonRequired(e.message)) {
+        // Over the API's limit (which can be lower than ours) with no reason: ask for it here
         setReasonAsked(true)
-        return
+      } else if (step.current === 'save' && !current && isClosingTaken(e.message)) {
+        void onConflict(t.cash.alreadyExists)
+      } else if (step.current === 'close' || current) {
+        // Closed meanwhile, from another phone
+        void onConflict(t.cash.closedMeanwhile)
       }
-      // The day got a closing elsewhere, or it was closed meanwhile
-      void onConflict(step.current === 'save' && !current ? t.cash.alreadyExists : t.cash.closedMeanwhile)
     },
   })
 
-  // A 409 is either answered here (the reason) or handed to the page, which reloads the closing
-  const conflict = isConflict(mutation.error)
-  const error = conflict ? (reasonAsked && reasonMissing ? t.cash.reasonRequired : null) : mutation.error
+  // A 409 is answered here (the reason), handed to the page, which reloads the closing, or shown
+  const handled =
+    isConflict(mutation.error) && (step.current === 'close' || !!current || isClosingTaken(mutation.error.message))
+  const error = handled ? (reasonAsked && reasonMissing ? t.cash.reasonRequired : null) : mutation.error
   const canClose = !anyInvalid && counted !== null && !reasonMissing
 
   const send = (closeIt: boolean) => {
@@ -287,7 +291,7 @@ export function CashClosingForm({
           <Field
             label={t.cash.reason}
             hint={t.cash.reasonHint(fmt.money(DIFFERENCE_REASON_LIMIT))}
-            error={submitted && reasonMissing && !conflict ? t.cash.reasonError : undefined}
+            error={submitted && reasonMissing && !handled ? t.cash.reasonError : undefined}
           >
             {(id) => (
               <textarea id={id} className="textarea" maxLength={REASON_MAX} value={reason} onChange={(e) => setReason(e.target.value)} />
@@ -327,7 +331,8 @@ export function CashClosingForm({
             try {
               await api.cashClosings.remove(current.id)
             } catch (e) {
-              if (isConflict(e)) {
+              // A day closed once stays on record: the API's reason is shown, in the app's language
+              if (isConflict(e) && !isClosedBefore(e.message)) {
                 await onConflict(t.cash.closedMeanwhile)
                 return
               }

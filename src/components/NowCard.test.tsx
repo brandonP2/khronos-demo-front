@@ -119,7 +119,7 @@ describe('Now on the schedule', () => {
     const before = asked()
     fireEvent.click(within(dialog).getByRole('button', { name: 'Fichar salida' }))
 
-    expect(await within(dialog).findByText('A voided time entry cannot be clocked out')).toBeTruthy()
+    expect(await within(dialog).findByText('Un fichaje anulado no se puede cerrar.')).toBeTruthy()
     await waitFor(() => expect(asked()).toBeGreaterThan(before))
     expect(screen.getByRole('dialog')).toBe(dialog)
   })

@@ -197,7 +197,10 @@ describe('cash closing form', () => {
       close: (call) =>
         (call.body as { differenceReason?: string }).differenceReason
           ? undefined
-          : json(409, { status: 409, message: 'A reason is required for a difference of more than 2.00' }),
+          : json(409, {
+              status: 409,
+              message: 'The cash difference of -3.00 EUR is larger than the 2.00 EUR allowed without a reason; send a differenceReason to close the day',
+            }),
     })
     renderApp(`/cash?date=${DAY}`)
     await screen.findByLabelText('Ventas en efectivo')
@@ -212,6 +215,51 @@ describe('cash closing form', () => {
     // Nothing changed in the draft, so it was only closed, twice asked
     expect(writes(calls).map((c) => `${c.method} ${c.path}`)).toEqual(['PUT /cash-closings/77/close', 'PUT /cash-closings/77/close'])
     expect(writes(calls)[1].body).toEqual({ differenceReason: 'Cambio mal dado' })
+  })
+
+  it('reloads a day that was closed from another phone instead of asking for a reason', async () => {
+    const draft = closingFrom(baseInput, { differenceReason: null })
+    let closedElsewhere = false
+    cashServer(draft, {
+      close: () => {
+        closedElsewhere = true
+        return json(409, { status: 409, message: 'The cash closing is already closed' })
+      },
+    })
+    const fetch = globalThis.fetch as unknown as ReturnType<typeof vi.fn>
+    const original = fetch.getMockImplementation() as (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
+    fetch.mockImplementation(async (input: RequestInfo | URL, init?: RequestInit) =>
+      closedElsewhere && String(input).endsWith(`/cash-closings/establishment/1?from=${DAY}&to=${DAY}`)
+        ? json(200, [{ ...draft, status: 'CLOSED', closedAt: '2026-11-16T22:40:00Z', closedByName: 'Marco Bianchi' }])
+        : original(input, init),
+    )
+    renderApp(`/cash?date=${DAY}`)
+    await screen.findByLabelText('Ventas en efectivo')
+    type('Motivo del descuadre', 'Billete roto')
+    fireEvent.click(screen.getByRole('button', { name: 'Cerrar caja' }))
+    expect(await screen.findByText('Este cierre ya estaba cerrado y se ha recargado.')).toBeTruthy()
+    expect(await screen.findByText('Cerrada el 16 nov 23:40 por Marco Bianchi')).toBeTruthy()
+  })
+
+  it('says why a draft closed once before cannot be discarded', async () => {
+    cashServer(closingFrom(baseInput))
+    const fetch = globalThis.fetch as unknown as ReturnType<typeof vi.fn>
+    const original = fetch.getMockImplementation() as (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
+    fetch.mockImplementation(async (input: RequestInfo | URL, init?: RequestInit) =>
+      init?.method === 'DELETE'
+        ? json(409, {
+            status: 409,
+            message: 'A cash closing that has been closed before cannot be deleted; correct it and close it again instead',
+          })
+        : original(input, init),
+    )
+    renderApp(`/cash?date=${DAY}`)
+    fireEvent.click(await screen.findByRole('button', { name: 'Descartar borrador' }))
+    const dialog = screen.getByRole('dialog', { name: 'Descartar este borrador' })
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Descartar borrador' }))
+    expect(
+      await within(dialog).findByText('Este cierre ya se cerró una vez, así que no se puede descartar: corrígelo y vuelve a cerrarlo.'),
+    ).toBeTruthy()
   })
 
   it('needs the counted cash to close', async () => {
@@ -250,7 +298,7 @@ describe('cash closing form', () => {
     cashServer(null, {
       create: () => {
         created = true
-        return json(409, { status: 409, message: 'A cash closing already exists for this day' })
+        return json(409, { status: 409, message: 'A cash closing already exists for 2026-11-16 at this establishment; edit that one instead' })
       },
     })
     // After the 409 the day's closing is there

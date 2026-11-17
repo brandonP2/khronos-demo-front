@@ -56,6 +56,10 @@ export const es = {
     breakTooLong: 'La pausa no puede ser más larga que el tiempo entre la entrada y la salida.',
     openTooLong: 'Esta entrada lleva más de 24 horas abierta. Pide a tu encargado que la corrija con la hora real de salida.',
     noVenue: 'Tu cuenta no está vinculada a ningún local. Habla con tu encargado.',
+    voidedNotClockable: 'Un fichaje anulado no se puede cerrar.',
+    alreadyClockedOut: 'Este fichaje ya tiene la salida fichada.',
+    futureDay: 'No puede ser un día que aún no ha llegado.',
+    closedBeforeNoDelete: 'Este cierre ya se cerró una vez, así que no se puede descartar: corrígelo y vuelve a cerrarlo.',
   },
   fields: {
     firstName: 'Nombre',

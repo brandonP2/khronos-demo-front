@@ -4,7 +4,6 @@
 import { useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { Download, Pencil, Plus, ReceiptText, Trash2 } from 'lucide-react'
-import { ApiError } from '../../api/client'
 import { api } from '../../api/endpoints'
 import type { Expense, ExpenseCategory } from '../../api/types'
 import { EXPENSE_CATEGORIES, ExpenseFormDialog, lockedDay } from '../../components/ExpenseDialogs'
@@ -194,7 +193,7 @@ export default function ExpensesPage() {
             try {
               await api.expenses.remove(expense.id)
             } catch (e) {
-              const day = e instanceof ApiError && e.status === 409 ? lockedDay(expense) : null
+              const day = lockedDay(e, expense)
               throw day ? new Error(t.expenses.dayClosed(fmt.long(day))) : e
             }
             await invalidate.expenses()

@@ -8,6 +8,7 @@ import { AlertCircle } from 'lucide-react'
 import { ApiError } from '../api/client'
 import { api } from '../api/endpoints'
 import type { Expense, ExpenseCategory, ExpenseInput, PaymentMethod } from '../api/types'
+import { closedCashDay } from '../lib/apiMessages'
 import { useFmt, useT } from '../lib/i18n'
 import { parseAmount } from '../lib/money'
 import { useInvalidate } from '../lib/queries'
@@ -32,13 +33,20 @@ export const SUPPLIER_MAX = 100
 export const EXPENSE_NOTES_MAX = 500
 
 /**
- * The day whose closed till stopped a change: the new day for a cash expense, else the day the
- * expense was on when it was paid in cash. null when cash is not involved.
+ * The day whose closed till stopped a change, from a 409: the day the API names, else the new day
+ * of a cash expense, else the day it was on when it was paid in cash. null for any other 409.
  */
-export function lockedDay(input: Pick<ExpenseInput, 'date' | 'paymentMethod'>, before?: Pick<Expense, 'date' | 'paymentMethod'>) {
+export function lockedDay(
+  error: unknown,
+  input: Pick<ExpenseInput, 'date' | 'paymentMethod'>,
+  before?: Pick<Expense, 'date' | 'paymentMethod'>,
+): string | null {
+  if (!(error instanceof ApiError) || error.status !== 409) return null
+  const closed = closedCashDay(error.message)
+  if (!closed) return null
+  if (closed.day) return closed.day
   if (input.paymentMethod === 'CASH') return input.date
-  if (before?.paymentMethod === 'CASH') return before.date
-  return null
+  return before?.paymentMethod === 'CASH' ? before.date : null
 }
 
 /** The explanation for a 409 on a cash expense, with a link to that day's till */
@@ -109,8 +117,7 @@ export function ExpenseFormDialog({
       onClose()
     },
   })
-  const closedDay =
-    mutation.error instanceof ApiError && mutation.error.status === 409 ? lockedDay(input, expense) : null
+  const closedDay = lockedDay(mutation.error, input, expense)
 
   const submit = () => {
     setSubmitted(true)

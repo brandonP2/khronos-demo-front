@@ -50,6 +50,10 @@ export const en: Messages = {
     breakTooLong: 'The break cannot be longer than the time between clock-in and clock-out.',
     openTooLong: 'This clock-in has been open for more than 24 hours. Ask your manager to correct it with the real clock-out time.',
     noVenue: 'Your account is not linked to a venue. Ask your manager.',
+    voidedNotClockable: 'A voided time entry cannot be clocked out.',
+    alreadyClockedOut: 'This time entry is already clocked out.',
+    futureDay: 'It cannot be a day that has not come yet.',
+    closedBeforeNoDelete: 'This closing was closed once, so it cannot be discarded: correct it and close it again.',
   },
   fields: {
     firstName: 'First name',

@@ -103,7 +103,7 @@ describe('expenses', () => {
   it('explains that a cash expense of a closed day needs that day’s till reopened, with a link to it', async () => {
     expensesApi((call) =>
       call.method === 'PUT' && call.path === '/expenses/3'
-        ? json(409, { status: 409, message: 'The cash closing of 2026-11-14 is closed; reopen it to change its cash expenses' })
+        ? json(409, { status: 409, message: 'The cash closing of 2026-11-14 is closed; reopen it to add, change or delete cash expenses of that day' })
         : undefined,
     )
     renderApp('/expenses')
@@ -123,7 +123,7 @@ describe('expenses', () => {
     let refuse = true
     const calls = expensesApi((call) => {
       if (call.method === 'DELETE' && call.path === '/expenses/3') {
-        return refuse ? json(409, { status: 409, message: 'Closed' }) : noContent()
+        return refuse ? json(409, { status: 409, message: 'The cash closing of 2026-11-14 is closed; reopen it to add, change or delete cash expenses of that day' }) : noContent()
       }
     })
     renderApp('/expenses')
@@ -137,6 +137,20 @@ describe('expenses', () => {
     fireEvent.click(within(dialog).getByRole('button', { name: 'Eliminar gasto' }))
     expect(await screen.findByText('Gasto eliminado')).toBeTruthy()
     expect(calls.filter((c) => c.method === 'DELETE')).toHaveLength(2)
+  })
+
+  it('shows any other 409 as it is, worded in Spanish when the app knows it', async () => {
+    expensesApi((call) =>
+      call.method === 'PUT' && call.path === '/expenses/3'
+        ? json(409, { status: 409, message: 'The expense date cannot be in the future' })
+        : undefined,
+    )
+    renderApp('/expenses')
+    fireEvent.click(await screen.findByRole('button', { name: 'Editar «Hielo»' }))
+    const dialog = screen.getByRole('dialog', { name: 'Editar gasto' })
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Guardar' }))
+    expect(await within(dialog).findByText('No puede ser un día que aún no ha llegado.')).toBeTruthy()
+    expect(within(dialog).queryByRole('link')).toBeNull()
   })
 
   it('opens the new expense straight away from a link', async () => {

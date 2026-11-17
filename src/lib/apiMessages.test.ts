@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { ApiError } from '../api/client'
 import { errorMessage } from '../components/ui'
-import { isAlreadyClockedOut, isNoOpenEntry, isOpenTooLong, knownApiMessage } from './apiMessages'
+import { closedCashDay, isAlreadyClockedOut, isClosingTaken, isNoOpenEntry, isOpenTooLong, isReasonRequired, knownApiMessage } from './apiMessages'
 import { dictionaries } from './i18n'
 
 const { es, en } = dictionaries
@@ -20,6 +20,8 @@ describe('API messages', () => {
       'The break cannot be longer than the time between clock-in and clock-out',
       'This time entry has been open for more than 24 hours; ask a manager to correct it',
       'Your account is not linked to an establishment',
+      'A voided time entry cannot be clocked out',
+      'The time entry is already clocked out',
     ]
     for (const message of messages) {
       const spanish = knownApiMessage(message, es)
@@ -44,5 +46,13 @@ describe('API messages', () => {
     expect(isNoOpenEntry('You already have an open time entry')).toBe(false)
     expect(isAlreadyClockedOut('The time entry is already clocked out')).toBe(true)
     expect(isAlreadyClockedOut('A voided time entry cannot be clocked out')).toBe(false)
+  })
+
+  it('tells the cash closing and expense refusals apart', () => {
+    expect(isReasonRequired('The cash difference of -7.50 EUR is larger than the 5.00 EUR allowed without a reason; send a differenceReason to close the day')).toBe(true)
+    expect(isReasonRequired('The cash closing is already closed')).toBe(false)
+    expect(isClosingTaken('A cash closing already exists for 2026-11-16 at this establishment; edit that one instead')).toBe(true)
+    expect(closedCashDay('The cash closing of 2026-11-14 is closed; reopen it to add, change or delete cash expenses of that day')).toEqual({ day: '2026-11-14' })
+    expect(closedCashDay('The expense date cannot be in the future')).toBeNull()
   })
 })
