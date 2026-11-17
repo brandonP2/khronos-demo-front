@@ -388,7 +388,7 @@ export const en: Messages = {
     current: 'Current',
     upcoming: 'Next',
     from: (date: string) => `from ${date}`,
-    hint: 'Each rate applies from its date until the next one starts. Rates already applied are not changed: add a new one.',
+    hint: 'Each rate applies from its date until the next one starts. A rate is not edited: add a new one. One that starts on a past date changes the cost of the days worked since then.',
     empty: 'No rate yet, so their cost cannot be worked out.',
     amount: 'Euros per hour',
     amountPlaceholder: '12.50',
@@ -397,6 +397,9 @@ export const en: Messages = {
     duplicate: 'There is already a rate starting that day',
     add: 'Add rate',
     added: 'Rate added',
+    pastTitle: 'Apply the rate from a past date',
+    pastBody: (rate: string, date: string) =>
+      `Days worked since ${date} will be costed at ${rate}, until the next rate starts if there is one. Their cost will change in the hours and the reports.`,
     remove: (rate: string, date: string) => `Remove the rate of ${rate} from ${date}`,
     removeTitle: 'Remove this rate',
     removeConfirm: 'Remove rate',

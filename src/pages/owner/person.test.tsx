@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react'
 import type { TimeEntry } from '../../api/types'
 import { parseRate } from '../../lib/hours'
+import { addDays, zonedToday } from '../../lib/time'
 import { json, mockApi, renderApp, user, type Call, type Route } from '../../test/helpers'
 
 const owner = user(2, 'OWNER', 'Ana', 'Gil')
@@ -240,6 +241,33 @@ describe('person page', () => {
     fireEvent.click(add)
     await waitFor(() => expect(calls.some((c) => c.method === 'POST' && c.path === '/workers/5/rates')).toBe(true))
     expect(calls.find((c) => c.method === 'POST')!.body).toEqual({ hourlyRate: 12.5, effectiveFrom: '2026-12-01' })
+  })
+
+  it('asks before a rate from a past date changes the cost of the days worked since then', async () => {
+    // A month before today on the venue's clock
+    const past = addDays(zonedToday('Europe/Madrid'), -30)
+    const calls = ownerApi((call) =>
+      call.method === 'POST' && call.path === '/workers/5/rates'
+        ? json(201, { id: 2, workerId: 5, hourlyRate: 12.5, effectiveFrom: past, createdAt: '2026-11-17T10:00:00Z' })
+        : undefined,
+    )
+    renderApp(PERSON)
+    expect(await screen.findByText(/Si empieza en una fecha pasada, cambia el coste de los días trabajados/)).toBeTruthy()
+    fireEvent.change(screen.getByLabelText('Euros por hora'), { target: { value: '12,50' } })
+    fireEvent.change(screen.getByLabelText('Se aplica desde'), { target: { value: past } })
+    fireEvent.click(screen.getByRole('button', { name: 'Añadir tarifa' }))
+
+    const dialog = screen.getByRole('dialog', { name: 'Aplicar la tarifa desde una fecha pasada' })
+    expect(within(dialog).getByText(/^Los días trabajados desde el [a-zé]+, .+ pasarán a calcularse con 12,50\s€\/h/)).toBeTruthy()
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Cancelar' }))
+    expect(screen.queryByRole('dialog')).toBeNull()
+    expect(calls.some((c) => c.method === 'POST')).toBe(false)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Añadir tarifa' }))
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Añadir tarifa' }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    expect(calls.filter((c) => c.method === 'POST').map((c) => c.body)).toEqual([{ hourlyRate: 12.5, effectiveFrom: past }])
+    expect(screen.getByText('Tarifa añadida')).toBeTruthy()
   })
 
   it('says so when the person is not on this venue', async () => {

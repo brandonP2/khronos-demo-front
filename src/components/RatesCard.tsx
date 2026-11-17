@@ -10,8 +10,9 @@ import { Button, ConfirmDialog, ErrorNote, Field, Loading, useToast } from './ui
 
 /**
  * A person's hourly rate and its history. A rate applies from its date until the next one
- * starts; one already applied is never edited, a new one is added instead. Only a rate that
- * has not started yet, or starts today, can be removed. Owner only.
+ * starts; one already applied is never edited, a new one is added instead. A new one from a
+ * past date changes the cost of the days worked since then, so the owner confirms it first.
+ * Only a rate that has not started yet, or starts today, can be removed. Owner only.
  */
 export function RatesCard({ workerId, today }: { workerId: number; today: string }) {
   const t = useT()
@@ -22,6 +23,7 @@ export function RatesCard({ workerId, today }: { workerId: number; today: string
   const [amount, setAmount] = useState('')
   const [from, setFrom] = useState(today)
   const [removing, setRemoving] = useState<WorkerRate | null>(null)
+  const [confirmingPast, setConfirmingPast] = useState(false)
 
   const list = rates.data ?? []
   const current = list.find((r) => r.effectiveFrom <= today) ?? null
@@ -91,7 +93,10 @@ export function RatesCard({ workerId, today }: { workerId: number; today: string
         style={{ borderTop: '1px solid var(--line)' }}
         onSubmit={(e) => {
           e.preventDefault()
-          if (canAdd) add.mutate()
+          if (!canAdd) return
+          // Today is the venue's; from an earlier day the cost already worked out changes
+          if (from < today) setConfirmingPast(true)
+          else add.mutate()
         }}
       >
         <div className="rate-form">
@@ -120,6 +125,17 @@ export function RatesCard({ workerId, today }: { workerId: number; today: string
         </span>
         <ErrorNote error={add.error} />
       </form>
+
+      {confirmingPast && hourlyRate !== null && (
+        <ConfirmDialog
+          title={t.rates.pastTitle}
+          confirmLabel={t.rates.add}
+          onClose={() => setConfirmingPast(false)}
+          onConfirm={() => add.mutateAsync()}
+        >
+          {t.rates.pastBody(t.hours.perHour(fmt.money(hourlyRate)), fmt.longInSentence(from))}
+        </ConfirmDialog>
+      )}
 
       {removing && (
         <ConfirmDialog

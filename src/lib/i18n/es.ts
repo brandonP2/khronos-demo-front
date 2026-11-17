@@ -407,7 +407,7 @@ export const es = {
     current: 'Vigente',
     upcoming: 'Próxima',
     from: (date: string) => `desde el ${date}`,
-    hint: 'Cada tarifa se aplica desde su fecha hasta que empieza la siguiente. Las que ya se han aplicado no se cambian: añade una nueva.',
+    hint: 'Cada tarifa se aplica desde su fecha hasta que empieza la siguiente. Una tarifa no se edita: añade una nueva. Si empieza en una fecha pasada, cambia el coste de los días trabajados desde entonces.',
     empty: 'Todavía no tiene tarifa, así que su coste no se puede calcular.',
     amount: 'Euros por hora',
     amountPlaceholder: '12,50',
@@ -416,6 +416,9 @@ export const es = {
     duplicate: 'Ya hay una tarifa que empieza ese día',
     add: 'Añadir tarifa',
     added: 'Tarifa añadida',
+    pastTitle: 'Aplicar la tarifa desde una fecha pasada',
+    pastBody: (rate: string, date: string) =>
+      `Los días trabajados desde el ${date} pasarán a calcularse con ${rate}, hasta que empiece la tarifa siguiente si la hay. Su coste cambiará en las horas y en los informes.`,
     remove: (rate: string, date: string) => `Quitar la tarifa de ${rate} desde el ${date}`,
     removeTitle: 'Quitar esta tarifa',
     removeConfirm: 'Quitar tarifa',
