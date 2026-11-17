@@ -1,5 +1,6 @@
-import { useMemo } from 'react'
+import { useCallback, useMemo } from 'react'
 import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useT } from './i18n'
 import { api } from '../api/endpoints'
 import type { Assignment, DateRange, User, Worker } from '../api/types'
 
@@ -48,24 +49,41 @@ export function useZones(venueId: number | undefined) {
   })
 }
 
+/**
+ * Joins workers with their user records. A worker whose record did not come back is kept,
+ * under a stand-in name and an empty record, so the owner still sees them and can act on them.
+ */
+export function joinStaff(workers: Worker[], users: User[], missingName: (userId: number) => string): StaffMember[] {
+  const userById = new Map(users.map((u) => [u.id, u]))
+  return workers
+    .map((w) => {
+      const user = userById.get(w.userId)
+      if (user) return { ...w, user, name: displayName(user), initials: initials(user) }
+      const blank: User = { id: w.userId, username: '', firstName: '', lastName: '', phoneNumber: null, email: '', role: 'WORKER' }
+      return { ...w, user: blank, name: missingName(w.userId), initials: '?' }
+    })
+    .sort((a, b) => Number(b.isActive) - Number(a.isActive) || a.name.localeCompare(b.name))
+}
+
 /** Workers only carry ids, so they are joined with the venue's user records, fetched in one call */
 export function useStaff(venueId: number | undefined) {
+  const t = useT()
+  // Joined when read rather than when fetched, so a stand-in name follows the language
+  const select = useCallback(
+    ({ workers, users }: { workers: Worker[]; users: User[] }) => joinStaff(workers, users, t.common.missingPerson),
+    [t],
+  )
   return useQuery({
     queryKey: keys.staff(venueId ?? 0),
     enabled: !!venueId,
-    queryFn: async (): Promise<StaffMember[]> => {
+    queryFn: async () => {
       const [workers, users] = await Promise.all([
         api.workers.byEstablishment(venueId!),
         api.users.byEstablishment(venueId!),
       ])
-      const userById = new Map(users.map((u) => [u.id, u]))
-      return workers
-        .flatMap((w) => {
-          const user = userById.get(w.userId)
-          return user ? [{ ...w, user, name: displayName(user), initials: initials(user) }] : []
-        })
-        .sort((a, b) => Number(b.isActive) - Number(a.isActive) || a.name.localeCompare(b.name))
+      return { workers, users }
     },
+    select,
   })
 }
 

@@ -27,6 +27,8 @@ export const es = {
     events: (n: number) => count(n, 'evento', 'eventos'),
     guests: (n: number) => count(n, 'comensal', 'comensales'),
     unknownPerson: (id: number) => `Persona ${id}`,
+    /** A worker of the venue whose user record did not come back */
+    missingPerson: (id: number) => `Persona sin datos (#${id})`,
   },
   dates: {
     today: 'Hoy',

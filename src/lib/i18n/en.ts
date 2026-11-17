@@ -24,6 +24,7 @@ export const en: Messages = {
     events: (n: number) => count(n, 'event'),
     guests: (n: number) => count(n, 'guest'),
     unknownPerson: (id: number) => `Worker ${id}`,
+    missingPerson: (id: number) => `Person with no details (#${id})`,
   },
   dates: {
     today: 'Today',
