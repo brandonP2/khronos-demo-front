@@ -2,7 +2,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { inventoryReport, movement, product } from '../../../test/inventory'
 import { json, ownerApi, plain, renderApp, type Route } from '../../../test/helpers'
+import * as stock from '../../../lib/stock'
 import { zonedToday } from '../../../lib/time'
+
+// Each count row reads its quantities through this hook, so its calls count the rows rendered
+vi.mock('../../../lib/stock', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../../lib/stock')>()
+  return { ...actual, useQuantityText: vi.fn(actual.useQuantityText) }
+})
 
 const today = zonedToday('Europe/Madrid')
 
@@ -152,6 +159,20 @@ describe('the physical count', () => {
     await waitFor(() => expect(JSON.parse(sessionStorage.getItem('khronos.stockCount.1')!)).toMatchObject({ userId: 2 }))
     fireEvent.click(screen.getAllByRole('button', { name: 'Cerrar sesión' })[0])
     await waitFor(() => expect(sessionStorage.getItem('khronos.stockCount.1')).toBeNull())
+  })
+
+  it('renders only the row being typed in, not the whole list', async () => {
+    countApi()
+    renderApp('/inventory/count')
+    await screen.findByLabelText('Contado de Ginebra Puerto')
+    const rows = vi.mocked(stock.useQuantityText)
+    rows.mockClear()
+    fireEvent.change(field('Ginebra Puerto'), { target: { value: '3' } })
+    expect(rows).toHaveBeenCalledTimes(1)
+    fireEvent.change(field('Ginebra Puerto'), { target: { value: '3,5' } })
+    fireEvent.blur(field('Ginebra Puerto'))
+    expect(rows).toHaveBeenCalledTimes(2)
+    expect(plain(rowOf('Ginebra Puerto').querySelector('.count-diff')!.textContent)).toBe('−1 botellafalta')
   })
 
   it('finds a product by name without losing the rest of the count', async () => {

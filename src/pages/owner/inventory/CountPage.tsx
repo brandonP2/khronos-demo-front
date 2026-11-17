@@ -3,7 +3,7 @@
 // Only the products typed in are sent; the rest are not touched. A review shows how many
 // products, the differences per unit and in value before confirming. What is typed is kept in
 // this tab, so leaving the page by mistake does not lose it.
-import { useEffect, useRef, useState } from 'react'
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useMutation } from '@tanstack/react-query'
 import { ArrowLeft, ClipboardCheck, ClipboardList } from 'lucide-react'
@@ -51,9 +51,12 @@ export default function CountPage() {
   const [reviewing, setReviewing] = useState(false)
   const saved = useRef(false)
 
-  const list = products.data ?? []
-  const summary = countSummary(list, counts)
-  const groups = groupByCategory(filterProducts(list, { search, lowOnly: false, includeInactive: false }))
+  const list = useMemo(() => products.data ?? [], [products.data])
+  const summary = useMemo(() => countSummary(list, counts), [list, counts])
+  // Each row looks itself up here, so typing in one field re-renders that row alone
+  const differences = useMemo(() => new Map(summary.lines.map((l) => [l.product.id, l.difference])), [summary])
+  const invalid = useMemo(() => new Set(summary.invalid), [summary])
+  const groups = useMemo(() => groupByCategory(filterProducts(list, { search, lowOnly: false, includeInactive: false })), [list, search])
   const dirty = Object.values(counts).some((text) => text.trim() !== '')
 
   // Kept in this tab as it is typed; an empty count is not kept
@@ -69,10 +72,11 @@ export default function CountPage() {
     return () => window.removeEventListener('beforeunload', warn)
   }, [dirty])
 
-  const setCount = (id: number, text: string) => {
+  const setCount = useCallback((id: number, text: string) => {
     setProblem(null)
     setCounts((all) => ({ ...all, [String(id)]: text }))
-  }
+  }, [])
+  const touch = useCallback((id: number) => setTouched((all) => (all[String(id)] ? all : { ...all, [String(id)]: true })), [])
 
   const startAgain = () => {
     setCounts({})
@@ -148,10 +152,10 @@ export default function CountPage() {
                     key={p.id}
                     product={p}
                     text={counts[String(p.id)] ?? ''}
-                    summary={summary}
-                    showError={!!touched[String(p.id)]}
-                    onChange={(text) => setCount(p.id, text)}
-                    onBlur={() => setTouched((all) => ({ ...all, [String(p.id)]: true }))}
+                    difference={differences.get(p.id) ?? null}
+                    invalid={!!touched[String(p.id)] && invalid.has(p.id)}
+                    onChange={setCount}
+                    onBlur={touch}
                   />
                 ))}
               </ul>
@@ -193,30 +197,31 @@ export default function CountPage() {
   )
 }
 
-function CountRow({
+/** One product of the count. Its props are plain values and steady callbacks, so it re-renders only when its own count changes. */
+const CountRow = memo(function CountRow({
   product,
   text,
-  summary,
-  showError,
+  difference,
+  invalid,
   onChange,
   onBlur,
 }: {
   product: Product
   text: string
-  summary: CountSummary
-  showError: boolean
-  onChange: (text: string) => void
-  onBlur: () => void
+  /** counted - expected; null while nothing that is a quantity is typed */
+  difference: number | null
+  /** What is typed is not a quantity, and the field has been left */
+  invalid: boolean
+  onChange: (productId: number, text: string) => void
+  onBlur: (productId: number) => void
 }) {
   const t = useT()
   const q = useQuantityText()
   const c = t.inventory.count
-  const line = summary.lines.find((l) => l.product.id === product.id)
-  const invalid = showError && summary.invalid.includes(product.id)
   const errorId = `count-error-${product.id}`
-  const diff = line ? toMilli(line.difference) : null
+  const diff = difference === null ? null : toMilli(difference)
   return (
-    <li className={line ? 'list-row count-row counted' : 'list-row count-row'}>
+    <li className={difference !== null ? 'list-row count-row counted' : 'list-row count-row'}>
       <div className="count-product">
         <span className="name">{product.name}</span>
         <span className="muted count-expected">{c.theoretical(q.quantity(product.currentStock, product.unit))}</span>
@@ -229,8 +234,8 @@ function CountRow({
           aria-invalid={invalid || undefined}
           aria-describedby={invalid ? errorId : undefined}
           enterKeyHint="next"
-          onChange={onChange}
-          onBlur={onBlur}
+          onChange={(value) => onChange(product.id, value)}
+          onBlur={() => onBlur(product.id)}
         />
         {invalid && (
           <span id={errorId} className="error">
@@ -239,10 +244,10 @@ function CountRow({
         )}
       </div>
       <div className="count-diff">
-        {line && diff !== null && (
+        {difference !== null && diff !== null && (
           <>
             <span className={diff > 0 ? 'diff over mono' : diff < 0 ? 'diff under mono' : 'diff mono'}>
-              {q.signed(line.difference, product.unit)}
+              {q.signed(difference, product.unit)}
             </span>
             <span className="count-words">{diff > 0 ? c.over : diff < 0 ? c.short : c.even}</span>
           </>
@@ -250,7 +255,7 @@ function CountRow({
       </div>
     </li>
   )
-}
+})
 
 /** What the count changes, the day and the notes, before sending it */
 function ReviewDialog({
