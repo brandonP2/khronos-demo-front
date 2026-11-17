@@ -3561,6 +3561,12 @@ a {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
+  /* On phones the quick actions take two rows of two, as in the product's card: four in a row
+     leave no room for a word beside its icon */
+  .stock-actions {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .stock-filters > .field {
     width: 100%;
   }
