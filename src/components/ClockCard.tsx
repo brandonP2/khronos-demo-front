@@ -1,7 +1,7 @@
 import { useId, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { LogIn, LogOut, TriangleAlert } from 'lucide-react'
-import { ApiError } from '../api/client'
+import { isConflict } from '../api/client'
 import { api } from '../api/endpoints'
 import type { Shift, TimeEntry, Zone } from '../api/types'
 import { useMe } from '../auth/AuthContext'
@@ -13,8 +13,7 @@ import { addDays, MAX_OPEN_MINUTES, minutesLabel, minutesSince, shiftWindow, zon
 import { useNow } from '../lib/useNow'
 import { Button, Dialog, ErrorNote, Field, ShiftTimes, useToast } from './ui'
 
-const isConflict = (e: unknown) => e instanceof ApiError && e.status === 409
-const isNothingOpen = (e: unknown) => isConflict(e) && isNoOpenEntry((e as ApiError).message)
+const isNothingOpen = (e: unknown) => isConflict(e) && isNoOpenEntry(e.message)
 
 /** The shift running now, else today's next one, else today's last one */
 export function pickShift(shifts: Shift[], day: string, timeZone: string, now: number) {

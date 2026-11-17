@@ -5,7 +5,7 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useMutation } from '@tanstack/react-query'
 import { AlertCircle } from 'lucide-react'
-import { ApiError } from '../api/client'
+import { isConflict } from '../api/client'
 import { api } from '../api/endpoints'
 import type { Expense, ExpenseCategory, ExpenseInput, PaymentMethod } from '../api/types'
 import { cashRefusal, refusalDay } from '../lib/apiMessages'
@@ -42,7 +42,7 @@ export function lockedDay(
   input: Pick<ExpenseInput, 'date' | 'paymentMethod'>,
   before?: Pick<Expense, 'date' | 'paymentMethod'>,
 ): string | null {
-  if (!(error instanceof ApiError) || error.status !== 409 || cashRefusal(error) !== 'CASH_DAY_CLOSED') return null
+  if (!isConflict(error) || cashRefusal(error) !== 'CASH_DAY_CLOSED') return null
   const day = refusalDay(error)
   if (day) return day
   if (input.paymentMethod === 'CASH') return input.date

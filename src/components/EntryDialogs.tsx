@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useMutation } from '@tanstack/react-query'
 import { Ban, LogIn, LogOut, Moon, Pencil, TriangleAlert } from 'lucide-react'
-import { ApiError } from '../api/client'
+import { isConflict } from '../api/client'
 import { api } from '../api/endpoints'
 import type { TimeEntry } from '../api/types'
 import { isAlreadyClockedOut, isOpenTooLong } from '../lib/apiMessages'
@@ -407,14 +407,14 @@ export function ClockOutForDialog({
       // Whatever went wrong, the entry may have changed elsewhere, so who is in is asked again
       void invalidate.timeEntries()
       // Someone else clocked the person out first: what the owner wanted is done, so say so and close
-      if (e instanceof ApiError && e.status === 409 && isAlreadyClockedOut(e.message)) {
+      if (isConflict(e) && isAlreadyClockedOut(e.message)) {
         toast(t.now.alreadyOut(name))
         onClose()
       }
     },
   })
   // Known before sending from the clock-in, or learnt from the API's 409 right at the limit
-  const refused = mutation.error instanceof ApiError && mutation.error.status === 409 && isOpenTooLong(mutation.error.message)
+  const refused = isConflict(mutation.error) && isOpenTooLong(mutation.error.message)
   const tooLong = elapsed > MAX_OPEN_MINUTES || refused
   const valid = !breakInvalid && !isReasonInvalid(reason)
   const submit = () => {

@@ -5,7 +5,7 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useMutation } from '@tanstack/react-query'
 import { GlassWater, History, PackagePlus, PackageX, Pencil, Power, SlidersHorizontal, Trash2, type LucideIcon } from 'lucide-react'
-import { ApiError } from '../api/client'
+import { isConflict } from '../api/client'
 import { api } from '../api/endpoints'
 import type { ManualMovementType, Product, ProductCategory, ProductInput, StockUnit, Supplier } from '../api/types'
 import { isNameTaken, isUnitLocked } from '../lib/apiMessages'
@@ -40,8 +40,6 @@ export const MOVEMENT_ICONS: Record<ManualMovementType, LucideIcon> = {
   CONSUMPTION: GlassWater,
   ADJUSTMENT: SlidersHorizontal,
 }
-
-const isConflict = (e: unknown): e is ApiError => e instanceof ApiError && e.status === 409
 
 /** The four quick actions, one tap each on the phone; the visible word is part of each name */
 export function QuickActions({ product, onAction }: { product: Product; onAction: (type: ManualMovementType) => void }) {

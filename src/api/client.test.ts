@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { ApiError, parseRetryAfter, request, setAccessToken, setUnauthorizedHandler } from './client'
+import { ApiError, isConflict, parseRetryAfter, request, setAccessToken, setUnauthorizedHandler } from './client'
 
 function respond(status: number, body?: unknown, headers: Record<string, string> = {}) {
   const fetchMock = vi.fn(async () =>
@@ -157,5 +157,14 @@ describe('network and server failures', () => {
   it('returns undefined for 204', async () => {
     respond(204)
     await expect(request('PUT', '/users/1/password/reset', { newPassword: 'x' })).resolves.toBeUndefined()
+  })
+})
+
+describe('conflicts', () => {
+  it('is a 409 from the API, and nothing else', () => {
+    expect(isConflict(new ApiError({ status: 409, message: 'Taken' }))).toBe(true)
+    expect(isConflict(new ApiError({ status: 400, message: 'Validation failed' }))).toBe(false)
+    expect(isConflict(Object.assign(new Error('Taken'), { status: 409 }))).toBe(false)
+    expect(isConflict(null)).toBe(false)
   })
 })

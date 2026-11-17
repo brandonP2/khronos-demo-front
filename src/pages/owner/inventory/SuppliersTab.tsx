@@ -3,7 +3,7 @@
 // (the API answers 409), and deleting one leaves its products with no usual supplier.
 import { useState } from 'react'
 import { Pencil, Plus, Trash2, Truck } from 'lucide-react'
-import { ApiError } from '../../../api/client'
+import { isConflict } from '../../../api/client'
 import { api } from '../../../api/endpoints'
 import type { Supplier } from '../../../api/types'
 import { InventoryHead } from '../../../components/InventoryParts'
@@ -103,7 +103,7 @@ export default function SuppliersTab() {
               await api.suppliers.remove(supplier.id)
             } catch (e) {
               // Its orders keep its name, so a supplier with orders stays
-              throw e instanceof ApiError && e.status === 409 ? new Error(sp.removeBlocked(supplier.name)) : e
+              throw isConflict(e) ? new Error(sp.removeBlocked(supplier.name)) : e
             }
             await invalidate.suppliers()
             toast(sp.removed)

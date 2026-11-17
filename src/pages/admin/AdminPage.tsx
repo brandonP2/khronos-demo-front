@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Building2, KeyRound, Plus, Trash2, UserPlus } from 'lucide-react'
-import { ApiError } from '../../api/client'
+import { ApiError, isConflict } from '../../api/client'
 import { api } from '../../api/endpoints'
 import type { Establishment, User, UserCreate } from '../../api/types'
 import { ResetPasswordDialog } from '../../components/ResetPasswordDialog'
@@ -159,7 +159,7 @@ export default function AdminPage() {
               await api.establishments.remove(deleting.id)
             } catch (e) {
               // A venue with time entries is kept: the API answers 409 and recommends deactivating
-              throw e instanceof ApiError && e.status === 409 ? new Error(t.admin.deleteBlocked(deleting.establishmentName)) : e
+              throw isConflict(e) ? new Error(t.admin.deleteBlocked(deleting.establishmentName)) : e
             }
             await qc.invalidateQueries({ queryKey: ['admin'] })
             toast(t.admin.deleted)

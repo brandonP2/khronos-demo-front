@@ -42,6 +42,11 @@ export class ApiError extends Error {
   }
 }
 
+/** A 409 from the API: the request clashes with what is already there. The one check every screen uses. */
+export function isConflict(error: unknown): error is ApiError {
+  return error instanceof ApiError && error.status === 409
+}
+
 /** Retry-After is either a number of seconds or an HTTP date */
 export function parseRetryAfter(value: string | null, now = Date.now()): number | null {
   if (!value) return null

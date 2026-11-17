@@ -7,7 +7,7 @@ import { useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { ArrowLeft, PackageCheck, Truck } from 'lucide-react'
-import { ApiError } from '../../../api/client'
+import { ApiError, isConflict } from '../../../api/client'
 import { api } from '../../../api/endpoints'
 import type { PaymentMethod, PurchaseOrder, ReceiveOrderInput } from '../../../api/types'
 import { AmountInput } from '../../../components/AmountInput'
@@ -119,8 +119,7 @@ function ReceiveForm({ order, today }: { order: PurchaseOrder; today: string }) 
     },
   })
   // The day's till is closed and the expense was in cash: nothing was received
-  const closed =
-    mutation.error instanceof ApiError && mutation.error.status === 409 ? closedCashDay(mutation.error.message) : null
+  const closed = isConflict(mutation.error) ? closedCashDay(mutation.error.message) : null
   const closedDay = closed ? (closed.day ?? date) : null
 
   const submit = () => {

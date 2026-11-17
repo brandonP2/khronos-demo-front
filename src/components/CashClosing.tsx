@@ -5,7 +5,7 @@ import { useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useMutation } from '@tanstack/react-query'
 import { History, Lock, LockOpen, Save, Trash2 } from 'lucide-react'
-import { ApiError } from '../api/client'
+import { isConflict, type ApiError } from '../api/client'
 import { api } from '../api/endpoints'
 import type { CashClosing, CashClosingChange, CashClosingInput, CashClosingStatus, Expense } from '../api/types'
 import { cashRefusal } from '../lib/apiMessages'
@@ -26,8 +26,6 @@ const DIFFERENCE_INPUTS: AmountKey[] = ['openingFloat', 'cashSales', 'cashWithdr
 
 export const NOTES_MAX = 500
 export const REASON_MAX = 255
-
-const isConflict = (e: unknown): e is ApiError => e instanceof ApiError && e.status === 409
 
 /**
  * What the form does with a 409: ask for the reason, or reload the stored closing because the

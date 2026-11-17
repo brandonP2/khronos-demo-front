@@ -2,7 +2,7 @@
 // from an order, when there is no supplier to pick yet.
 import { useState } from 'react'
 import { useMutation } from '@tanstack/react-query'
-import { ApiError } from '../api/client'
+import { isConflict } from '../api/client'
 import { api } from '../api/endpoints'
 import type { Supplier, SupplierInput } from '../api/types'
 import { isNameTaken } from '../lib/apiMessages'
@@ -61,10 +61,7 @@ export function SupplierFormDialog({
       onClose()
     },
   })
-  const error =
-    mutation.error instanceof ApiError && mutation.error.status === 409 && isNameTaken(mutation.error.message)
-      ? sp.duplicate
-      : mutation.error
+  const error = isConflict(mutation.error) && isNameTaken(mutation.error.message) ? sp.duplicate : mutation.error
 
   const submit = () => {
     setSubmitted(true)
