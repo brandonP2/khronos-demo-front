@@ -1935,6 +1935,769 @@ a {
   }
 }
 
+/* ---------- Summary: the business at a glance ---------- */
+
+.stats.stats-5 {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+.stat .figure.negative {
+  color: var(--negative);
+}
+
+.stat a.meta {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.stat .stat-help {
+  margin-top: auto;
+  padding-top: 8px;
+  border-top: 1px solid var(--line);
+}
+
+/* While another period loads, the previous one stays, dimmed, with no layout jump */
+.stats-5,
+.chart-card,
+.expenses-card {
+  transition: opacity 150ms var(--ease);
+}
+
+.stats-5[aria-busy='true'],
+.chart-card[aria-busy='true'],
+.expenses-card[aria-busy='true'] {
+  opacity: 0.6;
+}
+
+/* A change against the period before: arrow, signed amount, colour as a second cue */
+.trend {
+  display: inline-flex;
+  align-items: flex-start;
+  gap: 4px;
+  font-variant-numeric: tabular-nums;
+}
+
+.trend svg {
+  flex: none;
+  margin-top: 1px;
+}
+
+.trend.good {
+  color: var(--positive);
+}
+
+.trend.bad {
+  color: var(--negative);
+}
+
+.compare-note {
+  margin: -12px 0 0;
+  font-size: 13px;
+}
+
+.alert-list {
+  list-style: none;
+  margin: 0;
+  padding: 4px 0;
+}
+
+.alert-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 20px;
+  border-bottom: 1px solid var(--line);
+}
+
+.alert-item:last-child {
+  border-bottom: 0;
+}
+
+.alert-item .grow {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.alert-icon {
+  flex: none;
+  margin-top: 2px;
+  color: var(--text-3);
+}
+
+.alert-icon.warn {
+  color: var(--accent-ink);
+}
+
+.alert-title {
+  font-weight: 500;
+}
+
+.alert-item .chip {
+  height: 28px;
+  padding: 0 10px;
+  font-size: 13px;
+  text-decoration: none;
+}
+
+.category-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.category-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 6px 12px;
+  align-items: baseline;
+}
+
+.category-name {
+  font-weight: 500;
+}
+
+.category-amount {
+  text-align: right;
+}
+
+.category-bar {
+  grid-column: 1;
+  height: 8px;
+  border-radius: 4px;
+  background: var(--raised-2);
+  align-self: center;
+}
+
+.category-bar > span {
+  display: block;
+  height: 100%;
+  border-radius: 4px;
+  background: var(--text-3);
+}
+
+.category-share {
+  font-size: 12px;
+  text-align: right;
+}
+
+/* The daily chart: sales next to the total cost, on one axis in euros */
+.chart {
+  margin: 0;
+  padding: 16px 20px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  --chart-h: 180px;
+  --chart-col: 40px;
+}
+
+.chart-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+}
+
+.chart-head h2 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 500;
+}
+
+.chart-legend {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  font-size: 12px;
+  color: var(--text-2);
+}
+
+.chart-legend li {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.swatch {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+}
+
+.swatch.sales,
+.chart-bar.sales {
+  background: var(--text-3);
+}
+
+.swatch.cost,
+.chart-bar.cost {
+  background: var(--accent);
+}
+
+.chart-frame {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 8px;
+}
+
+.chart-axis {
+  position: relative;
+  height: var(--chart-h);
+  min-width: 44px;
+}
+
+.chart-axis span {
+  position: absolute;
+  right: 0;
+  transform: translateY(50%);
+  font-family: var(--mono);
+  font-size: 11px;
+  line-height: 14px;
+  color: var(--text-3);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Long periods scroll sideways inside the card, never the page */
+.chart-scroll {
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scrollbar-width: thin;
+  padding-bottom: 4px;
+}
+
+.chart-plot {
+  position: relative;
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(var(--chart-col), 1fr);
+}
+
+.chart-plot.mid {
+  --chart-col: 26px;
+}
+
+.chart-plot.dense {
+  --chart-col: 14px;
+}
+
+.chart-grid {
+  position: absolute;
+  inset: 0 0 auto;
+  height: var(--chart-h);
+  pointer-events: none;
+}
+
+.chart-grid span {
+  position: absolute;
+  left: 0;
+  right: 0;
+  border-top: 1px solid var(--line);
+}
+
+.chart-day {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: default;
+}
+
+.chart-bars {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 2px;
+  height: var(--chart-h);
+  border-radius: 6px 6px 0 0;
+  transition: background-color 150ms var(--ease);
+}
+
+.chart-day[data-active] .chart-bars,
+.chart-day:hover .chart-bars {
+  background: var(--raised);
+}
+
+.chart-bar {
+  width: clamp(3px, 32%, 12px);
+  border-radius: 4px 4px 0 0;
+}
+
+.chart-x {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-height: 32px;
+  padding-top: 6px;
+  font-family: var(--mono);
+  font-size: 11px;
+  line-height: 13px;
+  color: var(--text-3);
+  white-space: nowrap;
+}
+
+.chart-day[data-active] .chart-x {
+  color: var(--text);
+}
+
+.chart-plot.dense .chart-x {
+  align-items: flex-start;
+}
+
+.chart-day.empty .chart-x {
+  opacity: 0.6;
+}
+
+.chart-readout {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 12px;
+  margin: 0;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+  font-size: 13px;
+}
+
+.chart-readout-day {
+  font-weight: 500;
+}
+
+/* ---------- Cash closing ---------- */
+
+.cash-day {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.cash-day .input {
+  width: 160px;
+}
+
+.cash-note {
+  margin: -12px 0 0;
+  font-size: 13px;
+}
+
+/* Fields on the left, the live figures on the right; one column on phones */
+.cash-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) minmax(260px, 1fr);
+  gap: 24px;
+  align-items: start;
+}
+
+.cash-side {
+  position: sticky;
+  top: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.cash-group {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+
+.cash-group legend {
+  padding: 0;
+  margin-bottom: 10px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text);
+}
+
+.amount-input {
+  position: relative;
+  display: block;
+}
+
+.amount-input .input {
+  padding-right: 28px;
+  text-align: right;
+  font-size: 15px;
+  height: 40px;
+}
+
+.amount-unit {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-3);
+  pointer-events: none;
+}
+
+.cash-figures {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--raised);
+  overflow: hidden;
+}
+
+.cash-figure {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--line);
+}
+
+.cash-figure dt {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  color: var(--text-2);
+}
+
+.cash-figure dd {
+  margin: 0;
+  text-align: right;
+  font-size: 15px;
+  font-variant-numeric: tabular-nums;
+}
+
+.cash-figure-link,
+.cash-figure-hint {
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--text-3);
+}
+
+.cash-difference {
+  border-bottom: 0;
+  background: var(--card);
+}
+
+.cash-difference dt {
+  color: var(--text);
+  font-weight: 500;
+}
+
+.cash-difference dd {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+}
+
+.cash-difference dd .mono {
+  font-size: 22px;
+  line-height: 1.1;
+  font-weight: 500;
+}
+
+.cash-difference-words {
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.cash-difference.over dd {
+  color: var(--accent-ink);
+}
+
+.cash-difference.short dd {
+  color: var(--negative);
+}
+
+.cash-difference.even dd {
+  color: var(--positive);
+}
+
+.cash-difference dd.cash-figure-hint {
+  font-size: 12px;
+  text-align: right;
+}
+
+.cash-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.cash-actions .btn-primary {
+  flex: 1;
+}
+
+.cash-actions .btn[aria-disabled='true'] {
+  opacity: 0.6;
+}
+
+.cash-discard {
+  margin-left: auto;
+}
+
+.kv.cash-values {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.cash-values .kv-row {
+  display: contents;
+}
+
+.cash-values dd.mono {
+  text-align: right;
+}
+
+.cash-list-filters {
+  padding-top: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.cash-row {
+  display: grid;
+  grid-template-columns: 120px 110px minmax(0, 1fr) minmax(0, 1fr) auto;
+  align-items: center;
+}
+
+.cash-row.selected {
+  background: var(--raised);
+}
+
+.cash-row-sales,
+.cash-row-difference {
+  text-align: right;
+}
+
+/* ---------- Expenses ---------- */
+
+.filters {
+  display: flex;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  gap: 12px 16px;
+}
+
+.filters > .field {
+  width: 220px;
+}
+
+.expenses-card {
+  overflow-x: auto;
+}
+
+.expenses-total-figures {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 4px 12px;
+  font-size: 13px;
+}
+
+.expenses-total-figures .figure {
+  font-size: 22px;
+  font-weight: 500;
+}
+
+.expenses-table th,
+.expenses-table td {
+  padding: 0 12px;
+}
+
+.expenses-table th:first-child,
+.expenses-table td:first-child {
+  padding-left: 20px;
+  white-space: nowrap;
+}
+
+.expenses-table th:last-child,
+.expenses-table td:last-child {
+  padding-right: 20px;
+}
+
+.expense-description {
+  min-width: 200px;
+}
+
+.expense-description .name {
+  display: block;
+  font-weight: 500;
+}
+
+.expense-description .cell-sub {
+  display: block;
+}
+
+.expense-amount {
+  white-space: nowrap;
+  font-weight: 500;
+}
+
+.expense-actions .actions {
+  justify-content: flex-end;
+}
+
+@media (max-width: 1100px) {
+  .stats.stats-5 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 860px) {
+  .cash-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .cash-side {
+    position: static;
+  }
+
+  /* Expenses turn into cards */
+  .expenses-table thead {
+    display: none;
+  }
+
+  .expenses-table,
+  .expenses-table tbody {
+    display: block;
+  }
+
+  .expenses-table tr {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px 12px;
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .expenses-table tbody tr:hover {
+    background: none;
+  }
+
+  .expenses-table td,
+  .expenses-table th:first-child,
+  .expenses-table td:first-child,
+  .expenses-table td:last-child {
+    display: block;
+    height: auto;
+    padding: 0;
+    border: 0;
+    text-align: left;
+  }
+
+  .expenses-table td[data-label]::before {
+    content: attr(data-label);
+    display: block;
+    margin-bottom: 2px;
+    font-family: var(--font);
+    font-size: 11px;
+    line-height: 14px;
+    color: var(--text-3);
+  }
+
+  .expenses-table .expense-description {
+    grid-column: 1 / 3;
+    grid-row: 1;
+    min-width: 0;
+  }
+
+  .expenses-table .expense-amount {
+    grid-column: 3;
+    grid-row: 1;
+    text-align: right;
+    font-size: 15px;
+  }
+
+  .expenses-table .expense-amount::before {
+    display: none !important;
+  }
+
+  .expenses-table .expense-actions {
+    grid-column: 1 / -1;
+  }
+
+  .expenses-table .expense-actions .actions {
+    justify-content: flex-start;
+  }
+}
+
+@media (max-width: 560px) {
+  .stats.stats-5 {
+    grid-template-columns: 1fr;
+  }
+
+  .chart {
+    padding: 14px 16px 10px;
+    --chart-h: 150px;
+  }
+
+  .cash-row {
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    grid-template-areas:
+      'day status action'
+      'sales difference action';
+    gap: 4px 12px;
+  }
+
+  .cash-row > .entry-day {
+    grid-area: day;
+  }
+
+  .cash-row > .cash-row-status {
+    grid-area: status;
+    text-align: right;
+  }
+
+  .cash-row > .cash-row-sales {
+    grid-area: sales;
+    text-align: left;
+  }
+
+  .cash-row > .cash-row-difference {
+    grid-area: difference;
+  }
+
+  .cash-row > .btn {
+    grid-area: action;
+  }
+
+  .alert-item {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+
+  .filters > .field {
+    width: 100%;
+  }
+
+  .cash-actions .btn {
+    flex: 1 1 100%;
+    height: 44px;
+  }
+
+  .cash-discard {
+    margin-left: 0;
+  }
+}
+
 /* ---------- Dialog & drawer ---------- */
 
 .overlay {
