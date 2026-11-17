@@ -319,6 +319,10 @@ export function makeFmt(locale: string, words: RelativeDayWords) {
   // An amount as it is typed in a field, without the currency: "1.234,50" / "1,234.50"
   const amountOptions = { minimumFractionDigits: 2, maximumFractionDigits: 2, useGrouping: 'always' }
   const amountFmt = new Intl.NumberFormat(locale, amountOptions as unknown as Intl.NumberFormatOptions)
+  // Stock quantities: up to three decimals, no trailing zeros ("4,5", "0,25", "12")
+  const quantityFmt = new Intl.NumberFormat(locale, { maximumFractionDigits: 3 })
+  // In a field, ungrouped, so a lone separator always reads back as the decimal mark
+  const quantityInputFmt = new Intl.NumberFormat(locale, { maximumFractionDigits: 3, useGrouping: false })
   const percentFmt = new Intl.NumberFormat(locale, { style: 'percent', minimumFractionDigits: 1, maximumFractionDigits: 1 })
   const pointsFmt = new Intl.NumberFormat(locale, { minimumFractionDigits: 1, maximumFractionDigits: 1 })
   // Spanish writes weekdays and months in lower case; lines that stand on their own start with a capital
@@ -352,6 +356,10 @@ export function makeFmt(locale: string, words: RelativeDayWords) {
     moneyShort: (n: number) => (Math.abs(n) < 10_000 ? wholeMoneyFmt.format(n) : compactMoneyFmt.format(n)),
     /** "1.234,50", to fill an amount field */
     amount: (n: number) => amountFmt.format(n),
+    /** A stock quantity: "4,5" / "4.5", "0,25", "12" */
+    quantity: (n: number) => quantityFmt.format(n),
+    /** "1500,5", to fill a quantity field */
+    quantityInput: (n: number) => quantityInputFmt.format(n),
     /** From a value in percent: 32.5 to "32,5 %" / "32.5%" */
     percent: (n: number) => percentFmt.format(n / 100),
     /** "1,5" / "1.5", for a change in percentage points */
