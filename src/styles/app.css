@@ -2735,6 +2735,879 @@ a {
   }
 }
 
+/* ---------- Inventory ---------- */
+
+/* Section tabs under the page title; the current one is underlined with the accent */
+.tabs {
+  display: flex;
+  gap: 4px;
+  margin-top: -8px;
+  border-bottom: 1px solid var(--line);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.tab {
+  display: inline-flex;
+  align-items: center;
+  height: 40px;
+  padding: 0 12px;
+  margin-bottom: -1px;
+  border-bottom: 2px solid transparent;
+  color: var(--text-2);
+  font-weight: 500;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: color 150ms var(--ease), border-color 150ms var(--ease);
+}
+
+.tab:hover {
+  color: var(--text);
+}
+
+.tab.active {
+  color: var(--text);
+  border-bottom-color: var(--accent);
+}
+
+.inventory-note {
+  margin: -12px 0 0;
+  font-size: 13px;
+}
+
+.notice .grow {
+  flex: 1;
+  min-width: 0;
+}
+
+.notice .btn {
+  margin: -4px 0;
+}
+
+.link-button {
+  padding: 0;
+  border: 0;
+  background: none;
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+}
+
+.link-button:hover {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.stock-filters .check {
+  height: 36px;
+}
+
+.stock-filters > .field {
+  width: 280px;
+}
+
+/* A quantity field: the number on the right, its unit after it */
+.quantity-input {
+  position: relative;
+  display: block;
+}
+
+.quantity-input .input {
+  height: 40px;
+  padding-right: 84px;
+  text-align: right;
+  font-size: 15px;
+}
+
+.quantity-unit {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  max-width: 70px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-3);
+  font-size: 13px;
+  pointer-events: none;
+}
+
+/* The stock: one table, a row group per category; cards on phones */
+.stock-card,
+.movements-card,
+.order-card {
+  overflow-x: auto;
+}
+
+.stock-card,
+.movements-card {
+  transition: opacity 150ms var(--ease);
+}
+
+.stock-card[aria-busy='true'],
+.movements-card[aria-busy='true'] {
+  opacity: 0.6;
+}
+
+.stock-table th,
+.stock-table td {
+  padding: 0 12px;
+}
+
+.stock-table th:first-child,
+.stock-table td:first-child {
+  padding-left: 20px;
+}
+
+.stock-table th:last-child,
+.stock-table td:last-child {
+  padding-right: 20px;
+}
+
+.stock-table .stock-group th {
+  height: 32px;
+  background: var(--raised);
+  color: var(--text-2);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.stock-table tbody tr.stock-group:hover {
+  background: var(--raised);
+}
+
+.stock-table td {
+  height: 56px;
+  white-space: nowrap;
+}
+
+.stock-product {
+  min-width: 200px;
+  white-space: normal !important;
+}
+
+.stock-product .cell-sub {
+  display: block;
+  margin-top: 2px;
+}
+
+.stock-tags {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-left: 8px;
+  vertical-align: middle;
+}
+
+.stock-tags:empty {
+  display: none;
+}
+
+.stock-qty {
+  font-weight: 500;
+}
+
+.inactive-row td:not(.stock-actions-cell) {
+  opacity: 0.6;
+}
+
+.stock-actions-cell {
+  text-align: right;
+}
+
+.stock-actions {
+  display: inline-grid;
+  grid-template-columns: repeat(4, auto);
+  gap: 6px;
+}
+
+.product-kv {
+  grid-template-columns: 136px 1fr;
+}
+
+.product-kv .stock-tags {
+  margin-left: 4px;
+}
+
+.product-stock {
+  font-size: 18px;
+  font-weight: 500;
+}
+
+.drawer .stock-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.drawer .stock-actions .btn {
+  height: 40px;
+}
+
+/* The period's report inside its card */
+.inventory-report {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.report-figures {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  transition: opacity 150ms var(--ease);
+}
+
+.inventory-report [aria-busy='true'] .report-figures {
+  opacity: 0.6;
+}
+
+.report-figures .stat {
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--raised);
+}
+
+.report-figures .stat .figure {
+  font-size: 22px;
+}
+
+.report-subtitle {
+  margin: 0 0 12px;
+}
+
+/* A movement: which way the adjustment goes, and the stock it leaves */
+.movement-direction {
+  display: flex;
+}
+
+.movement-direction button {
+  flex: 1;
+  height: 34px;
+}
+
+.reason-chips {
+  margin-top: -8px;
+}
+
+.movement-preview {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: var(--raised);
+}
+
+.inventory-hint {
+  margin: 0;
+  font-size: 12px;
+  line-height: 16px;
+}
+
+.form > .inventory-hint {
+  margin-top: -8px;
+}
+
+/* The movements' history */
+.movements-table th,
+.movements-table td {
+  padding: 0 12px;
+}
+
+.movements-table th:first-child,
+.movements-table td:first-child {
+  padding-left: 20px;
+  white-space: nowrap;
+}
+
+.movements-table th:last-child,
+.movements-table td:last-child {
+  padding-right: 20px;
+}
+
+.movements-table td {
+  white-space: nowrap;
+}
+
+.movement-product .name {
+  font-weight: 500;
+}
+
+.movement-order {
+  display: block;
+  margin-top: 2px;
+  font-size: 12px;
+}
+
+.movement-reason {
+  max-width: 260px;
+  white-space: normal !important;
+}
+
+.movement-by {
+  color: var(--text-2);
+  font-size: 13px;
+}
+
+/* The physical count: one row per product, the bar with the total stays at the bottom */
+.count-list .count-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 180px 150px;
+  align-items: center;
+  gap: 4px 16px;
+}
+
+.count-row.counted {
+  background: var(--accent-soft);
+}
+
+.count-product {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.count-product .name {
+  font-weight: 500;
+}
+
+.count-expected {
+  font-size: 12px;
+  line-height: 16px;
+}
+
+.count-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.count-field .error,
+.receive-field .error {
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--negative);
+}
+
+.count-diff {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  font-size: 13px;
+}
+
+.count-words {
+  font-size: 12px;
+  color: var(--text-2);
+}
+
+.count-bar {
+  position: sticky;
+  bottom: 12px;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  padding: 12px 16px;
+  border: 1px solid var(--line-strong);
+  border-radius: 14px;
+  background: var(--card);
+  box-shadow: var(--shadow-float);
+}
+
+.count-bar-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.count-progress {
+  font-weight: 500;
+}
+
+.count-bar .error {
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--negative);
+}
+
+.count-figures .cash-figure dd {
+  max-width: 60%;
+}
+
+.count-changes {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+}
+
+.count-changes li {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+/* Orders */
+.order-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 110px 90px 120px;
+  align-items: center;
+}
+
+.order-link {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+  text-decoration: none;
+}
+
+.order-link:hover .name {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.order-number {
+  min-width: 40px;
+  color: var(--text-2);
+}
+
+.order-supplier {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.order-supplier .name {
+  font-weight: 500;
+}
+
+.order-date,
+.order-amount {
+  text-align: right;
+}
+
+.order-lines {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.order-line {
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr) minmax(0, 1fr) 96px 30px;
+  align-items: end;
+  gap: 8px 12px;
+}
+
+.order-line-total {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: flex-end;
+  padding-bottom: 10px;
+}
+
+.order-line-total .label {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-2);
+}
+
+.order-line-remove {
+  margin-bottom: 5px;
+}
+
+.order-total {
+  display: flex;
+  align-items: baseline;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  padding: 14px 20px;
+  border-top: 1px solid var(--line);
+  font-weight: 500;
+}
+
+.order-total .figure {
+  font-size: 22px;
+}
+
+.order-total-note {
+  flex-basis: 100%;
+  text-align: right;
+  font-size: 12px;
+  font-weight: 400;
+}
+
+.order-total-note:empty {
+  display: none;
+}
+
+.order-actions .spacer {
+  flex: 1;
+}
+
+.order-kv {
+  grid-template-columns: 136px 1fr;
+}
+
+.order-created {
+  margin: 12px 0 0;
+}
+
+.order-table td {
+  white-space: nowrap;
+}
+
+.order-table-product {
+  font-weight: 500;
+  white-space: normal !important;
+}
+
+/* Receiving an order */
+.receive-line {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 180px 140px 96px;
+  align-items: center;
+  gap: 8px 12px;
+}
+
+.receive-product {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.receive-product .name {
+  font-weight: 500;
+}
+
+.receive-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.receive-total {
+  text-align: right;
+}
+
+/* Suppliers */
+.supplier-row {
+  flex-wrap: wrap;
+}
+
+.supplier-main {
+  flex: 1;
+  min-width: 200px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.supplier-main .name {
+  font-weight: 500;
+}
+
+.supplier-contact {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 12px;
+  font-size: 13px;
+}
+
+.supplier-contact a {
+  color: var(--text-2);
+}
+
+.supplier-products {
+  font-size: 13px;
+}
+
+/* Between phone and wide screens the quick actions keep only their icons */
+@media (min-width: 861px) and (max-width: 1280px) {
+  .stock-table .stock-actions .btn-label {
+    display: none;
+  }
+
+  .stock-table .stock-actions .btn {
+    width: 30px;
+    padding: 0;
+  }
+}
+
+@media (max-width: 860px) {
+  .tabs {
+    margin-top: -12px;
+  }
+
+  /* The stock turns into cards, the quick actions a row of four big buttons */
+  .stock-table thead {
+    display: none;
+  }
+
+  .stock-table,
+  .stock-table tbody {
+    display: block;
+  }
+
+  .stock-table tr {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 8px 12px;
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .stock-table tbody tr:hover {
+    background: none;
+  }
+
+  .stock-table tr.stock-group {
+    display: block;
+    padding: 0;
+  }
+
+  .stock-table .stock-group th {
+    display: block;
+    height: auto;
+    padding: 8px 16px !important;
+    text-align: left;
+  }
+
+  .stock-table td,
+  .stock-table td:first-child,
+  .stock-table td:last-child {
+    display: block;
+    height: auto;
+    padding: 0;
+    border: 0;
+    text-align: left;
+    white-space: normal;
+  }
+
+  .stock-table td[data-label]::before {
+    content: attr(data-label);
+    display: block;
+    margin-bottom: 2px;
+    font-family: var(--font);
+    font-size: 11px;
+    line-height: 14px;
+    color: var(--text-3);
+  }
+
+  .stock-table .stock-product,
+  .stock-table .stock-actions-cell {
+    grid-column: 1 / -1;
+    min-width: 0;
+  }
+
+  .stock-table .stock-qty {
+    font-size: 15px;
+  }
+
+  .stock-actions {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    width: 100%;
+  }
+
+  .stock-actions .btn {
+    height: 40px;
+    padding: 0 6px;
+  }
+
+  .stock-actions-cell > .btn {
+    width: 100%;
+    height: 40px;
+  }
+
+  /* The movements turn into cards */
+  .movements-table thead {
+    display: none;
+  }
+
+  .movements-table,
+  .movements-table tbody {
+    display: block;
+  }
+
+  .movements-table tr {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px 12px;
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .movements-table tbody tr:hover {
+    background: none;
+  }
+
+  .movements-table td,
+  .movements-table td:first-child,
+  .movements-table td:last-child {
+    display: block;
+    height: auto;
+    padding: 0;
+    border: 0;
+    text-align: left;
+    white-space: normal;
+  }
+
+  .movements-table td[data-label]::before {
+    content: attr(data-label);
+    display: block;
+    margin-bottom: 2px;
+    font-family: var(--font);
+    font-size: 11px;
+    line-height: 14px;
+    color: var(--text-3);
+  }
+
+  .movements-table .movement-product {
+    grid-column: 1 / 3;
+    grid-row: 1;
+  }
+
+  .movements-table .movement-quantity {
+    grid-column: 3;
+    grid-row: 1;
+    text-align: right;
+    font-size: 15px;
+  }
+
+  .movements-table .movement-quantity::before {
+    display: none !important;
+  }
+
+  .movements-table .movement-reason {
+    grid-column: 1 / -1;
+    max-width: none;
+  }
+
+  .order-line {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 30px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .order-line > :first-child {
+    grid-column: 1 / -1;
+  }
+
+  .order-line-total {
+    grid-column: 1 / 3;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: baseline;
+    padding-bottom: 0;
+  }
+
+  .order-line-remove {
+    grid-column: 3;
+    grid-row: 2;
+  }
+
+  .receive-line {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+
+  .receive-product {
+    grid-column: 1 / -1;
+  }
+
+  .receive-total {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 560px) {
+  .stock-table tr {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .stock-filters > .field {
+    width: 100%;
+  }
+
+  .report-figures {
+    grid-template-columns: 1fr;
+  }
+
+  .count-list .count-row {
+    grid-template-columns: minmax(0, 1fr) 150px;
+  }
+
+  .count-diff {
+    grid-column: 2;
+    align-items: flex-end;
+  }
+
+  .count-diff:empty {
+    display: none;
+  }
+
+  .count-bar {
+    bottom: 8px;
+  }
+
+  .count-bar .btn {
+    flex: 1 1 100%;
+    height: 44px;
+  }
+
+  .order-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      'link status'
+      'date total';
+    gap: 4px 12px;
+  }
+
+  .order-row > .order-link {
+    grid-area: link;
+  }
+
+  .order-row > .order-status {
+    grid-area: status;
+    text-align: right;
+  }
+
+  .order-row > .order-date {
+    grid-area: date;
+    text-align: left;
+  }
+
+  .order-row > .order-amount {
+    grid-area: total;
+  }
+
+  .order-actions .btn {
+    flex: 1 1 100%;
+    height: 44px;
+  }
+
+  .order-actions .spacer {
+    display: none;
+  }
+
+  .product-kv,
+  .order-kv {
+    grid-template-columns: 112px 1fr;
+  }
+}
+
 /* ---------- Dialog & drawer ---------- */
 
 .overlay {
