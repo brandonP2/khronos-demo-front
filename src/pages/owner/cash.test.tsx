@@ -217,6 +217,39 @@ describe('cash closing form', () => {
     expect(writes(calls)[1].body).toEqual({ differenceReason: 'Cambio mal dado' })
   })
 
+  it('brings up the reason whenever the API answers DIFFERENCE_REASON_REQUIRED, whatever its message', async () => {
+    cashServer(closingFrom({ ...baseInput, countedCash: 1288.5 }), {
+      close: (call) =>
+        (call.body as { differenceReason?: string }).differenceReason
+          ? undefined
+          : json(409, { status: 409, message: 'Reason needed', code: 'DIFFERENCE_REASON_REQUIRED' }),
+    })
+    renderApp(`/cash?date=${DAY}`)
+    await screen.findByLabelText('Ventas en efectivo')
+    // −1,00 € is within the 5,00 € the app knows of; the API's own limit is lower
+    expect(figure('Descuadre')).toBe('−1,00 € Falta dinero')
+    fireEvent.click(screen.getByRole('button', { name: 'Cerrar caja' }))
+    expect(await screen.findByLabelText('Motivo del descuadre')).toBeTruthy()
+    expect(screen.getByText('Obligatorio para cerrar con este descuadre. Hasta 255 caracteres.')).toBeTruthy()
+    expect(screen.queryByText('Reason needed')).toBeNull()
+    type('Motivo del descuadre', 'Cambio mal dado')
+    fireEvent.click(screen.getByRole('button', { name: 'Cerrar caja' }))
+    expect(await screen.findByRole('button', { name: 'Reabrir' })).toBeTruthy()
+  })
+
+  it('shows a coded refusal it does not act on, instead of reloading the day', async () => {
+    const calls = cashServer(closingFrom(baseInput), {
+      close: () => json(409, { status: 409, message: 'Count the cash first', code: 'CASH_NOT_COUNTED' }),
+    })
+    renderApp(`/cash?date=${DAY}`)
+    await screen.findByLabelText('Ventas en efectivo')
+    type('Motivo del descuadre', 'Billete roto')
+    fireEvent.click(screen.getByRole('button', { name: 'Cerrar caja' }))
+    expect(await screen.findByText('Escribe el efectivo contado para poder cerrar la caja.')).toBeTruthy()
+    expect(screen.queryByText(/se ha recargado/)).toBeNull()
+    expect(calls.filter((c) => c.path === `/cash-closings/establishment/1?from=${DAY}&to=${DAY}`)).toHaveLength(1)
+  })
+
   it('stops asking for the reason the API wanted once the amounts are corrected', async () => {
     // The API allows 2,00 € without a reason
     const counted = () => (writes(calls).filter((c) => c.path === '/cash-closings/77').pop()?.body as CashClosingInput | undefined)?.countedCash ?? 1286.5
@@ -277,17 +310,15 @@ describe('cash closing form', () => {
     expect(await screen.findByText('Cerrada el 16 nov 23:40 por Marco Bianchi')).toBeTruthy()
   })
 
-  it('says why a draft closed once before cannot be discarded', async () => {
+  it.each([
+    ['by its message', { message: 'A cash closing that has been closed before cannot be deleted; correct it and close it again instead' }],
+    ['by its code', { message: 'Kept on record', code: 'CASH_CLOSING_WAS_CLOSED' }],
+  ])('says why a draft closed once before cannot be discarded (%s)', async (_, refusal) => {
     cashServer(closingFrom(baseInput))
     const fetch = globalThis.fetch as unknown as ReturnType<typeof vi.fn>
     const original = fetch.getMockImplementation() as (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
     fetch.mockImplementation(async (input: RequestInfo | URL, init?: RequestInit) =>
-      init?.method === 'DELETE'
-        ? json(409, {
-            status: 409,
-            message: 'A cash closing that has been closed before cannot be deleted; correct it and close it again instead',
-          })
-        : original(input, init),
+      init?.method === 'DELETE' ? json(409, { status: 409, ...refusal }) : original(input, init),
     )
     renderApp(`/cash?date=${DAY}`)
     fireEvent.click(await screen.findByRole('button', { name: 'Descartar borrador' }))
@@ -339,13 +370,16 @@ describe('cash closing form', () => {
     expect(writes(calls)[0]).toMatchObject({ method: 'PUT', path: '/cash-closings/77', body: { ...baseInput, cardSales: 250, tips: 12.4 } })
   })
 
-  it('loads the closing someone else saved for the day, instead of creating a second one', async () => {
+  it.each([
+    ['by its message', { message: 'A cash closing already exists for 2026-11-16 at this establishment; edit that one instead' }],
+    ['by its code', { message: 'Taken', code: 'CASH_CLOSING_EXISTS', details: { date: DAY } }],
+  ])('loads the closing someone else saved for the day, instead of creating a second one (%s)', async (_, refusal) => {
     const existing = closingFrom({ ...baseInput, cashSales: 999 })
     let created = false
     cashServer(null, {
       create: () => {
         created = true
-        return json(409, { status: 409, message: 'A cash closing already exists for 2026-11-16 at this establishment; edit that one instead' })
+        return json(409, { status: 409, ...refusal })
       },
     })
     // After the 409 the day's closing is there

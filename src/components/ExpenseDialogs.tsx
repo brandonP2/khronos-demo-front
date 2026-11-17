@@ -8,7 +8,7 @@ import { AlertCircle } from 'lucide-react'
 import { ApiError } from '../api/client'
 import { api } from '../api/endpoints'
 import type { Expense, ExpenseCategory, ExpenseInput, PaymentMethod } from '../api/types'
-import { closedCashDay } from '../lib/apiMessages'
+import { cashRefusal, refusalDay } from '../lib/apiMessages'
 import { useFmt, useT } from '../lib/i18n'
 import { parseAmount } from '../lib/money'
 import { useInvalidate } from '../lib/queries'
@@ -33,18 +33,18 @@ export const SUPPLIER_MAX = 100
 export const EXPENSE_NOTES_MAX = 500
 
 /**
- * The day whose closed till stopped a change, from a 409: the day the API names, else the new day
- * of a cash expense, else the day it was on when it was paid in cash. null for any other 409.
+ * The day whose closed till stopped a change, from a 409 CASH_DAY_CLOSED: the day the API gives
+ * (in its details, else in its message), else the new day of a cash expense, else the day it was
+ * on when it was paid in cash. null for any other 409.
  */
 export function lockedDay(
   error: unknown,
   input: Pick<ExpenseInput, 'date' | 'paymentMethod'>,
   before?: Pick<Expense, 'date' | 'paymentMethod'>,
 ): string | null {
-  if (!(error instanceof ApiError) || error.status !== 409) return null
-  const closed = closedCashDay(error.message)
-  if (!closed) return null
-  if (closed.day) return closed.day
+  if (!(error instanceof ApiError) || error.status !== 409 || cashRefusal(error) !== 'CASH_DAY_CLOSED') return null
+  const day = refusalDay(error)
+  if (day) return day
   if (input.paymentMethod === 'CASH') return input.date
   return before?.paymentMethod === 'CASH' ? before.date : null
 }

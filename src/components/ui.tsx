@@ -14,7 +14,7 @@ import {
 import { createPortal } from 'react-dom'
 import { AlertCircle, Check, Loader2, X, type LucideIcon } from 'lucide-react'
 import { ApiError } from '../api/client'
-import { knownApiMessage } from '../lib/apiMessages'
+import { cashRefusalMessage, knownApiMessage } from '../lib/apiMessages'
 import { useT, type Messages } from '../lib/i18n'
 import { endsNextDay, hhmm } from '../lib/time'
 
@@ -179,7 +179,7 @@ export function errorMessage(error: unknown, t: Messages): string {
     if (error.kind === 'network') return t.errors.network
     if (error.kind === 'server') return t.errors.server
     if (error.kind === 'rate-limited') return t.errors.rateLimited(error.retryAfter === null ? null : t.common.wait(error.retryAfter))
-    return knownApiMessage(error.message, t) ?? error.message
+    return knownApiMessage(error.message, t) ?? cashRefusalMessage(error, t) ?? error.message
   }
   if (error instanceof Error) return error.message
   return t.errors.generic

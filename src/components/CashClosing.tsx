@@ -8,7 +8,7 @@ import { History, Lock, LockOpen, Save, Trash2 } from 'lucide-react'
 import { ApiError } from '../api/client'
 import { api } from '../api/endpoints'
 import type { CashClosing, CashClosingChange, CashClosingInput, CashClosingStatus, Expense } from '../api/types'
-import { isClosedBefore, isClosingTaken, isReasonRequired } from '../lib/apiMessages'
+import { cashRefusal } from '../lib/apiMessages'
 import { cashFigures, DIFFERENCE_REASON_LIMIT, differenceTone, needsDifferenceReason, type CashFigures, type DifferenceTone } from '../lib/cash'
 import { useFmt, useT } from '../lib/i18n'
 import { isBlank, parseAmount, sumMoney, toCents } from '../lib/money'
@@ -28,6 +28,20 @@ export const NOTES_MAX = 500
 export const REASON_MAX = 255
 
 const isConflict = (e: unknown): e is ApiError => e instanceof ApiError && e.status === 409
+
+/**
+ * What the form does with a 409: ask for the reason, or reload the stored closing because the
+ * day already had one or was closed meanwhile. null shows the refusal as it is (not counted, a
+ * future day...). An API without codes is read as before: any other 409 on closing, or on a
+ * closing that exists, is taken for one closed meanwhile.
+ */
+function conflictAction(e: ApiError, step: 'save' | 'close', stored: boolean): 'reason' | 'exists' | 'closed' | null {
+  const refusal = cashRefusal(e)
+  if (refusal === 'DIFFERENCE_REASON_REQUIRED') return 'reason'
+  if (refusal === 'CASH_CLOSING_EXISTS') return 'exists'
+  if (refusal === 'CASH_CLOSING_CLOSED') return 'closed'
+  return !refusal && !e.code && (step === 'close' || stored) ? 'closed' : null
+}
 
 /** A closing's status in words, never colour alone; NEW is a day with nothing saved yet */
 export function ClosingStatusTag({ status }: { status: CashClosingStatus | 'NEW' }) {
@@ -211,21 +225,18 @@ export function CashClosingForm({
     },
     onError: (e) => {
       if (!isConflict(e)) return
-      if (step.current === 'close' && isReasonRequired(e.message)) {
-        // Over the API's limit (which can be lower than ours) with no reason: ask for it here
-        setReasonAsked(true)
-      } else if (step.current === 'save' && !current && isClosingTaken(e.message)) {
-        void onConflict(t.cash.alreadyExists)
-      } else if (step.current === 'close' || current) {
-        // Closed meanwhile, from another phone
-        void onConflict(t.cash.closedMeanwhile)
-      }
+      const action = conflictAction(e, step.current, !!current)
+      // Over the API's limit (which can be lower than ours) with no reason: ask for it here
+      if (action === 'reason') setReasonAsked(true)
+      // Saved for this day from another phone first
+      else if (action === 'exists') void onConflict(t.cash.alreadyExists)
+      // Closed meanwhile, from another phone
+      else if (action === 'closed') void onConflict(t.cash.closedMeanwhile)
     },
   })
 
   // A 409 is answered here (the reason), handed to the page, which reloads the closing, or shown
-  const handled =
-    isConflict(mutation.error) && (step.current === 'close' || !!current || isClosingTaken(mutation.error.message))
+  const handled = isConflict(mutation.error) && conflictAction(mutation.error, step.current, !!current) !== null
   const error = handled ? (reasonAsked && reasonMissing ? t.cash.reasonRequired : null) : mutation.error
   const canClose = !anyInvalid && counted !== null && !reasonMissing
 
@@ -296,7 +307,7 @@ export function CashClosingForm({
         {reasonNeeded && (
           <Field
             label={t.cash.reason}
-            hint={t.cash.reasonHint(fmt.money(DIFFERENCE_REASON_LIMIT))}
+            hint={needsDifferenceReason(figures.difference) ? t.cash.reasonHint(fmt.money(DIFFERENCE_REASON_LIMIT)) : t.cash.reasonAskedHint}
             error={submitted && reasonMissing && !handled ? t.cash.reasonError : undefined}
           >
             {(id) => (
@@ -337,8 +348,10 @@ export function CashClosingForm({
             try {
               await api.cashClosings.remove(current.id)
             } catch (e) {
-              // A day closed once stays on record: the API's reason is shown, in the app's language
-              if (isConflict(e) && !isClosedBefore(e.message)) {
+              // Closed meanwhile: reload it. A day closed once stays on record, and the API's reason
+              // is shown, in the app's language, like any other refusal.
+              const refusal = isConflict(e) ? cashRefusal(e) : null
+              if (refusal === 'CASH_CLOSING_CLOSED' || (isConflict(e) && !e.code && refusal === null)) {
                 await onConflict(t.cash.closedMeanwhile)
                 return
               }
@@ -428,6 +441,9 @@ export function ClosedClosing({
   )
 }
 
+/** The 409 of reopening a closing that is not closed (any 409, from an API without codes) */
+const notClosed = (e: unknown) => isConflict(e) && (cashRefusal(e) === 'CASH_CLOSING_NOT_CLOSED' || !e.code)
+
 /** Back to a draft, with a reason (3 to 255 characters) that stays in the history */
 function ReopenDialog({
   closing,
@@ -453,7 +469,7 @@ function ReopenDialog({
       await onDone(null)
     },
     onError: async (e) => {
-      if (!isConflict(e)) return
+      if (!notClosed(e)) return
       onClose()
       await onDone(t.cash.notClosed)
     },
@@ -500,7 +516,7 @@ function ReopenDialog({
             />
           )}
         </Field>
-        <ErrorNote error={isConflict(mutation.error) ? null : mutation.error} />
+        <ErrorNote error={notClosed(mutation.error) ? null : mutation.error} />
         <button type="submit" hidden />
       </form>
     </Dialog>

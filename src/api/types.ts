@@ -486,6 +486,11 @@ export interface ApiErrorBody {
   message: string
   path?: string
   fieldErrors?: Record<string, string>
-  /** Machine-readable reason, sent by newer APIs: ACCOUNT_DISABLED, INVALID_CREDENTIALS, TOO_MANY_ATTEMPTS, SESSION_EXPIRED */
+  /**
+   * Machine-readable reason, sent by newer APIs: ACCOUNT_DISABLED, INVALID_CREDENTIALS, TOO_MANY_ATTEMPTS,
+   * SESSION_EXPIRED, and the cash closing and expense conflicts (see CashRefusal in lib/apiMessages)
+   */
   code?: string
+  /** What a coded error is about, such as `{ date: "2026-11-14" }` for CASH_DAY_CLOSED and CASH_CLOSING_EXISTS */
+  details?: Record<string, string>
 }

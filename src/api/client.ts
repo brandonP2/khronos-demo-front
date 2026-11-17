@@ -24,6 +24,8 @@ export class ApiError extends Error {
    * that checks it keeps a fallback on the message.
    */
   code?: string
+  /** What a coded error is about, such as the day of a closed till: `{ date: "2026-11-14" }`. Empty when not sent. */
+  details: Record<string, string>
 
   constructor(body: ApiErrorBody, options: { kind?: ApiErrorKind; retryAfter?: number | null } = {}) {
     const match = /^\w+ \[(\d+)\]: (.*)$/s.exec(body.message ?? '')
@@ -34,6 +36,9 @@ export class ApiError extends Error {
     this.batchIndex = match ? Number(match[1]) : null
     this.retryAfter = options.retryAfter ?? null
     this.code = typeof body.code === 'string' && body.code ? body.code : undefined
+    this.details = Object.fromEntries(
+      Object.entries(body.details && typeof body.details === 'object' ? body.details : {}).filter(([, v]) => typeof v === 'string'),
+    )
   }
 }
 

@@ -119,6 +119,20 @@ describe('expenses', () => {
     expect(within(dialog).getByRole('link', { name: 'Ir a la caja del 14 nov' }).getAttribute('href')).toBe('/cash?date=2026-11-14')
   })
 
+  it('links the day the API gives in its details for CASH_DAY_CLOSED', async () => {
+    expensesApi((call) =>
+      call.method === 'PUT' && call.path === '/expenses/3'
+        ? json(409, { status: 409, message: 'That till is closed', code: 'CASH_DAY_CLOSED', details: { date: '2026-11-13' } })
+        : undefined,
+    )
+    renderApp('/expenses')
+    fireEvent.click(await screen.findByRole('button', { name: 'Editar «Hielo»' }))
+    const dialog = screen.getByRole('dialog', { name: 'Editar gasto' })
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Guardar' }))
+    expect(await within(dialog).findByText(/La caja del Viernes, 13 de noviembre está cerrada/)).toBeTruthy()
+    expect(within(dialog).getByRole('link', { name: 'Ir a la caja del 13 nov' }).getAttribute('href')).toBe('/cash?date=2026-11-13')
+  })
+
   it('deletes after confirming, and explains a closed day there too', async () => {
     let refuse = true
     const calls = expensesApi((call) => {
@@ -139,12 +153,11 @@ describe('expenses', () => {
     expect(calls.filter((c) => c.method === 'DELETE')).toHaveLength(2)
   })
 
-  it('shows any other 409 as it is, worded in Spanish when the app knows it', async () => {
-    expensesApi((call) =>
-      call.method === 'PUT' && call.path === '/expenses/3'
-        ? json(409, { status: 409, message: 'The expense date cannot be in the future' })
-        : undefined,
-    )
+  it.each([
+    ['by its message', { message: 'The expense date cannot be in the future' }],
+    ['by its code', { message: 'Too early', code: 'FUTURE_DATE' }],
+  ])('shows any other 409 as it is, worded in Spanish when the app knows it (%s)', async (_, refusal) => {
+    expensesApi((call) => (call.method === 'PUT' && call.path === '/expenses/3' ? json(409, { status: 409, ...refusal }) : undefined))
     renderApp('/expenses')
     fireEvent.click(await screen.findByRole('button', { name: 'Editar «Hielo»' }))
     const dialog = screen.getByRole('dialog', { name: 'Editar gasto' })

@@ -47,6 +47,17 @@ describe('batch errors', () => {
     expect(e.message).toBe('Overlaps another shift')
   })
 
+  it('keeps the code and details of a coded conflict', async () => {
+    respond(409, { status: 409, message: 'The cash closing of 2026-11-14 is closed', code: 'CASH_DAY_CLOSED', details: { date: '2026-11-14' } })
+    const e = await failure(request('POST', '/expenses', {}))
+    expect(e.code).toBe('CASH_DAY_CLOSED')
+    expect(e.details).toEqual({ date: '2026-11-14' })
+
+    // Older APIs send neither; anything but text in details is left out
+    expect(new ApiError({ status: 409, message: 'x' }).details).toEqual({})
+    expect(new ApiError({ status: 409, message: 'x', details: { date: 7 } as unknown as Record<string, string> }).details).toEqual({})
+  })
+
   it('keeps field errors', async () => {
     respond(400, { status: 400, message: 'Validation failed', fieldErrors: { 'user.email': 'must be a well-formed email address' } })
     const e = await failure(request('POST', '/workers/with-user', {}))
