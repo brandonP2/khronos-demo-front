@@ -1,10 +1,10 @@
 import { useState } from 'react'
-import { useMutation, useQuery } from '@tanstack/react-query'
+import { useMutation } from '@tanstack/react-query'
 import { Pencil, Plus, Trash2, X } from 'lucide-react'
 import { ApiError } from '../api/client'
 import { api } from '../api/endpoints'
-import type { EventInput, KEvent, Shift, Zone } from '../api/types'
-import { keys, useInvalidate, type StaffMember } from '../lib/queries'
+import type { Assignment, EventInput, KEvent, Shift, Zone } from '../api/types'
+import { useInvalidate, type StaffMember } from '../lib/queries'
 import { eventDate, eventTime, fmt, hhmm, minutes, shiftCovers, toDateTime, today } from '../lib/time'
 import { Avatar, Button, ConfirmDialog, Dialog, Drawer, ErrorNote, Field, pluralize, useToast } from './ui'
 import type { ShiftDraft } from './ShiftDialogs'
@@ -17,6 +17,8 @@ export function EventDrawer({
   event,
   staff,
   shifts,
+  assignments,
+  assignmentsLoading: isLoading,
   onClose,
   onEdit,
   onAddShift,
@@ -24,16 +26,15 @@ export function EventDrawer({
   event: KEvent
   staff: StaffMember[]
   shifts: Shift[]
+  /** Who is on this event, from the page's assignments for the venue */
+  assignments: Assignment[]
+  assignmentsLoading: boolean
   onClose: () => void
   onEdit: () => void
   onAddShift: (draft: ShiftDraft) => void
 }) {
   const invalidate = useInvalidate()
   const toast = useToast()
-  const { data: assignments = [], isLoading } = useQuery({
-    queryKey: keys.assignments(event.id),
-    queryFn: () => api.assignments.byEvent(event.id),
-  })
   const [confirmDelete, setConfirmDelete] = useState(false)
 
   const assignedIds = new Set(assignments.map((a) => a.workerId))

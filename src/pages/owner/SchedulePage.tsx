@@ -26,15 +26,18 @@ export default function SchedulePage() {
   const [eventId, setEventId] = useState<number | null>(null)
   const [modal, setModal] = useState<Modal>(null)
 
+  // Only the week on screen is fetched; shifts include the week before for "Copy last week"
+  const days = weekDays(date)
+  const weekRange = { from: days[0], to: days[6] }
   const zones = useZones(venue?.id)
   const staff = useStaff(venue?.id)
-  const shifts = useShifts(me.id, zones.data?.map((z) => z.id))
-  const events = useEvents(venue?.id)
+  const shifts = useShifts(me.id, zones.data?.map((z) => z.id), { from: addDays(days[0], -7), to: days[6] })
+  const events = useEvents(venue?.id, weekRange)
+  const assignments = useAssignments(venue?.id, weekRange)
+  const byEvent = assignments.byEvent
 
-  const days = weekDays(date)
   const dayShifts = useMemo(() => (shifts.data ?? []).filter((s) => s.date === date), [shifts.data, date])
   const dayEvents = useMemo(() => (events.data ?? []).filter((e) => eventDate(e.dateTime) === date), [events.data, date])
-  const { byEvent } = useAssignments(dayEvents)
 
   const selectedEvent = (events.data ?? []).find((e) => e.id === eventId) ?? null
   const loading = zones.isLoading || staff.isLoading || shifts.isLoading || events.isLoading
@@ -180,6 +183,8 @@ export default function SchedulePage() {
           event={selectedEvent}
           staff={staffList}
           shifts={shifts.data ?? []}
+          assignments={byEvent.get(selectedEvent.id) ?? []}
+          assignmentsLoading={assignments.loading}
           onClose={() => setEventId(null)}
           onEdit={() => setModal({ kind: 'edit-event', event: selectedEvent })}
           onAddShift={(draft) => setModal({ kind: 'add-shifts', draft })}

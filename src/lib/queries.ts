@@ -1,15 +1,21 @@
 import { useMemo } from 'react'
-import { useQueries, useQuery, useQueryClient } from '@tanstack/react-query'
+import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '../api/endpoints'
-import type { Assignment, KEvent, User, Worker } from '../api/types'
+import type { Assignment, DateRange, User, Worker } from '../api/types'
+
+const rangeKey = (range: DateRange) => [range.from ?? null, range.to ?? null] as const
 
 export const keys = {
   venues: (ownerId: number) => ['venues', ownerId] as const,
+  venue: (venueId: number) => ['venue', venueId] as const,
   zones: (venueId: number) => ['zones', venueId] as const,
   staff: (venueId: number) => ['staff', venueId] as const,
-  shifts: (ownerId: number) => ['shifts', 'owner', ownerId] as const,
-  events: (venueId: number) => ['events', venueId] as const,
-  assignments: (eventId: number) => ['assignments', 'event', eventId] as const,
+  worker: (userId: number) => ['worker', userId] as const,
+  ownerShifts: (ownerId: number, range: DateRange) => ['shifts', 'owner', ownerId, ...rangeKey(range)] as const,
+  workerShifts: (workerId: number, range: DateRange) => ['shifts', 'worker', workerId, ...rangeKey(range)] as const,
+  events: (venueId: number, range: DateRange) => ['events', venueId, ...rangeKey(range)] as const,
+  assignments: (venueId: number, range: DateRange) => ['assignments', 'venue', venueId, ...rangeKey(range)] as const,
+  workerAssignments: (workerId: number) => ['assignments', 'worker', workerId] as const,
 }
 
 export interface StaffMember extends Worker {
@@ -42,24 +48,37 @@ export function useZones(venueId: number | undefined) {
   })
 }
 
-/** Workers only carry ids, so each one is joined with its user record */
+/** Workers only carry ids, so they are joined with the venue's user records, fetched in one call */
 export function useStaff(venueId: number | undefined) {
   return useQuery({
     queryKey: keys.staff(venueId ?? 0),
     enabled: !!venueId,
     queryFn: async (): Promise<StaffMember[]> => {
-      const workers = await api.workers.byEstablishment(venueId!)
-      const users = await Promise.all(workers.map((w) => api.users.get(w.userId)))
+      const [workers, users] = await Promise.all([
+        api.workers.byEstablishment(venueId!),
+        api.users.byEstablishment(venueId!),
+      ])
+      const userById = new Map(users.map((u) => [u.id, u]))
       return workers
-        .map((w, i) => ({ ...w, user: users[i], name: displayName(users[i]), initials: initials(users[i]) }))
+        .flatMap((w) => {
+          const user = userById.get(w.userId)
+          return user ? [{ ...w, user, name: displayName(user), initials: initials(user) }] : []
+        })
         .sort((a, b) => Number(b.isActive) - Number(a.isActive) || a.name.localeCompare(b.name))
     },
   })
 }
 
-/** The API lists shifts per owner, so they are narrowed to the zones of the current venue */
-export function useShifts(ownerId: number, zoneIds: number[] | undefined) {
-  const query = useQuery({ queryKey: keys.shifts(ownerId), queryFn: () => api.shifts.byOwner(ownerId) })
+/**
+ * The API lists shifts per owner, so they are narrowed to the zones of the current venue.
+ * Only the range on screen is fetched; the previous range stays visible while the next one loads.
+ */
+export function useShifts(ownerId: number, zoneIds: number[] | undefined, range: DateRange) {
+  const query = useQuery({
+    queryKey: keys.ownerShifts(ownerId, range),
+    queryFn: () => api.shifts.byOwner(ownerId, range),
+    placeholderData: keepPreviousData,
+  })
   const zoneKey = zoneIds?.join(',')
   const data = useMemo(() => {
     if (!query.data || zoneKey === undefined) return undefined
@@ -71,23 +90,31 @@ export function useShifts(ownerId: number, zoneIds: number[] | undefined) {
   return { ...query, data }
 }
 
-export function useEvents(venueId: number | undefined) {
+export function useEvents(venueId: number | undefined, range: DateRange) {
   return useQuery({
-    queryKey: keys.events(venueId ?? 0),
-    queryFn: () => api.events.byEstablishment(venueId!),
+    queryKey: keys.events(venueId ?? 0, range),
+    queryFn: () => api.events.byEstablishment(venueId!, range),
     enabled: !!venueId,
+    placeholderData: keepPreviousData,
     select: (events) => [...events].sort((a, b) => a.dateTime.localeCompare(b.dateTime)),
   })
 }
 
-/** Assignments are only listed per event, so the visible events are fetched in parallel */
-export function useAssignments(events: KEvent[]) {
-  const results = useQueries({
-    queries: events.map((e) => ({ queryKey: keys.assignments(e.id), queryFn: () => api.assignments.byEvent(e.id) })),
+/** Every assignment of the venue's events in the range, in one request, grouped by event */
+export function useAssignments(venueId: number | undefined, range: DateRange) {
+  const query = useQuery({
+    queryKey: keys.assignments(venueId ?? 0, range),
+    queryFn: () => api.assignments.byEstablishment(venueId!, range),
+    enabled: !!venueId,
+    placeholderData: keepPreviousData,
   })
-  const byEvent = new Map<number, Assignment[]>()
-  events.forEach((e, i) => byEvent.set(e.id, results[i]?.data ?? []))
-  return { byEvent, loading: results.some((r) => r.isLoading) }
+  const byEvent = useMemo(() => {
+    const map = new Map<number, Assignment[]>()
+    for (const a of query.data ?? []) map.set(a.eventId, [...(map.get(a.eventId) ?? []), a])
+    return map
+  }, [query.data])
+  // Placeholder data belongs to the previous range, so it does not count as loaded
+  return { byEvent, loading: query.isLoading || query.isPlaceholderData, error: query.error }
 }
 
 /** Shift and event edits can unassign workers on the server, so assignments are refetched with them */

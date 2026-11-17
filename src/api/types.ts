@@ -29,7 +29,8 @@ export interface Establishment {
   establishmentAddress: string
   ownerId: number
   ownerName: string
-  ownerEmail: string
+  /** Only sent to admins and the owner; null for workers */
+  ownerEmail: string | null
   ownerPhone: string | null
 }
 
@@ -49,6 +50,12 @@ export interface Worker {
   userId: number
   establishmentId: number
   isActive: boolean
+}
+
+/** POST /workers/with-user creates the login and links it to the venue in one transaction */
+export interface WorkerWithUser {
+  user: User
+  worker: Worker
 }
 
 /** Date is YYYY-MM-DD, times are HH:mm or HH:mm:ss */
@@ -101,6 +108,12 @@ export interface TokenResponse {
   /** ISO instant, one hour after login */
   expiresAt: string
   expiresIn: number
+}
+
+/** Optional, inclusive YYYY-MM-DD bounds accepted by the shift, event and assignment listings */
+export interface DateRange {
+  from?: string
+  to?: string
 }
 
 export interface ApiErrorBody {

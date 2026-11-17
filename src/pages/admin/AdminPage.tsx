@@ -71,7 +71,7 @@ export default function AdminPage() {
                     </td>
                     <td>{v.ownerName}</td>
                     <td className="hide-sm">
-                      <div>{v.ownerEmail}</div>
+                      <div>{v.ownerEmail ?? '—'}</div>
                       <div className="muted mono" style={{ fontSize: 12 }}>
                         {v.ownerPhone || '—'}
                       </div>

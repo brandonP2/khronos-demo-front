@@ -2,42 +2,58 @@ import { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { CalendarRange } from 'lucide-react'
 import { api } from '../../api/endpoints'
-import type { KEvent, Shift } from '../../api/types'
+import type { DateRange, KEvent, Shift } from '../../api/types'
 import { useMe } from '../../auth/AuthContext'
 import { Empty, ErrorNote, Loading, PageHead, pluralize } from '../../components/ui'
-import { durationLabel, eventDate, eventTime, fmt, hhmm, minutes, shiftCovers, today, weekDays } from '../../lib/time'
+import { keys } from '../../lib/queries'
+import { addDays, durationLabel, eventDate, eventTime, fmt, hhmm, minutes, shiftCovers, today, weekDays } from '../../lib/time'
 
 /** A worker's own view: their shifts by day, with the events they are on inside each shift */
 export default function MySchedule() {
   const me = useMe()
   const [when, setWhen] = useState<'upcoming' | 'past'>('upcoming')
 
-  const worker = useQuery({ queryKey: ['worker', me.id], queryFn: () => api.workers.get(me.id) })
+  const t = today()
+  const week = weekDays(t)
+  // From Monday of this week on, which also covers this week's hours; the past is fetched only when shown
+  const ahead: DateRange = { from: week[0] }
+  const past: DateRange = { to: addDays(t, -1) }
+
+  const worker = useQuery({ queryKey: keys.worker(me.id), queryFn: () => api.workers.get(me.id) })
   const venueId = worker.data?.establishmentId
   const venue = useQuery({
-    queryKey: ['venue', venueId],
+    queryKey: keys.venue(venueId ?? 0),
     queryFn: () => api.establishments.get(venueId!),
     enabled: !!venueId,
   })
   const zones = useQuery({
-    queryKey: ['zones', venueId],
+    queryKey: keys.zones(venueId ?? 0),
     queryFn: () => api.zones.byEstablishment(venueId!),
     enabled: !!venueId,
   })
-  const shifts = useQuery({ queryKey: ['shifts', 'worker', me.id], queryFn: () => api.shifts.byWorker(me.id) })
-  const mine = useQuery({ queryKey: ['assignments', 'worker', me.id], queryFn: () => api.assignments.byWorker(me.id) })
-  const events = useQuery({
-    queryKey: ['events', venueId],
-    queryFn: () => api.events.byEstablishment(venueId!),
+  const shiftsAhead = useQuery({ queryKey: keys.workerShifts(me.id, ahead), queryFn: () => api.shifts.byWorker(me.id, ahead) })
+  const shiftsPast = useQuery({
+    queryKey: keys.workerShifts(me.id, past),
+    queryFn: () => api.shifts.byWorker(me.id, past),
+    enabled: when === 'past',
+  })
+  const shifts = when === 'upcoming' ? shiftsAhead : shiftsPast
+  const mine = useQuery({ queryKey: keys.workerAssignments(me.id), queryFn: () => api.assignments.byWorker(me.id) })
+  const eventsAhead = useQuery({
+    queryKey: keys.events(venueId ?? 0, ahead),
+    queryFn: () => api.events.byEstablishment(venueId!, ahead),
     enabled: !!venueId,
   })
+  const eventsPast = useQuery({
+    queryKey: keys.events(venueId ?? 0, past),
+    queryFn: () => api.events.byEstablishment(venueId!, past),
+    enabled: !!venueId && when === 'past',
+  })
+  const events = when === 'upcoming' ? eventsAhead : eventsPast
 
-  const t = today()
   const zoneName = (id: number) => zones.data?.find((z) => z.id === id)?.name ?? ''
-  const myEvents = useMemo(() => {
-    const ids = new Set((mine.data ?? []).map((a) => a.eventId))
-    return (events.data ?? []).filter((e) => ids.has(e.id))
-  }, [mine.data, events.data])
+  const assignedIds = useMemo(() => new Set((mine.data ?? []).map((a) => a.eventId)), [mine.data])
+  const myEvents = useMemo(() => (events.data ?? []).filter((e) => assignedIds.has(e.id)), [assignedIds, events.data])
 
   const days = useMemo(() => {
     const all = (shifts.data ?? []).filter((s) => (when === 'upcoming' ? s.date >= t : s.date < t))
@@ -50,17 +66,16 @@ export default function MySchedule() {
     return entries
   }, [shifts.data, when, t])
 
-  const week = weekDays(t)
-  const weekMins = (shifts.data ?? [])
+  const weekMins = (shiftsAhead.data ?? [])
     .filter((s) => week.includes(s.date))
     .reduce((n, s) => n + minutes(s.endTime) - minutes(s.startTime), 0)
-  const next = (shifts.data ?? [])
+  const next = (shiftsAhead.data ?? [])
     .filter((s) => s.date >= t)
     .sort((a, b) => a.date.localeCompare(b.date) || a.startTime.localeCompare(b.startTime))[0]
-  const upcomingEvents = myEvents.filter((e) => eventDate(e.dateTime) >= t).length
+  const upcomingEvents = (eventsAhead.data ?? []).filter((e) => assignedIds.has(e.id) && eventDate(e.dateTime) >= t).length
 
-  const loading = worker.isLoading || shifts.isLoading || mine.isLoading || events.isLoading
-  const error = worker.error ?? shifts.error ?? mine.error ?? events.error
+  const loading = worker.isLoading || shiftsAhead.isLoading || shifts.isLoading || mine.isLoading || events.isLoading
+  const error = worker.error ?? shiftsAhead.error ?? shifts.error ?? mine.error ?? events.error
 
   return (
     <div className="page" style={{ maxWidth: 1040 }}>

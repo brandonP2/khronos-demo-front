@@ -12,9 +12,10 @@ import { useVenue } from '../../lib/VenueContext'
 export default function VenuePage() {
   const me = useMe()
   const { venue } = useVenue()
+  // Only what is ahead matters here: it is what a zone delete would cancel
   const zones = useZones(venue?.id)
-  const shifts = useShifts(me.id, zones.data?.map((z) => z.id))
-  const events = useEvents(venue?.id)
+  const shifts = useShifts(me.id, zones.data?.map((z) => z.id), { from: today() })
+  const events = useEvents(venue?.id, { from: today() })
   const invalidate = useInvalidate()
   const toast = useToast()
 

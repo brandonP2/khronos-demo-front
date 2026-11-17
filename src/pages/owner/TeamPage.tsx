@@ -27,14 +27,14 @@ type Modal = { kind: 'add' } | { kind: 'edit'; member: StaffMember } | { kind: '
 export default function TeamPage() {
   const me = useMe()
   const { venue } = useVenue()
+  const week = weekDays(today())
   const staff = useStaff(venue?.id)
   const zones = useZones(venue?.id)
-  const shifts = useShifts(me.id, zones.data?.map((z) => z.id))
+  const shifts = useShifts(me.id, zones.data?.map((z) => z.id), { from: week[0], to: week[6] })
   const invalidate = useInvalidate()
   const toast = useToast()
   const [modal, setModal] = useState<Modal>(null)
 
-  const week = weekDays(today())
   const weekLoad = (id: number) => {
     const mine = (shifts.data ?? []).filter((s) => s.workerId === id && week.includes(s.date))
     const mins = mine.reduce((n, s) => n + minutes(s.endTime) - minutes(s.startTime), 0)
@@ -142,7 +142,7 @@ export default function TeamPage() {
           confirmLabel={modal.member.isActive ? 'Deactivate' : 'Reactivate'}
           onClose={() => setModal(null)}
           onConfirm={async () => {
-            await api.workers.toggleActive(modal.member.userId)
+            await api.workers.setActive(modal.member.userId, !modal.member.isActive)
             await invalidate.staff()
             toast(modal.member.isActive ? 'Deactivated' : 'Reactivated')
           }}
@@ -164,28 +164,21 @@ function AddPersonDialog({ venueId, onClose }: { venueId: number; onClose: () =>
   const [form, setForm] = useState<UserCreate>(blank)
   const set = (k: keyof UserCreate, v: string) => setForm((f) => ({ ...f, [k]: v }))
 
-  // Two calls: the login account, then linking it to this venue as a worker
+  // One call creates the login and links it to this venue, so a failure leaves nothing behind
   const mutation = useMutation({
-    mutationFn: async () => {
-      const user = await api.users.createWorker({ ...form, phoneNumber: form.phoneNumber?.trim() || null })
-      try {
-        await api.workers.create(user.id, venueId)
-      } catch (e) {
-        throw new Error(
-          `The account "${user.username}" was created but could not be added to this venue: ${e instanceof Error ? e.message : ''}`,
-          { cause: e },
-        )
-      }
-      return user
-    },
-    onSuccess: async (user) => {
+    mutationFn: () => api.workers.createWithUser(venueId, { ...form, phoneNumber: form.phoneNumber?.trim() || null }),
+    onSuccess: async ({ user }) => {
       await invalidate.staff()
       toast(`${user.firstName} added to the team`)
       onClose()
     },
   })
 
-  const fe = mutation.error instanceof ApiError ? mutation.error.fieldErrors : {}
+  // Validation errors on the nested user come back as "user.email"
+  const apiErrors = mutation.error instanceof ApiError ? mutation.error.fieldErrors : {}
+  const fe = Object.fromEntries(
+    Object.keys(form).map((k) => [k, apiErrors[`user.${k}`] ?? apiErrors[k]]),
+  ) as Partial<Record<keyof UserCreate, string>>
   const valid =
     form.username.trim().length >= 3 && form.password.length >= 8 && form.firstName.trim() && form.lastName.trim() && form.email.trim()
 

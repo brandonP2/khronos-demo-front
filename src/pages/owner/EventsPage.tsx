@@ -6,7 +6,7 @@ import { EventDrawer, EventFormDialog } from '../../components/EventDialogs'
 import { ShiftBatchDialog, type ShiftDraft } from '../../components/ShiftDialogs'
 import { Avatar, Button, Empty, ErrorNote, Loading, PageHead, pluralize } from '../../components/ui'
 import { useAssignments, useEvents, useShifts, useStaff, useZones } from '../../lib/queries'
-import { eventDate, eventTime, fmt, today } from '../../lib/time'
+import { addDays, eventDate, eventTime, fmt, today } from '../../lib/time'
 import { useVenue } from '../../lib/VenueContext'
 
 type Modal = { kind: 'new' } | { kind: 'edit'; event: KEvent } | { kind: 'shift'; draft: ShiftDraft } | null
@@ -18,12 +18,16 @@ export default function EventsPage() {
   const [eventId, setEventId] = useState<number | null>(null)
   const [modal, setModal] = useState<Modal>(null)
 
+  // Upcoming fetches from today on, past fetches up to yesterday
+  const t = today()
+  const range = when === 'upcoming' ? { from: t } : { to: addDays(t, -1) }
   const zones = useZones(venue?.id)
   const staff = useStaff(venue?.id)
-  const shifts = useShifts(me.id, zones.data?.map((z) => z.id))
-  const events = useEvents(venue?.id)
+  const shifts = useShifts(me.id, zones.data?.map((z) => z.id), range)
+  const events = useEvents(venue?.id, range)
+  const assignments = useAssignments(venue?.id, range)
+  const byEvent = assignments.byEvent
 
-  const t = today()
   const list = useMemo(() => {
     const all = events.data ?? []
     return when === 'upcoming'
@@ -31,7 +35,6 @@ export default function EventsPage() {
       : all.filter((e) => eventDate(e.dateTime) < t).reverse()
   }, [events.data, when, t])
 
-  const { byEvent } = useAssignments(list)
   const staffList = staff.data ?? []
   const zoneList = zones.data ?? []
   const selected = (events.data ?? []).find((e) => e.id === eventId) ?? null
@@ -46,7 +49,8 @@ export default function EventsPage() {
   }, [list])
 
   const unstaffed = list.filter((e) => (byEvent.get(e.id)?.length ?? 0) === 0).length
-  const loading = zones.isLoading || staff.isLoading || events.isLoading
+  // While another range loads, the previous one is still in events.data
+  const loading = zones.isLoading || staff.isLoading || events.isLoading || events.isPlaceholderData
   const error = zones.error ?? staff.error ?? events.error ?? shifts.error
 
   return (
@@ -153,6 +157,8 @@ export default function EventsPage() {
           event={selected}
           staff={staffList}
           shifts={shifts.data ?? []}
+          assignments={byEvent.get(selected.id) ?? []}
+          assignmentsLoading={assignments.loading}
           onClose={() => setEventId(null)}
           onEdit={() => setModal({ kind: 'edit', event: selected })}
           onAddShift={(draft) => setModal({ kind: 'shift', draft })}
