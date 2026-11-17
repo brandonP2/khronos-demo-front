@@ -130,6 +130,46 @@ describe('person page', () => {
     expect(screen.getByText('Fichaje corregido')).toBeTruthy()
   })
 
+  it('keeps the exact instants, seconds included, of the times the owner did not change', async () => {
+    const precise = entry({ clockIn: '2025-11-14T17:10:45Z', clockOut: '2025-11-15T01:00:30Z' })
+    const calls = mockApi((call) => {
+      if (call.method === 'PUT') return json(200, precise)
+      if (call.path.startsWith('/time-entries/worker/5?')) return json(200, [precise])
+      if (call.path === '/users/me') return json(200, owner)
+      if (call.path === '/establishments/owner/2') return json(200, [venue])
+      if (call.path === '/workers/establishment/1') return json(200, [{ userId: 5, establishmentId: 1, isActive: true }])
+      if (call.path === '/users/establishment/1') return json(200, [lucia])
+      if (call.path === '/workers/5/rates') return json(200, [])
+      if (call.path.startsWith('/reports/worker/5/days?')) return json(200, daysReport)
+    })
+    renderApp(PERSON)
+    fireEvent.click(await screen.findByRole('button', { name: 'Corregir: fichaje del vie, 14 nov a las 18:10' }))
+    const dialog = screen.getByRole('dialog', { name: 'Corregir fichaje' })
+    fireEvent.change(within(dialog).getByLabelText('Motivo'), { target: { value: 'Añade la pausa' } })
+    fireEvent.change(within(dialog).getByLabelText('Pausa (minutos)'), { target: { value: '15' } })
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Guardar corrección' }))
+    await waitFor(() => expect(calls.some((c) => c.method === 'PUT')).toBe(true))
+    expect(calls.find((c) => c.method === 'PUT')!.body).toMatchObject({
+      clockIn: '2025-11-14T17:10:45Z',
+      clockOut: '2025-11-15T01:00:30Z',
+      breakMinutes: 15,
+    })
+  })
+
+  it('refuses a clock-out at the same time as the clock-in', async () => {
+    ownerApi()
+    renderApp(PERSON)
+    fireEvent.click((await screen.findAllByRole('button', { name: 'Añadir jornada' }))[0])
+    const dialog = screen.getByRole('dialog', { name: 'Añadir jornada de Lucía Romero' })
+    fireEvent.change(within(dialog).getByLabelText('Fecha de entrada'), { target: { value: '2025-11-13' } })
+    fireEvent.change(within(dialog).getByLabelText('Entrada'), { target: { value: '08:00' } })
+    fireEvent.change(within(dialog).getByLabelText('Salida'), { target: { value: '08:00' } })
+    fireEvent.change(within(dialog).getByLabelText('Motivo'), { target: { value: 'Día olvidado' } })
+    expect(within(dialog).getByText('La salida no puede ser a la misma hora que la entrada')).toBeTruthy()
+    expect(within(dialog).queryByText('Sale al día siguiente.')).toBeNull()
+    expect((within(dialog).getByRole('button', { name: 'Añadir jornada' }) as HTMLButtonElement).disabled).toBe(true)
+  })
+
   it('voids an entry only with a reason; a voided one can no longer be corrected', async () => {
     const calls = ownerApi((call) =>
       call.method === 'PUT' && call.path === '/time-entries/41/void' ? json(200, entry({ status: 'VOIDED' })) : undefined,

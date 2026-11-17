@@ -59,7 +59,7 @@ export function PeriodPicker({
       </div>
       {value.preset === 'custom' ? (
         <div className="period-dates">
-          <Field label={t.period.from} error={issueText}>
+          <Field label={t.period.from}>
             {(id) => (
               <input
                 id={id}
@@ -71,7 +71,8 @@ export function PeriodPicker({
               />
             )}
           </Field>
-          <Field label={t.period.to}>
+          {/* The message sits under the end date, which is linked to it and marked invalid */}
+          <Field label={t.period.to} error={issueText}>
             {(id) => (
               <input
                 id={id}
@@ -79,7 +80,6 @@ export function PeriodPicker({
                 className="input mono"
                 value={value.to}
                 min={value.from || undefined}
-                aria-invalid={!!issueText}
                 onChange={(e) => onChange({ ...value, to: e.target.value })}
               />
             )}

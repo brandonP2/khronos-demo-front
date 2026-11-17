@@ -18,18 +18,31 @@ import { endsNextDay, hhmm, minutesLabel, venueTimeZone, zonedTime, zonedToday }
  */
 export default function MyHours() {
   const t = useT()
-  const fmt = useFmt()
   const me = useMe()
   const { worker, venue } = useMyVenue(me.id)
   const venueId = worker.data?.establishmentId
-  const timeZone = venueTimeZone(venue.data)
+  const loading = worker.isLoading || (!!venueId && venue.isLoading)
+  const error = worker.error ?? venue.error
+
+  // "This week" depends on the venue's time zone, so the period waits for the venue
+  if (loading || error || !venueId) {
+    return (
+      <div className="page" style={{ maxWidth: 1040 }}>
+        <PageHead title={t.myHours.title} sub={t.myHours.sub} />
+        {error ? <ErrorNote error={error} /> : <Loading rows={4} />}
+      </div>
+    )
+  }
+  return <MyHoursBody venueId={venueId} timeZone={venueTimeZone(venue.data)} />
+}
+
+function MyHoursBody({ venueId, timeZone }: { venueId: number; timeZone: string }) {
+  const t = useT()
+  const fmt = useFmt()
+  const me = useMe()
   const { value, setValue, period } = usePeriod(undefined, zonedToday(timeZone))
   const report = useWorkerDays(me.id, period)
-  const zones = useQuery({
-    queryKey: keys.zones(venueId ?? 0),
-    queryFn: () => api.zones.byEstablishment(venueId!),
-    enabled: !!venueId,
-  })
+  const zones = useQuery({ queryKey: keys.zones(venueId), queryFn: () => api.zones.byEstablishment(venueId) })
   const download = useDownload()
   const [historyOf, setHistoryOf] = useState<TimeEntry | null>(null)
 

@@ -419,6 +419,7 @@ export const es = {
     reasonHint: 'Obligatorio. Queda en el historial del fichaje.',
     reasonError: 'Escribe el motivo: al menos 3 caracteres',
     future: 'No puede ser una hora futura',
+    sameTime: 'La salida no puede ser a la misma hora que la entrada',
     nextDay: 'Sale al día siguiente.',
     worked: (duration: string) => `Trabajado: ${duration}`,
     timesNote: (zone: string) => `Horas del local (${zone}).`,

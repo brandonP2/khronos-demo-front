@@ -80,14 +80,29 @@ export function EntryFormDialog({
   const [reasonTouched, setReasonTouched] = useState(false)
 
   const now = Date.now()
-  const inInstant = date && clockIn ? zonedInstant(date, clockIn, timeZone) : null
-  const nextDay = !!clockIn && !!clockOut && minutes(clockOut) <= minutes(clockIn)
-  const outInstant = !stillIn && date && clockOut ? zonedInstant(nextDay ? addDays(date, 1) : date, clockOut, timeZone) : null
+  const sameTime = !!clockIn && !!clockOut && !stillIn && minutes(clockOut) === minutes(clockIn)
+  const nextDay = !!clockIn && !!clockOut && minutes(clockOut) < minutes(clockIn)
+  const outDate = nextDay ? addDays(date, 1) : date
+  // The form shows whole minutes; a time the owner did not touch keeps its exact instant, seconds included
+  const inInstant = !date || !clockIn
+    ? null
+    : entry && date === zonedDate(entry.clockIn, timeZone) && clockIn === zonedTime(entry.clockIn, timeZone)
+      ? entry.clockIn
+      : zonedInstant(date, clockIn, timeZone)
+  const outInstant = stillIn || !date || !clockOut || sameTime
+    ? null
+    : entry?.clockOut && outDate === zonedDate(entry.clockOut, timeZone) && clockOut === zonedTime(entry.clockOut, timeZone)
+      ? entry.clockOut
+      : zonedInstant(outDate, clockOut, timeZone)
   const span = inInstant && outInstant ? Math.round((Date.parse(outInstant) - Date.parse(inInstant)) / 60_000) : null
   const breakMinutes = /^\d+$/.test(breakText.trim()) ? Number(breakText.trim()) : NaN
 
   const inError = inInstant && Date.parse(inInstant) > now ? t.entryForm.future : undefined
-  const outError = outInstant && Date.parse(outInstant) > now ? t.entryForm.future : undefined
+  const outError = sameTime
+    ? t.entryForm.sameTime
+    : outInstant && Date.parse(outInstant) > now
+      ? t.entryForm.future
+      : undefined
   const breakInvalid = !Number.isInteger(breakMinutes) || breakMinutes > 600 || (span !== null && breakMinutes > span)
   const valid =
     !!inInstant && (stillIn || !!outInstant) && !inError && !outError && !breakInvalid && !isReasonInvalid(reason)
@@ -275,7 +290,9 @@ export function ClockInForDialog({
   const toast = useToast()
   const invalidate = useInvalidate()
   const now = useNow(10_000)
-  const [workerId, setWorkerId] = useState<number | ''>(people[0]?.userId ?? '')
+  const [picked, setPicked] = useState<number | ''>(people[0]?.userId ?? '')
+  // The list refreshes while the dialog is open; someone just clocked in elsewhere drops out of it
+  const workerId = people.some((p) => p.userId === picked) ? picked : (people[0]?.userId ?? '')
   const [reason, setReason] = useState(t.now.defaultReason)
   const [touched, setTouched] = useState(false)
   const name = people.find((p) => p.userId === workerId)?.name ?? ''
@@ -320,7 +337,7 @@ export function ClockInForDialog({
       >
         <Field label={t.now.person}>
           {(id) => (
-            <select id={id} className="select" value={workerId} onChange={(e) => setWorkerId(Number(e.target.value))}>
+            <select id={id} className="select" value={workerId} onChange={(e) => setPicked(Number(e.target.value))}>
               {people.map((p) => (
                 <option key={p.userId} value={p.userId}>
                   {p.name}
