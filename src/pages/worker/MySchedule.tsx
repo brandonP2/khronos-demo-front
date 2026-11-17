@@ -17,9 +17,16 @@ import {
   minutesLabel,
   shiftCovers,
   shiftMinutes,
+  shiftWindow,
   weekDays,
   zonedToday,
 } from '../../lib/time'
+import { useNow } from '../../lib/useNow'
+
+/** A shift is ahead until it ends on the venue's clock, so a night shift still running is not past yet */
+function hasEnded(shift: Shift, timeZone: string, now: number): boolean {
+  return shiftWindow(shift, timeZone).end <= now
+}
 
 /** A worker's own view: their shifts by day, with the events they are on inside each shift */
 export default function MySchedule() {
@@ -30,13 +37,17 @@ export default function MySchedule() {
 
   const { worker, venue } = useMyVenue(me.id)
   const venueId = worker.data?.establishmentId
+  // Checked every minute, so a shift moves to the past once it has ended
+  const clock = useNow(60_000)
   // Today is the venue's. Until the venue has loaded the device's stands in, and the agenda waits for it.
   const timeZone = venue.data ? venueTimeZone(venue.data) : deviceTimeZone()
-  const now = zonedToday(timeZone)
+  const now = zonedToday(timeZone, clock)
   const week = weekDays(now)
-  // From Monday of this week on, which also covers this week's hours; the past is fetched only when shown
-  const ahead: DateRange = { from: week[0] }
-  const past: DateRange = { to: addDays(now, -1) }
+  const yesterday = addDays(now, -1)
+  // From Monday of this week on, which also covers this week's hours, and from yesterday at the latest,
+  // as its night shift may still be running. The past, up to today, is fetched only when shown.
+  const ahead: DateRange = { from: yesterday < week[0] ? yesterday : week[0] }
+  const past: DateRange = { to: now }
 
   const zones = useQuery({
     queryKey: keys.zones(venueId ?? 0),
@@ -68,7 +79,8 @@ export default function MySchedule() {
   const myEvents = useMemo(() => (events.data ?? []).filter((e) => assignedIds.has(e.id)), [assignedIds, events.data])
 
   const days = useMemo(() => {
-    const all = (shifts.data ?? []).filter((s) => (when === 'upcoming' ? s.date >= now : s.date < now))
+    const ended = (s: Shift) => hasEnded(s, timeZone, clock)
+    const all = (shifts.data ?? []).filter((s) => (when === 'upcoming' ? !ended(s) : ended(s)))
     const map = new Map<string, Shift[]>()
     for (const s of all) map.set(s.date, [...(map.get(s.date) ?? []), s])
     const entries = [...map.entries()].map(
@@ -76,14 +88,15 @@ export default function MySchedule() {
     )
     entries.sort((a, b) => (when === 'upcoming' ? a[0].localeCompare(b[0]) : b[0].localeCompare(a[0])))
     return entries
-  }, [shifts.data, when, now])
+  }, [shifts.data, when, timeZone, clock])
 
   const weekMins = (shiftsAhead.data ?? [])
     .filter((s) => week.includes(s.date))
     .reduce((n, s) => n + shiftMinutes(s), 0)
   const next = (shiftsAhead.data ?? [])
-    .filter((s) => s.date >= now)
+    .filter((s) => !hasEnded(s, timeZone, clock))
     .sort((a, b) => a.date.localeCompare(b.date) || a.startTime.localeCompare(b.startTime))[0]
+  const nextRunning = !!next && shiftWindow(next, timeZone).start <= clock
   const upcomingEvents = (eventsAhead.data ?? []).filter((e) => assignedIds.has(e.id) && eventDate(e.dateTime) >= now).length
 
   const loading =
@@ -117,7 +130,7 @@ export default function MySchedule() {
         <>
           <div className="stats stats-3">
             <div className="card stat">
-              <span className="label">{t.mySchedule.nextShift}</span>
+              <span className="label">{nextRunning ? t.clock.currentShift : t.mySchedule.nextShift}</span>
               <span className="figure" style={{ fontSize: 22 }}>
                 {next ? fmt.agenda(next.date, now).title : '—'}
               </span>

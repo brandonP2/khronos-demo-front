@@ -9,17 +9,19 @@ import { TimeZoneField } from '../../components/TimeZoneField'
 import { Button, ConfirmDialog, Empty, ErrorNote, Field, Loading, PageHead, useToast } from '../../components/ui'
 import { useT } from '../../lib/i18n'
 import { useEvents, useInvalidate, useShifts, useZones } from '../../lib/queries'
-import { DEFAULT_TIME_ZONE, eventDate, venueTimeZone, zonedToday } from '../../lib/time'
+import { addDays, DEFAULT_TIME_ZONE, eventDate, shiftWindow, venueTimeZone, zonedToday } from '../../lib/time'
 import { useVenue } from '../../lib/VenueContext'
 
 export default function VenuePage() {
   const t = useT()
   const me = useMe()
   const { venue } = useVenue()
-  // Only what is ahead matters here: it is what a zone delete would cancel. Today is the venue's.
-  const day = zonedToday(venueTimeZone(venue))
+  // Only what is ahead matters here: it is what a zone delete would cancel. Today is the venue's,
+  // and shifts come from yesterday on, as a night shift that started then may still be running.
+  const venueZone = venueTimeZone(venue)
+  const day = zonedToday(venueZone)
   const zones = useZones(venue?.id)
-  const shifts = useShifts(me.id, zones.data?.map((z) => z.id), { from: day })
+  const shifts = useShifts(me.id, zones.data?.map((z) => z.id), { from: addDays(day, -1) })
   const events = useEvents(venue?.id, { from: day })
   const invalidate = useInvalidate()
   const toast = useToast()
@@ -64,8 +66,10 @@ export default function VenuePage() {
   })
 
   if (!venue) return null
+  const now = Date.now()
+  // A shift is ahead until it ends
   const upcoming = (zoneId: number) => ({
-    shifts: (shifts.data ?? []).filter((s) => s.zoneId === zoneId && s.date >= day).length,
+    shifts: (shifts.data ?? []).filter((s) => s.zoneId === zoneId && shiftWindow(s, venueZone).end > now).length,
     events: (events.data ?? []).filter((e) => e.zoneId === zoneId && eventDate(e.dateTime) >= day).length,
   })
   const venueDirty =

@@ -134,3 +134,78 @@ describe("a device on another day than the venue, near midnight", () => {
     expect(screen.queryByText('Mañana')).toBeNull()
   })
 })
+
+describe('a night shift still running', () => {
+  // Friday 18:00 to Saturday 02:00, with an event on each side of midnight
+  const night = { id: 1, workerId: 5, zoneId: 7, date: FRIDAY, startTime: '18:00:00', endTime: '02:00:00', endsNextDay: true, durationMinutes: 480 }
+  const dinner = event(1, 'Cena de empresa', `${FRIDAY}T22:00:00`)
+  const party = event(2, 'Fiesta', `${SATURDAY}T01:00:00`)
+
+  /** Lucía, on the night shift and on both events */
+  function workerApi() {
+    return mockApi((call: Call) => {
+      if (call.path === '/users/me') return json(200, lucia)
+      if (call.path === '/workers/5') return json(200, { userId: 5, establishmentId: 1, isActive: true })
+      if (call.path === '/establishments/1') return json(200, venue)
+      if (call.path === '/time-entries/me/open') return noContent()
+      if (call.path === '/zones/establishment/1') return json(200, [{ id: 7, name: 'Sala', establishmentId: 1 }])
+      if (call.path.startsWith('/worker-shifts/worker/5')) return json(200, [night])
+      if (call.path.startsWith('/events/establishment/1')) return json(200, [dinner, party])
+      if (call.path === '/worker-events/worker/5') return json(200, [{ id: 1, workerId: 5, eventId: 1 }, { id: 2, workerId: 5, eventId: 2 }])
+      if (call.method === 'GET') return json(200, [])
+      return undefined
+    })
+  }
+
+  beforeEach(() => {
+    // Phone and venue both in Madrid: what matters here is when the shift ends
+    vi.stubEnv('TZ', 'Europe/Madrid')
+  })
+
+  it('stays ahead, as the current shift and with the events it covers, until it ends', async () => {
+    // Saturday 01:00 in Madrid
+    vi.setSystemTime(new Date('2026-11-21T00:00:00Z'))
+    const calls = workerApi()
+    renderApp('/')
+    const label = await screen.findByText('Turno en curso', { selector: '.stat .label' })
+    const stat = label.closest('.stat')!
+    expect(within(stat as HTMLElement).getByText('Ayer')).toBeTruthy()
+    expect(stat.querySelector('.meta')?.textContent).toBe('18:00–02:00+1 del día siguiente · Sala')
+    expect(document.querySelector('.agenda-date .d')?.textContent).toBe('Ayer')
+    expect(screen.getByText('2 eventos durante este turno')).toBeTruthy()
+    expect(screen.getByText('Cena de empresa')).toBeTruthy()
+    expect(screen.getByText('Fiesta')).toBeTruthy()
+    // Fetched from yesterday on, even on a Saturday, whose week started on Monday
+    expect(calls.some((c) => c.path === '/worker-shifts/worker/5?from=2026-11-16')).toBe(true)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Pasados' }))
+    expect(await screen.findByText('No hay turnos pasados')).toBeTruthy()
+  })
+
+  it('moves to the past once it has ended', async () => {
+    // Saturday 02:30 in Madrid
+    vi.setSystemTime(new Date('2026-11-21T01:30:00Z'))
+    workerApi()
+    renderApp('/')
+    expect(await screen.findByText('Todavía no tienes turnos')).toBeTruthy()
+    expect(screen.getByText('Próximo turno')).toBeTruthy()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Pasados' }))
+    expect(await screen.findByText('2 eventos durante este turno')).toBeTruthy()
+    expect(document.querySelector('.agenda-date .d')?.textContent).toBe('Ayer')
+  })
+
+  it('counts as ahead of a zone the owner is about to delete', async () => {
+    vi.setSystemTime(new Date('2026-11-21T00:00:00Z'))
+    mockApi((call: Call) => {
+      if (call.path === '/users/me') return json(200, owner)
+      if (call.path === '/establishments/owner/2') return json(200, [venue])
+      if (call.path === '/zones/establishment/1') return json(200, [{ id: 7, name: 'Sala', establishmentId: 1 }])
+      if (call.path.startsWith('/worker-shifts/owner/2')) return json(200, [night])
+      if (call.method === 'GET') return json(200, [])
+      return undefined
+    })
+    renderApp('/venue')
+    expect(await screen.findByText('1 turno · 0 eventos por delante')).toBeTruthy()
+  })
+})
