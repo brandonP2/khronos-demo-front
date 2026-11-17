@@ -28,6 +28,7 @@ interface NavItem {
 const NAV: Record<string, NavItem[]> = {
   OWNER: [
     { to: '/', label: 'schedule', icon: CalendarRange },
+    { to: '/hours', label: 'hours', icon: Clock },
     { to: '/events', label: 'events', icon: CalendarClock },
     { to: '/team', label: 'team', icon: Users },
     { to: '/venue', label: 'venue', icon: MapIcon },
