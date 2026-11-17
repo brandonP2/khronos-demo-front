@@ -210,7 +210,9 @@ describe('summary chart', () => {
     expect(heights(columns[1])).toEqual(['100%', '50%'])
     // Staff cost unknown counts as 0 in the total cost
     expect(heights(columns[3])).toEqual(['30%', '60%'])
-    expect(plain(columns[0].getAttribute('aria-label'))).toBe('Lunes, 9 de noviembre: ventas 1.000,00 €, coste total 500,00 €')
+    expect(plain(columns[0].getAttribute('aria-label'))).toBe(
+      'Lunes, 9 de noviembre: ventas 1.000,00 €, coste total 500,00 € (gastos 200,00 €, personal 300,00 €), margen 500,00 €',
+    )
     // The axis labels, in full under 10.000 €
     expect([...document.querySelectorAll('.chart-axis span')].map((s) => plain(s.textContent))).toEqual(['0 €', '1.000 €', '2.000 €'])
   })
@@ -223,7 +225,9 @@ describe('summary chart', () => {
     expect(columns[6].getAttribute('aria-label')).toBe('Domingo, 15 de noviembre: sin datos')
     expect(columns[6].classList.contains('empty')).toBe(true)
     // A day with activity and no closing is never "no data", even with nothing to draw
-    expect(plain(columns[2].getAttribute('aria-label'))).toBe('Miércoles, 11 de noviembre: sin cierre de caja; ventas 0,00 €, coste total 0,00 €')
+    expect(plain(columns[2].getAttribute('aria-label'))).toBe(
+      'Miércoles, 11 de noviembre: sin cierre de caja; ventas 0,00 €, coste total 0,00 € (gastos 0,00 €, personal 0,00 €), margen 0,00 €',
+    )
     expect(columns[2].classList.contains('empty')).toBe(false)
     expect(columns[2].classList.contains('missing')).toBe(true)
     // One tab stop; the arrows move between days and the readout follows
@@ -238,6 +242,25 @@ describe('summary chart', () => {
     fireEvent.keyDown(columns[2], { key: 'End' })
     expect(document.activeElement).toBe(columns[6])
     expect(plain(readout.textContent)).toBe('Domingo, 15 de noviembre Sin datos')
+  })
+
+  it('announces each day once, by the name of its column', async () => {
+    summaryApi(summary())
+    renderApp('/')
+    const chart = await screen.findByRole('group', { name: /Ventas y coste total por día/ })
+    const columns = within(chart).getAllByRole('button')
+    // No tooltip repeating the name, and the readout is not a live region that says it again
+    expect(columns.some((c) => c.hasAttribute('title'))).toBe(false)
+    const readout = document.querySelector('.chart-readout') as HTMLElement
+    expect(readout.getAttribute('aria-live')).toBeNull()
+    expect(readout.getAttribute('aria-hidden')).toBe('true')
+    expect(document.querySelectorAll('.chart [aria-live]')).toHaveLength(0)
+    // Every figure of the readout is in the name, so nothing is lost for a screen reader
+    act(() => columns[3].focus())
+    expect(plain(columns[3].getAttribute('aria-label'))).toBe(
+      'Jueves, 12 de noviembre: ventas 600,00 €, coste total 1.200,00 € (gastos 1.200,00 €, personal sin tarifa), margen -600,00 €',
+    )
+    expect(plain(readout.textContent)).toBe('Jueves, 12 de noviembre Ventas 600,00 € · Gastos 1.200,00 € · Personal sin tarifa · Margen -600,00 €')
   })
 
   it('shows a day with no closing and no rate, with the staff cost as missing rather than 0', async () => {

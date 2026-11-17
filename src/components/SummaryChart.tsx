@@ -1,7 +1,8 @@
 // The summary's daily chart, drawn with plain elements: per day, sales next to the total cost
 // (expenses plus staff), on one axis in euros. Keyboard and screen readers get every value:
-// the days are one tab stop walked with the arrow keys, with a readout line, and a table
-// with the same numbers sits behind the chart for screen readers.
+// the days are one tab stop walked with the arrow keys, each day's name carries its figures
+// (the readout line shows the same for the eye, and is not announced again), and a table with
+// the same numbers sits behind the chart for screen readers.
 import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent } from 'react'
 import type { SummaryDay } from '../api/types'
 import { useFmt, useT } from '../lib/i18n'
@@ -37,10 +38,12 @@ export function SummaryChart({ days, today }: { days: SummaryDay[]; /** The venu
   const labor = (d: SummaryDay) => (d.laborCost === null ? t.chart.noRate : money(d.laborCost))
   // A day with activity and no closing is shown, and said, even with nothing to draw
   const missing = (d: SummaryDay) => d.closingStatus === 'MISSING'
-  const label = (d: SummaryDay) =>
-    isEmptyDay(d)
-      ? t.chart.emptyDay(fmt.long(d.date))
-      : (missing(d) ? t.chart.dayMissing : t.chart.day)(fmt.long(d.date), money(d.sales), money(dayCost(d)))
+  // The one way a day is announced: its button's name, read when it gets the focus
+  const label = (d: SummaryDay) => {
+    if (isEmptyDay(d)) return t.chart.emptyDay(fmt.long(d.date))
+    const figures = t.chart.figures(money(d.sales), money(dayCost(d)), money(d.expenses), labor(d), money(d.margin))
+    return (missing(d) ? t.chart.dayMissing : t.chart.day)(fmt.long(d.date), figures)
+  }
 
   const move = (to: number) => {
     const next = Math.max(0, Math.min(days.length - 1, to))
@@ -113,7 +116,6 @@ export function SummaryChart({ days, today }: { days: SummaryDay[]; /** The venu
                 data-active={i === active || undefined}
                 tabIndex={i === active ? 0 : -1}
                 aria-label={label(d)}
-                title={label(d)}
                 onFocus={() => setActive(i)}
                 onMouseEnter={() => setActive(i)}
                 onClick={() => setActive(i)}
@@ -133,7 +135,8 @@ export function SummaryChart({ days, today }: { days: SummaryDay[]; /** The venu
         </div>
       </div>
 
-      <p className="chart-readout" aria-live="polite">
+      {/* For the eye: the focused day's name already says all of it */}
+      <p className="chart-readout" aria-hidden>
         <span className="chart-readout-day">{fmt.long(current.date)}</span>{' '}
         <span className="mono">
           {isEmptyDay(current)
