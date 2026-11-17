@@ -551,7 +551,9 @@ export const es = {
     privacy: 'Solo se guarda la hora. Khronos no usa tu ubicación.',
     clockedIn: (time: string) => `Entrada fichada a las ${time}`,
     clockedOut: (time: string, worked: string) => `Salida fichada a las ${time} · ${worked} trabajadas`,
-    stale: 'Parece que olvidaste fichar la salida. Avisa a tu encargado para que la corrija; hasta entonces no puedes volver a fichar.',
+    stale: 'Parece que olvidaste fichar la salida. Fíchala ahora y, si saliste antes, avisa a tu encargado para que corrija la hora.',
+    tooLong:
+      'Esta entrada lleva más de 24 horas abierta y ya no puedes fichar la salida. Avisa a tu encargado para que la corrija; hasta entonces no puedes volver a fichar.',
     alreadyIn: (time: string) => `Ya tenías la entrada fichada desde las ${time}.`,
     notIn: 'No tenías ninguna entrada abierta: puede que tu encargado ya la haya cerrado.',
     outTitle: 'Fichar salida',

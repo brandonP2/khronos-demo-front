@@ -10,7 +10,7 @@ import { isAlreadyClockedOut, isOpenTooLong } from '../lib/apiMessages'
 import { parseBreakMinutes } from '../lib/hours'
 import { useFmt, useT } from '../lib/i18n'
 import { useInvalidate, type StaffMember } from '../lib/queries'
-import { addDays, minutes, minutesLabel, minutesSince, nowInstant, zonedDate, zonedInstant, zonedTime, zonedToday } from '../lib/time'
+import { addDays, MAX_OPEN_MINUTES, minutes, minutesLabel, minutesSince, nowInstant, zonedDate, zonedInstant, zonedTime, zonedToday } from '../lib/time'
 import { useNow } from '../lib/useNow'
 import { Button, Dialog, ErrorNote, Field, useToast } from './ui'
 
@@ -363,9 +363,6 @@ export function ClockInForDialog({
     </Dialog>
   )
 }
-
-/** The API's limit: an entry open for longer cannot be clocked out, only corrected */
-const MAX_OPEN_MINUTES = 24 * 60
 
 /**
  * The owner clocks someone out at the current time; the server sets the time and the history

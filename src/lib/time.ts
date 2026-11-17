@@ -265,6 +265,9 @@ export function minutesSince(instant: string, until: number = Date.now()): numbe
   return Math.max(0, Math.floor((until - Date.parse(instant)) / 60_000))
 }
 
+/** The API's limit: an entry open for longer cannot be clocked out, only corrected */
+export const MAX_OPEN_MINUTES = 24 * 60
+
 export function eventDate(dateTime: string): string {
   return dateTime.slice(0, 10)
 }

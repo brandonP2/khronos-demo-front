@@ -529,7 +529,9 @@ export const en: Messages = {
     privacy: 'Only the time is saved. Khronos does not use your location.',
     clockedIn: (time: string) => `Clocked in at ${time}`,
     clockedOut: (time: string, worked: string) => `Clocked out at ${time} · ${worked} worked`,
-    stale: 'Looks like you forgot to clock out. Ask your manager to correct it; until then you cannot clock in again.',
+    stale: 'Looks like you forgot to clock out. Clock out now and, if you left earlier, ask your manager to correct the time.',
+    tooLong:
+      'This entry has been open for more than 24 hours, so you can no longer clock out. Ask your manager to correct it; until then you cannot clock in again.',
     alreadyIn: (time: string) => `You were already clocked in since ${time}.`,
     notIn: 'You were not clocked in: your manager may have closed it already.',
     outTitle: 'Clock out',

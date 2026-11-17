@@ -9,7 +9,7 @@ import { isNoOpenEntry } from '../lib/apiMessages'
 import { parseBreakMinutes } from '../lib/hours'
 import { useT } from '../lib/i18n'
 import { keys, useInvalidate, useMyOpenEntry } from '../lib/queries'
-import { addDays, minutesLabel, minutesSince, shiftWindow, zonedTime, zonedToday } from '../lib/time'
+import { addDays, MAX_OPEN_MINUTES, minutesLabel, minutesSince, shiftWindow, zonedTime, zonedToday } from '../lib/time'
 import { useNow } from '../lib/useNow'
 import { Button, Dialog, ErrorNote, Field, ShiftTimes, useToast } from './ui'
 
@@ -47,6 +47,8 @@ export function ClockCard({ timeZone, zones }: { timeZone: string; zones: Zone[]
   const [closing, setClosing] = useState(false)
 
   const entry = open.data ?? null
+  // A forgotten clock-out can still be done until the API's 24-hour limit; past it only the manager can correct it
+  const tooLong = !!entry && minutesSince(entry.clockIn, now) >= MAX_OPEN_MINUTES
   const planned = pickShift(shifts.data ?? [], day, timeZone, now)
   const zoneName = (id: number) => zones.find((z) => z.id === id)?.name ?? ''
 
@@ -106,7 +108,7 @@ export function ClockCard({ timeZone, zones }: { timeZone: string; zones: Zone[]
             </span>
           )}
         </div>
-        {!open.isLoading && !entry?.isStale && (
+        {!open.isLoading && !tooLong && (
           <Button
             variant="primary"
             className="clock-button"
@@ -119,10 +121,10 @@ export function ClockCard({ timeZone, zones }: { timeZone: string; zones: Zone[]
         )}
       </div>
 
-      {entry?.isStale && (
+      {(tooLong || entry?.isStale) && (
         <div className="notice" role="alert">
           <TriangleAlert size={16} strokeWidth={1.5} />
-          <span>{t.clock.stale}</span>
+          <span>{tooLong ? t.clock.tooLong : t.clock.stale}</span>
         </div>
       )}
 

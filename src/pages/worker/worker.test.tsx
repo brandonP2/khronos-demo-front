@@ -125,12 +125,25 @@ describe('clocking in from the phone', () => {
     expect(calls.find((c) => c.path === '/time-entries/clock-out')!.body).toEqual({ breakMinutes: 15, note: 'Cierre de caja' })
   })
 
-  it('warns about a forgotten clock-out and sends the person to their manager', async () => {
+  it('warns about a forgotten clock-out and still lets the person clock out before 24 hours', async () => {
+    const clockIn = new Date(Date.now() - 17 * 60 * 60_000).toISOString()
     workerApi((call) => {
-      if (call.path === '/time-entries/me/open') return json(200, entry({ clockIn: '2026-11-18T17:02:00Z', isStale: true }))
+      if (call.path === '/time-entries/me/open') return json(200, entry({ clockIn, isStale: true }))
     })
     renderApp('/')
-    expect(await screen.findByText(/Parece que olvidaste fichar la salida. Avisa a tu encargado/)).toBeTruthy()
+    expect(await screen.findByText(/Parece que olvidaste fichar la salida. Fíchala ahora/)).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Fichar salida' }))
+    expect(screen.getByRole('dialog', { name: 'Fichar salida' })).toBeTruthy()
+  })
+
+  it('sends the person to their manager once the entry has been open for 24 hours', async () => {
+    const clockIn = new Date(Date.now() - 24 * 60 * 60_000).toISOString()
+    workerApi((call) => {
+      if (call.path === '/time-entries/me/open') return json(200, entry({ clockIn, isStale: true }))
+    })
+    renderApp('/')
+    expect(await screen.findByText(/más de 24 horas abierta y ya no puedes fichar la salida. Avisa a tu encargado/)).toBeTruthy()
+    expect(screen.queryByText(/Fíchala ahora/)).toBeNull()
     expect(screen.queryByRole('button', { name: 'Fichar salida' })).toBeNull()
   })
 
