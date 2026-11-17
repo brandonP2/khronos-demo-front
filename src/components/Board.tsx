@@ -199,9 +199,11 @@ export function Board({
 
                 {onAddShift && (
                   <div className="board-add-row">
-                    <Button variant="ghost" size="sm" icon={Plus} onClick={() => onAddShift(zone.id)}>
-                      {t.board.addShift}
-                    </Button>
+                    <div className="board-add-cell">
+                      <Button variant="ghost" size="sm" icon={Plus} onClick={() => onAddShift(zone.id)}>
+                        {t.board.addShift}
+                      </Button>
+                    </div>
                     <div className="board-lane">{gridlines}</div>
                   </div>
                 )}

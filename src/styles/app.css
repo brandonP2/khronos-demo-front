@@ -893,8 +893,7 @@ a {
 }
 
 .board-axis {
-  display: grid;
-  grid-template-columns: var(--name-col) 1fr;
+  display: flex;
   height: 32px;
   border-bottom: 1px solid var(--line);
   position: sticky;
@@ -906,6 +905,8 @@ a {
 
 .board-ticks {
   position: relative;
+  flex: 1;
+  min-width: 0;
 }
 
 .board-tick {
@@ -921,8 +922,7 @@ a {
 }
 
 .board-zone-head {
-  display: grid;
-  grid-template-columns: var(--name-col) 1fr;
+  display: flex;
   min-height: 40px;
   background: var(--raised);
   border-bottom: 1px solid var(--line);
@@ -936,12 +936,23 @@ a {
   font-weight: 500;
 }
 
-/* The name column stays put while the hours scroll sideways */
+/* Board rows are flex rows rather than grids: a sticky grid item cannot leave its own
+   cell, while a flex item can travel the whole row. The name column stays put while the
+   hours scroll sideways. */
 .board-axis > :first-child,
 .board-zone-name,
 .board-person,
 .board-empty-zone > span,
-.board-add-row > :first-child {
+.board-add-cell {
+  flex: none;
+  width: var(--name-col);
+}
+
+.board-axis > :first-child,
+.board-zone-name,
+.board-person,
+.board-empty-zone > span,
+.board-add-cell {
   position: sticky;
   left: 0;
   z-index: 4;
@@ -949,7 +960,8 @@ a {
 
 .board-axis > :first-child,
 .board-person,
-.board-empty-zone > span {
+.board-empty-zone > span,
+.board-add-cell {
   background: var(--card);
 }
 
@@ -966,11 +978,12 @@ a {
 
 .board-lane {
   position: relative;
+  flex: 1;
+  min-width: 0;
 }
 
 .board-row {
-  display: grid;
-  grid-template-columns: var(--name-col) 1fr;
+  display: flex;
   height: 44px;
   border-bottom: 1px solid var(--line);
 }
@@ -1009,15 +1022,14 @@ a {
 
 .board-add-row {
   height: 40px;
-  display: grid;
-  grid-template-columns: var(--name-col) 1fr;
+  display: flex;
   border-bottom: 1px solid var(--line);
 }
 
-.board-add-row button {
-  justify-self: start;
-  margin-left: 8px;
-  align-self: center;
+.board-add-cell {
+  display: flex;
+  align-items: center;
+  padding-left: 8px;
 }
 
 .shift-bar {
@@ -1136,8 +1148,7 @@ a {
 
 .board-empty-zone {
   height: 44px;
-  display: grid;
-  grid-template-columns: var(--name-col) 1fr;
+  display: flex;
   border-bottom: 1px solid var(--line);
   color: var(--text-3);
   font-size: 13px;
@@ -1702,7 +1713,8 @@ body:has(.session-warning) .toasts {
   .board-axis > :first-child,
   .board-zone-name,
   .board-person,
-  .board-empty-zone > span {
+  .board-empty-zone > span,
+  .board-add-cell {
     box-shadow: 1px 0 0 var(--line);
   }
 
