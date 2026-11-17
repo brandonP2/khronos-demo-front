@@ -9,6 +9,7 @@ import type { Supplier } from '../../../api/types'
 import { InventoryHead } from '../../../components/InventoryParts'
 import { SupplierFormDialog } from '../../../components/SupplierDialogs'
 import { Button, ConfirmDialog, Empty, ErrorNote, Loading, useToast } from '../../../components/ui'
+import { inventoryRefusal } from '../../../lib/apiMessages'
 import { useT } from '../../../lib/i18n'
 import { useInvalidate, useProducts, useSuppliers } from '../../../lib/queries'
 import { useVenue } from '../../../lib/VenueContext'
@@ -103,7 +104,7 @@ export default function SuppliersTab() {
               await api.suppliers.remove(supplier.id)
             } catch (e) {
               // Its orders keep its name, so a supplier with orders stays
-              throw isConflict(e) ? new Error(sp.removeBlocked(supplier.name)) : e
+              throw isConflict(e) && inventoryRefusal(e) === 'SUPPLIER_HAS_ORDERS' ? new Error(sp.removeBlocked(supplier.name)) : e
             }
             await invalidate.suppliers()
             toast(sp.removed)

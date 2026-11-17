@@ -1,7 +1,8 @@
 // The API writes its error messages in English. The ones a person meets while clocking in and
 // out are worded in the app's language here; any other message is shown as the API wrote it.
-// The cash closing and expense conflicts screens act on come with a stable `code`, read first;
-// their messages are still read for an API that does not send it.
+// The cash closing, expense and inventory conflicts screens act on come with a stable `code`, read
+// first; their messages are still read for an API that does not send it. The inventory's 400s
+// that name a field (fieldErrors) are worded here too.
 import type { Messages } from './i18n'
 
 type ApiMessageKey = keyof Messages['apiErrors']
@@ -26,6 +27,13 @@ const KNOWN: Record<string, ApiMessageKey> = {
   // Cash closings and expenses
   'The business date cannot be in the future': 'futureDay',
   'The expense date cannot be in the future': 'futureDay',
+  // Inventory
+  'The movement date cannot be in the future': 'futureDay',
+  'The count date cannot be in the future': 'futureDay',
+  'The received date cannot be in the future': 'futureDay',
+  // Any list of a period
+  'The date range cannot be longer than 366 days': 'rangeTooLong',
+  "'from' must not be after 'to'": 'rangeOrder',
   'A cash closing that has been closed before cannot be deleted; correct it and close it again instead': 'closedBeforeNoDelete',
 }
 
@@ -127,14 +135,92 @@ export function closedCashDay(message: string): { day: string | null } | null {
   return { day: /\d{4}-\d{2}-\d{2}/.exec(message)?.[0] ?? null }
 }
 
-/** A product's or a supplier's 409 because the venue already has one with that name */
-export function isNameTaken(message: string): boolean {
-  return /already exists|duplicate|name.*(taken|in use)/i.test(message)
+/** The inventory's 409s, by the `code` the API sends with them */
+export const INVENTORY_REFUSALS = [
+  'SUPPLIER_NAME_TAKEN',
+  'SUPPLIER_HAS_ORDERS',
+  'PRODUCT_NAME_TAKEN',
+  'PRODUCT_INACTIVE',
+  'PRODUCT_UNIT_LOCKED',
+  'PRODUCT_HAS_HISTORY',
+  'OTHER_ESTABLISHMENT',
+  'PURCHASE_ORDER_WRONG_STATUS',
+  'PURCHASE_ORDER_NO_TOTAL',
+  'PURCHASE_ORDER_NOTHING_RECEIVED',
+  'EXPENSE_FROM_PURCHASE_ORDER',
+] as const
+
+export type InventoryRefusal = (typeof INVENTORY_REFUSALS)[number]
+
+const isInventoryRefusal = (code: string): code is InventoryRefusal => (INVENTORY_REFUSALS as readonly string[]).includes(code)
+
+/**
+ * Which inventory refusal an error is: by its `code` when the API sends one (and then only by it),
+ * else by its message as the API words it. null for anything else.
+ */
+export function inventoryRefusal(error: Refusal): InventoryRefusal | null {
+  if (error.code) return isInventoryRefusal(error.code) ? error.code : null
+  const message = error.message
+  if (/created when purchase order #\d+ was received/i.test(message)) return 'EXPENSE_FROM_PURCHASE_ORDER'
+  if (/delete a supplier/i.test(message)) return 'SUPPLIER_HAS_ORDERS'
+  if (/delete a product/i.test(message)) return 'PRODUCT_HAS_HISTORY'
+  if (/is inactive; activate it/i.test(message)) return 'PRODUCT_INACTIVE'
+  if (/belongs to another establishment/i.test(message)) return 'OTHER_ESTABLISHMENT'
+  if (/purchase order can be .+; this one is/i.test(message)) return 'PURCHASE_ORDER_WRONG_STATUS'
+  if (/nothing was received/i.test(message)) return 'PURCHASE_ORDER_NOTHING_RECEIVED'
+  if (/no total to record as an expense/i.test(message)) return 'PURCHASE_ORDER_NO_TOTAL'
+  if (/supplier named .+ already exists/i.test(message)) return 'SUPPLIER_NAME_TAKEN'
+  if (/product named .+ already exists/i.test(message)) return 'PRODUCT_NAME_TAKEN'
+  if (/unit of a product/i.test(message)) return 'PRODUCT_UNIT_LOCKED'
+  return null
 }
 
-/** A product's 409 on saving it with another unit once it has movements */
-export function isUnitLocked(message: string): boolean {
-  return /\bunit\b/i.test(message)
+/** The purchase order an expense came from, from the error's details, else from its message */
+export function refusalOrder(error: Refusal): number | null {
+  const id = Number(error.details?.purchaseOrderId ?? /purchase order #(\d+)/i.exec(error.message)?.[1])
+  return Number.isInteger(id) && id > 0 ? id : null
+}
+
+/** An inventory refusal in the current language; null for any other error */
+export function inventoryRefusalMessage(error: Refusal, t: Messages): string | null {
+  const refusal = inventoryRefusal(error)
+  if (!refusal) return null
+  const e = t.inventoryErrors
+  switch (refusal) {
+    case 'PRODUCT_INACTIVE':
+      return e.PRODUCT_INACTIVE(/'(.+)'/.exec(error.message)?.[1] ?? null)
+    case 'PURCHASE_ORDER_WRONG_STATUS': {
+      const status = /this one is (DRAFT|ORDERED|RECEIVED|CANCELLED)/.exec(error.message)?.[1] as keyof Messages['orderStatus'] | undefined
+      return e.PURCHASE_ORDER_WRONG_STATUS(status ? t.orderStatus[status] : null)
+    }
+    case 'EXPENSE_FROM_PURCHASE_ORDER':
+      return e.EXPENSE_FROM_PURCHASE_ORDER(refusalOrder(error))
+    default:
+      return e[refusal]
+  }
+}
+
+/**
+ * A 400 whose fieldErrors the inventory's screens can word: a product twice in a count or an order,
+ * a line twice in a receipt, a cost on a movement that is not a purchase, the expense's missing
+ * choice or payment method, a quantity or an amount with too many digits, and a quantity that would
+ * leave the stock out of range. null when none of them is there.
+ */
+export function fieldErrorsMessage(fieldErrors: Record<string, string>, t: Messages): string | null {
+  const e = t.inventoryErrors
+  const said = new Set<string>()
+  for (const [field, message] of Object.entries(fieldErrors)) {
+    const leaf = field.replace(/^.*\./, '')
+    if (/same product twice/i.test(message)) said.add(field === 'items' ? e.countRepeated : e.orderRepeated)
+    else if (/same line twice/i.test(message)) said.add(e.lineRepeated)
+    else if (leaf === 'unitCost' && /PURCHASE/.test(message)) said.add(e.costOnlyOnPurchase)
+    else if (field === 'createExpense') said.add(e.createExpenseMissing)
+    else if (field === 'paymentMethod') said.add(e.paymentMethodMissing)
+    else if (/would (record a movement|leave a stock)/i.test(message)) said.add(e.outOfRange)
+    else if (/<9\D+<3/.test(message)) said.add(e.quantityTooLong)
+    else if (/<8\D+<2/.test(message)) said.add(e.amountTooLong)
+  }
+  return said.size ? [...said].join(' ') : null
 }
 
 /** The worker had nothing open to clock out */

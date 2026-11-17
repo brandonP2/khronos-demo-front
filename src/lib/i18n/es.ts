@@ -66,6 +66,37 @@ export const es = {
     reasonRequired: 'Con este descuadre hace falta un motivo para cerrar la caja.',
     notCounted: 'Escribe el efectivo contado para poder cerrar la caja.',
     dayClosed: 'La caja de ese día está cerrada: reabre su cierre para cambiar sus gastos en efectivo.',
+    rangeTooLong: 'El periodo no puede pasar de 366 días.',
+    rangeOrder: 'El inicio del periodo no puede ser posterior al final.',
+  },
+  inventoryErrors: {
+    SUPPLIER_NAME_TAKEN: 'Ya hay un proveedor con ese nombre en este local.',
+    SUPPLIER_HAS_ORDERS: 'Este proveedor tiene pedidos, así que no se puede borrar sin perder su historial.',
+    PRODUCT_NAME_TAKEN: 'Ya hay un producto con ese nombre en este local.',
+    PRODUCT_INACTIVE: (name: string | null) =>
+      name ? `«${name}» está inactivo: actívalo antes en Stock.` : 'Hay un producto inactivo: actívalo antes en Stock.',
+    PRODUCT_UNIT_LOCKED: 'Este producto ya tiene movimientos o está en algún pedido, así que su unidad no se puede cambiar.',
+    PRODUCT_HAS_HISTORY:
+      'Este producto tiene movimientos o está en algún pedido, así que no se puede borrar sin perder su historial. Desactívalo en su lugar.',
+    OTHER_ESTABLISHMENT: 'Ese proveedor o ese producto es de otro local.',
+    PURCHASE_ORDER_WRONG_STATUS: (status: string | null) =>
+      status
+        ? `Este pedido ha cambiado mientras tanto y ahora está «${status}». Vuelve a abrirlo para ver cómo está.`
+        : 'Este pedido ha cambiado mientras tanto. Vuelve a abrirlo para ver cómo está.',
+    PURCHASE_ORDER_NO_TOTAL:
+      'El pedido no tiene un total que anotar como gasto: pon el coste por unidad de sus líneas o recíbelo sin crear el gasto.',
+    PURCHASE_ORDER_NOTHING_RECEIVED: 'No ha llegado nada, así que no hay nada que recibir. Si el pedido no va a llegar, cancélalo.',
+    EXPENSE_FROM_PURCHASE_ORDER: (orderId: number | null) =>
+      `Este gasto se creó al recibir ${orderId ? `el pedido #${orderId}` : 'un pedido'} y no se puede editar. Para corregirlo, bórralo y anótalo de nuevo.`,
+    countRepeated: 'Hay un producto repetido en el recuento.',
+    orderRepeated: 'Hay un producto repetido en el pedido: déjalo en una sola línea.',
+    lineRepeated: 'Hay una línea del pedido repetida.',
+    costOnlyOnPurchase: 'El coste por unidad solo se anota en las entradas.',
+    createExpenseMissing: 'Indica si se crea el gasto.',
+    paymentMethodMissing: 'Elige el medio de pago del gasto.',
+    quantityTooLong: 'Una cantidad tiene demasiadas cifras: como mucho 9 enteras y 3 decimales.',
+    amountTooLong: 'Un importe tiene demasiadas cifras: como mucho 8 enteras y 2 decimales.',
+    outOfRange: 'Con esa cantidad el stock se sale del rango que se puede guardar. Revisa la cantidad.',
   },
   fields: {
     firstName: 'Nombre',
@@ -1029,7 +1060,6 @@ export const es = {
       unitCostError: 'Escribe un importe, como 12,50',
       supplier: 'Proveedor habitual',
       noSupplier: 'Ninguno',
-      duplicate: 'Ya hay un producto con ese nombre en este local.',
       added: (name: string) => `«${name}» añadido al inventario`,
       saved: 'Producto guardado',
       stock: 'Stock',
@@ -1257,7 +1287,6 @@ export const es = {
       emailError: 'Escribe un email válido, como pedidos@proveedor.es',
       notes: 'Notas',
       notesHint: 'Opcional, hasta 500 caracteres: días de reparto, pedido mínimo…',
-      duplicate: 'Ya hay un proveedor con ese nombre en este local.',
       added: (name: string) => `${name} añadido`,
       saved: 'Proveedor guardado',
       removeTitle: (name: string) => `Borrar ${name}`,

@@ -7,14 +7,15 @@ import { useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useMutation } from '@tanstack/react-query'
 import { ArrowLeft, Ban, PackageCheck, Plus, ReceiptText, Save, Send, Sparkles, Trash2, Truck } from 'lucide-react'
-import { ApiError } from '../../../api/client'
+import { ApiError, isConflict } from '../../../api/client'
 import { api } from '../../../api/endpoints'
 import type { Product, PurchaseOrder, PurchaseOrderInput, Supplier } from '../../../api/types'
 import { AmountInput } from '../../../components/AmountInput'
 import { OrderStatusTag } from '../../../components/InventoryParts'
 import { QuantityInput } from '../../../components/QuantityInput'
 import { SupplierFormDialog } from '../../../components/SupplierDialogs'
-import { Button, ConfirmDialog, Empty, ErrorNote, Field, Loading, PageHead, useToast } from '../../../components/ui'
+import { Button, ConfirmDialog, Empty, ErrorNote, Field, Loading, PageHead, errorMessage, useToast } from '../../../components/ui'
+import { inventoryRefusal } from '../../../lib/apiMessages'
 import { useFmt, useT } from '../../../lib/i18n'
 import { isBlank, parseAmount } from '../../../lib/money'
 import { useInvalidate, useProducts, usePurchaseOrder, useSuppliers } from '../../../lib/queries'
@@ -240,6 +241,13 @@ function OrderEditor({
       await invalidate.orders()
       toast(markOrdered ? o.ordered : isNew ? o.created : o.saved)
       if (!order) navigate(`/inventory/orders/${saved.id}`, { replace: true })
+    },
+    onError: (e) => {
+      // No longer a draft (ordered or cancelled meanwhile): say so, and the page reloads it as it is now
+      if (isConflict(e) && inventoryRefusal(e) === 'PURCHASE_ORDER_WRONG_STATUS') {
+        toast(errorMessage(e, t))
+        void invalidate.orders()
+      }
     },
   })
 

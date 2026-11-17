@@ -371,7 +371,7 @@ describe('products', () => {
   it('says when the name is taken', async () => {
     stockApi((call) =>
       call.method === 'POST' && call.path === '/products'
-        ? json(409, { status: 409, message: 'A product with that name already exists in this establishment' })
+        ? json(409, { status: 409, code: 'PRODUCT_NAME_TAKEN', message: "A product named 'ginebra puerto' already exists at this establishment" })
         : undefined,
     )
     renderApp('/inventory')
@@ -386,7 +386,7 @@ describe('products', () => {
   it('locks the unit of a product with stock, and goes back to it when the API refuses a change', async () => {
     const calls = stockApi((call) =>
       call.method === 'PUT' && call.path === '/products/4'
-        ? json(409, { status: 409, message: 'The unit of a product with stock movements cannot be changed' })
+        ? json(409, { status: 409, code: 'PRODUCT_UNIT_LOCKED', message: 'The unit of a product with stock movements or purchase order lines cannot be changed' })
         : undefined,
     )
     renderApp('/inventory')
@@ -420,7 +420,11 @@ describe('products', () => {
   it('recommends deactivating a product the API will not delete, and deactivates it', async () => {
     const calls = stockApi((call) => {
       if (call.method === 'DELETE' && call.path === '/products/1') {
-        return json(409, { status: 409, message: 'Cannot delete a product that has stock movements; deactivate it instead' })
+        return json(409, {
+          status: 409,
+          code: 'PRODUCT_HAS_HISTORY',
+          message: 'Cannot delete a product that has stock movements or purchase order lines; deactivate it instead (PUT /api/products/1/active) to keep its history',
+        })
       }
       if (call.method === 'PUT' && call.path === '/products/1/active') return json(200, { ...gin, isActive: false })
     })

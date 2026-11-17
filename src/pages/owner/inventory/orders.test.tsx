@@ -296,6 +296,8 @@ describe('receiving an order', () => {
         if (refuse) {
           return json(409, {
             status: 409,
+            code: 'CASH_DAY_CLOSED',
+            details: { date: today },
             message: `The cash closing of ${today} is closed; reopen it to add, change or delete cash expenses of that day`,
           })
         }
@@ -465,6 +467,27 @@ describe('receiving an order', () => {
     expect(calls.filter((c) => c.method === 'PUT').map((c) => c.path)).toEqual(['/purchase-orders/12/cancel'])
   })
 
+  it('says why an order cannot be received when it changed meanwhile, or one of its products is inactive', async () => {
+    let attempt = 0
+    ordersApi((call) => {
+      if (call.method === 'PUT' && call.path === '/purchase-orders/12/receive') {
+        attempt += 1
+        if (attempt === 1) return json(409, { status: 409, code: 'PRODUCT_INACTIVE', message: "Product 'Ron Brugal' is inactive; activate it first" })
+        return json(409, { status: 409, code: 'PURCHASE_ORDER_WRONG_STATUS', message: 'Only an ordered purchase order can be received; this one is CANCELLED' })
+      }
+      if (attempt === 2 && call.method === 'GET' && call.path === '/purchase-orders/12') return json(200, { ...ordered, status: 'CANCELLED' })
+    })
+    renderApp('/inventory/orders/12/receive')
+    await screen.findByRole('heading', { name: 'Recibir el pedido #12' })
+    fireEvent.change(screen.getByLabelText('Medio de pago'), { target: { value: 'CARD' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Recibir pedido' }))
+    expect(await screen.findByText('«Ron Brugal» está inactivo: actívalo antes en Stock.')).toBeTruthy()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Recibir pedido' }))
+    expect(await screen.findByText('Este pedido ha cambiado mientras tanto y ahora está «Cancelado». Vuelve a abrirlo para ver cómo está.')).toBeTruthy()
+    expect(await screen.findByText('Solo se puede recibir un pedido marcado como pedido.')).toBeTruthy()
+  })
+
   it('does not receive an order that is not marked as ordered', async () => {
     const calls = ordersApi((call) =>
       call.method === 'GET' && call.path === '/purchase-orders/12' ? json(200, { ...ordered, status: 'DRAFT' }) : undefined,
@@ -510,10 +533,11 @@ describe('suppliers', () => {
   it('says a supplier with orders cannot be deleted, and that a taken name is taken', async () => {
     ordersApi((call) => {
       if (call.method === 'DELETE' && call.path === '/suppliers/7') {
-        return json(409, { status: 409, message: 'Cannot delete a supplier that has purchase orders' })
+        return json(409, { status: 409, code: 'SUPPLIER_HAS_ORDERS', message: 'Cannot delete a supplier that has purchase orders' })
       }
       if (call.method === 'PUT' && call.path === '/suppliers/8') {
-        return json(409, { status: 409, message: 'A supplier with that name already exists in this establishment' })
+        // An API without codes: the message is read instead
+        return json(409, { status: 409, message: "A supplier named 'Distribuciones Sur' already exists at this establishment" })
       }
     })
     renderApp('/inventory/suppliers')

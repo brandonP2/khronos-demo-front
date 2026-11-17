@@ -8,7 +8,7 @@ import { GlassWater, History, PackagePlus, PackageX, Pencil, Power, SlidersHoriz
 import { isConflict } from '../api/client'
 import { api } from '../api/endpoints'
 import type { ManualMovementType, Product, ProductCategory, ProductInput, StockUnit, Supplier } from '../api/types'
-import { isNameTaken, isUnitLocked } from '../lib/apiMessages'
+import { inventoryRefusal } from '../lib/apiMessages'
 import { useFmt, useT } from '../lib/i18n'
 import { isBlank, parseAmount } from '../lib/money'
 import { useApplyMovements, useInvalidate } from '../lib/queries'
@@ -33,6 +33,8 @@ import { AmountInput } from './AmountInput'
 import { StockTags } from './InventoryParts'
 import { QuantityInput } from './QuantityInput'
 import { Button, ConfirmDialog, Dialog, Drawer, ErrorNote, Field, useToast } from './ui'
+
+const isUnitLocked = (e: unknown) => isConflict(e) && inventoryRefusal(e) === 'PRODUCT_UNIT_LOCKED'
 
 export const MOVEMENT_ICONS: Record<ManualMovementType, LucideIcon> = {
   PURCHASE: PackagePlus,
@@ -272,20 +274,13 @@ export function ProductFormDialog({
       onClose()
     },
     onError: (e) => {
-      // A name that is taken can mention "unit" too, so the name is ruled out first
-      if (product && isConflict(e) && unit !== product.unit && !isNameTaken(e.message) && isUnitLocked(e.message)) {
+      if (product && unit !== product.unit && isUnitLocked(e)) {
         setUnit(product.unit)
         setUnitRefused(true)
       }
     },
   })
-  const conflict = isConflict(mutation.error) ? mutation.error : null
-  const error =
-    conflict && isNameTaken(conflict.message)
-      ? p.duplicate
-      : unitRefused && conflict && isUnitLocked(conflict.message)
-        ? p.unitConflict
-        : mutation.error
+  const error = unitRefused && isUnitLocked(mutation.error) ? p.unitConflict : mutation.error
 
   const submit = () => {
     setSubmitted(true)
@@ -489,7 +484,7 @@ export function ProductDeleteDialog({ product, onClose }: { product: Product; on
         try {
           await api.products.remove(product.id)
         } catch (e) {
-          throw isConflict(e) ? new Error(p.removeBlocked(product.name)) : e
+          throw isConflict(e) && inventoryRefusal(e) === 'PRODUCT_HAS_HISTORY' ? new Error(p.removeBlocked(product.name)) : e
         }
         await invalidate.products()
         toast(p.removed)

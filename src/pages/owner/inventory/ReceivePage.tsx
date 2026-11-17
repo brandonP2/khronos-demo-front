@@ -15,8 +15,8 @@ import type { PaymentMethod, PurchaseOrder, ReceiveOrderInput } from '../../../a
 import { AmountInput } from '../../../components/AmountInput'
 import { DayClosedNote, PAYMENT_METHODS } from '../../../components/ExpenseDialogs'
 import { QuantityInput } from '../../../components/QuantityInput'
-import { Button, Empty, ErrorNote, Field, Loading, PageHead, useToast } from '../../../components/ui'
-import { closedCashDay } from '../../../lib/apiMessages'
+import { Button, Empty, ErrorNote, Field, Loading, PageHead, errorMessage, useToast } from '../../../components/ui'
+import { cashRefusal, inventoryRefusal, refusalDay } from '../../../lib/apiMessages'
 import { useFmt, useT } from '../../../lib/i18n'
 import { isBlank, parseAmount, toCents } from '../../../lib/money'
 import { keys, useInvalidate, useProducts, usePurchaseOrder } from '../../../lib/queries'
@@ -152,10 +152,17 @@ function ReceiveForm({
       toast(rc.done)
       void invalidate.orders()
     },
+    onError: (e) => {
+      // Received or cancelled meanwhile: say so, and the page reloads it as it is now
+      if (isConflict(e) && inventoryRefusal(e) === 'PURCHASE_ORDER_WRONG_STATUS') {
+        toast(errorMessage(e, t))
+        void invalidate.orders()
+      }
+    },
   })
   // The day's till is closed and the expense was in cash: nothing was received
-  const closed = isConflict(mutation.error) ? closedCashDay(mutation.error.message) : null
-  const closedDay = closed ? (closed.day ?? date) : null
+  const closedDay =
+    isConflict(mutation.error) && cashRefusal(mutation.error) === 'CASH_DAY_CLOSED' ? (refusalDay(mutation.error) ?? date) : null
 
   const submit = () => {
     setSubmitted(true)
@@ -274,7 +281,7 @@ function ReceiveForm({
           </Button>
         </div>
       )}
-      {closedDay ? <DayClosedNote day={closedDay} message={rc.cashClosed(fmt.long(closedDay))} /> : <ErrorNote error={mutation.error} />}
+      {closedDay ? <DayClosedNote day={closedDay} message={rc.cashClosed(fmt.longInSentence(closedDay))} /> : <ErrorNote error={mutation.error} />}
       <div className="actions order-actions">
         <span className="spacer" />
         <Button type="submit" variant="primary" icon={PackageCheck} loading={mutation.isPending}>

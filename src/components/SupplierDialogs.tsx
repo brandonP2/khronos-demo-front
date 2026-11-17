@@ -2,10 +2,8 @@
 // from an order, when there is no supplier to pick yet.
 import { useState } from 'react'
 import { useMutation } from '@tanstack/react-query'
-import { isConflict } from '../api/client'
 import { api } from '../api/endpoints'
 import type { Supplier, SupplierInput } from '../api/types'
-import { isNameTaken } from '../lib/apiMessages'
 import { useT } from '../lib/i18n'
 import { useInvalidate } from '../lib/queries'
 import { NAME_MAX, ORDER_NOTES_MAX } from '../lib/stock'
@@ -61,7 +59,6 @@ export function SupplierFormDialog({
       onClose()
     },
   })
-  const error = isConflict(mutation.error) && isNameTaken(mutation.error.message) ? sp.duplicate : mutation.error
 
   const submit = () => {
     setSubmitted(true)
@@ -131,7 +128,7 @@ export function SupplierFormDialog({
             <textarea id={id} className="textarea" maxLength={ORDER_NOTES_MAX} value={notes} onChange={(e) => setNotes(e.target.value)} />
           )}
         </Field>
-        <ErrorNote error={error} />
+        <ErrorNote error={mutation.error} />
         <button type="submit" hidden />
       </form>
     </Dialog>

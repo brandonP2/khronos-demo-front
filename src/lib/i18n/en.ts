@@ -60,6 +60,35 @@ export const en: Messages = {
     reasonRequired: 'With this difference, closing the till needs a reason.',
     notCounted: 'Enter the cash counted to close the till.',
     dayClosed: "That day's till is closed: reopen its closing to change its cash expenses.",
+    rangeTooLong: 'The period can’t be longer than 366 days.',
+    rangeOrder: 'The start of the period can’t be after its end.',
+  },
+  inventoryErrors: {
+    SUPPLIER_NAME_TAKEN: 'This venue already has a supplier with that name.',
+    SUPPLIER_HAS_ORDERS: 'This supplier has orders, so it can’t be deleted without losing its history.',
+    PRODUCT_NAME_TAKEN: 'This venue already has a product with that name.',
+    PRODUCT_INACTIVE: (name: string | null) =>
+      name ? `“${name}” is inactive: activate it first in Stock.` : 'A product is inactive: activate it first in Stock.',
+    PRODUCT_UNIT_LOCKED: 'This product already has movements or is on an order, so its unit can’t be changed.',
+    PRODUCT_HAS_HISTORY: 'This product has movements or is on an order, so it can’t be deleted without losing its history. Deactivate it instead.',
+    OTHER_ESTABLISHMENT: 'That supplier or product belongs to another venue.',
+    PURCHASE_ORDER_WRONG_STATUS: (status: string | null) =>
+      status
+        ? `This order changed in the meantime and is now “${status}”. Open it again to see where it stands.`
+        : 'This order changed in the meantime. Open it again to see where it stands.',
+    PURCHASE_ORDER_NO_TOTAL: 'The order has no total to record as an expense: give its lines a cost per unit or receive it without the expense.',
+    PURCHASE_ORDER_NOTHING_RECEIVED: 'Nothing has arrived, so there is nothing to receive. If the order is not coming, cancel it.',
+    EXPENSE_FROM_PURCHASE_ORDER: (orderId: number | null) =>
+      `This expense was created on receiving ${orderId ? `order #${orderId}` : 'an order'} and can’t be edited. To correct it, delete it and enter it again.`,
+    countRepeated: 'A product is in the count twice.',
+    orderRepeated: 'A product is on the order twice: keep it on one line.',
+    lineRepeated: 'A line of the order is there twice.',
+    costOnlyOnPurchase: 'A cost per unit is only recorded with stock in.',
+    createExpenseMissing: 'Say whether to create the expense.',
+    paymentMethodMissing: 'Pick the expense’s payment method.',
+    quantityTooLong: 'A quantity has too many digits: at most 9 before the decimal mark and 3 after.',
+    amountTooLong: 'An amount has too many digits: at most 8 before the decimal mark and 2 after.',
+    outOfRange: 'That quantity takes the stock out of the range that can be stored. Check the quantity.',
   },
   fields: {
     firstName: 'First name',
@@ -1001,7 +1030,6 @@ export const en: Messages = {
       unitCostError: 'Enter an amount, like 12.50',
       supplier: 'Usual supplier',
       noSupplier: 'None',
-      duplicate: 'This venue already has a product with that name.',
       added: (name: string) => `“${name}” added to the inventory`,
       saved: 'Product saved',
       stock: 'Stock',
@@ -1229,7 +1257,6 @@ export const en: Messages = {
       emailError: 'Enter a valid email, like orders@supplier.com',
       notes: 'Notes',
       notesHint: 'Optional, up to 500 characters: delivery days, minimum order…',
-      duplicate: 'This venue already has a supplier with that name.',
       added: (name: string) => `${name} added`,
       saved: 'Supplier saved',
       removeTitle: (name: string) => `Delete ${name}`,
