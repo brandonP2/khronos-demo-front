@@ -145,6 +145,17 @@ describe('login', () => {
     }
   })
 
+  it('does not send a password longer than the API accepts', () => {
+    const fetchMock = vi.fn()
+    vi.stubGlobal('fetch', fetchMock)
+    renderApp()
+    fireEvent.change(screen.getByLabelText('Usuario'), { target: { value: 'lucia' } })
+    fireEvent.change(screen.getByLabelText('Contraseña'), { target: { value: 'ñ'.repeat(40) } })
+    expect(screen.getByText(/^Es demasiado larga/)).toBeTruthy()
+    expect((screen.getByRole('button', { name: 'Entrar' }) as HTMLButtonElement).disabled).toBe(true)
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
   it('words wrong credentials and disabled accounts', async () => {
     mockFetch(() => json(401, { status: 401, message: 'Invalid username or password' }))
     renderApp()

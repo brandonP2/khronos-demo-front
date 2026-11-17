@@ -19,6 +19,7 @@ import {
   useToast,
 } from '../../components/ui'
 import { useFmt, useT } from '../../lib/i18n'
+import { isValidPassword, passwordError } from '../../lib/password'
 import { useInvalidate, useShifts, useStaff, useZones, type StaffMember } from '../../lib/queries'
 import { minutes, today, weekDays } from '../../lib/time'
 import { useVenue } from '../../lib/VenueContext'
@@ -217,7 +218,7 @@ function AddPersonDialog({ venueId, onClose }: { venueId: number; onClose: () =>
     Object.keys(form).map((k) => [k, apiErrors[`user.${k}`] ?? apiErrors[k]]),
   ) as Partial<Record<keyof UserCreate, string>>
   const valid =
-    form.username.trim().length >= 3 && form.password.length >= 8 && form.firstName.trim() && form.lastName.trim() && form.email.trim()
+    form.username.trim().length >= 3 && isValidPassword(form.password) && form.firstName.trim() && form.lastName.trim() && form.email.trim()
 
   return (
     <Dialog
@@ -261,7 +262,7 @@ function AddPersonDialog({ venueId, onClose }: { venueId: number; onClose: () =>
               <input id={id} className="input mono" autoComplete="off" value={form.username} onChange={(e) => set('username', e.target.value)} />
             )}
           </Field>
-          <Field label={t.fields.password} error={fe.password} hint={t.fields.passwordHint}>
+          <Field label={t.fields.password} error={passwordError(form.password, t) ?? fe.password} hint={t.fields.passwordHint}>
             {(id) => (
               <input
                 id={id}

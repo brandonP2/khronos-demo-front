@@ -7,6 +7,7 @@ import type { Establishment, User, UserCreate } from '../../api/types'
 import { ResetPasswordDialog } from '../../components/ResetPasswordDialog'
 import { Avatar, Button, ConfirmDialog, Dialog, Empty, ErrorNote, Field, Loading, PageHead, useToast } from '../../components/ui'
 import { useT } from '../../lib/i18n'
+import { isValidPassword, passwordError } from '../../lib/password'
 import { displayName, initials } from '../../lib/queries'
 
 /** Platform admins onboard owners and their venues; everything after that is done by the owner */
@@ -189,7 +190,7 @@ function NewOwnerDialog({ onClose }: { onClose: () => void }) {
           <Button variant="ghost" onClick={onClose}>
             {t.common.cancel}
           </Button>
-          <Button variant="primary" loading={mutation.isPending} onClick={() => mutation.mutate()}>
+          <Button variant="primary" disabled={!isValidPassword(form.password)} loading={mutation.isPending} onClick={() => mutation.mutate()}>
             {t.admin.createOwner}
           </Button>
         </>
@@ -216,7 +217,7 @@ function NewOwnerDialog({ onClose }: { onClose: () => void }) {
           <Field label={t.fields.username} error={fe.username}>
             {(id) => <input id={id} className="input mono" autoComplete="off" value={form.username} onChange={(e) => set('username', e.target.value)} />}
           </Field>
-          <Field label={t.fields.password} error={fe.password} hint={t.fields.passwordHint}>
+          <Field label={t.fields.password} error={passwordError(form.password, t) ?? fe.password} hint={t.fields.passwordHint}>
             {(id) => (
               <input id={id} type="password" className="input" autoComplete="new-password" value={form.password} onChange={(e) => set('password', e.target.value)} />
             )}

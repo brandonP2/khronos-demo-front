@@ -3,11 +3,8 @@ import { useMutation } from '@tanstack/react-query'
 import { ApiError } from '../api/client'
 import { api } from '../api/endpoints'
 import { useT } from '../lib/i18n'
+import { isValidPassword, passwordError } from '../lib/password'
 import { Button, Dialog, ErrorNote, Field, useToast } from './ui'
-
-/** BCrypt only reads the first 72 bytes, so longer passwords are refused rather than cut */
-export const PASSWORD_MIN = 8
-export const PASSWORD_MAX = 72
 
 /**
  * Sets a new password for someone else: an owner for their staff, an admin for an owner.
@@ -27,14 +24,9 @@ export function ResetPasswordDialog({ userId, name, onClose }: { userId: number;
     },
   })
 
-  const lengthError =
-    next.length > PASSWORD_MAX
-      ? t.resetPassword.tooLong
-      : repeat && next.length < PASSWORD_MIN
-        ? t.resetPassword.tooShort
-        : undefined
+  const lengthError = passwordError(next, t, !!repeat)
   const mismatch = repeat && next !== repeat ? t.fields.mismatch : undefined
-  const valid = next.length >= PASSWORD_MIN && next.length <= PASSWORD_MAX && next === repeat
+  const valid = isValidPassword(next) && next === repeat
   const apiError = mutation.error instanceof ApiError ? mutation.error.fieldErrors.newPassword : undefined
   const submit = () => valid && mutation.mutate()
 

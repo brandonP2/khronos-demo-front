@@ -249,7 +249,8 @@ export const es = {
     repeat: 'Repite la nueva contraseña',
     hint: 'Entre 8 y 72 caracteres',
     tooShort: 'Tiene que tener al menos 8 caracteres',
-    tooLong: 'Puede tener 72 caracteres como máximo',
+    /** The limit is 72 bytes, so letters like ñ or á count double */
+    tooLong: 'Es demasiado larga. Caben 72 caracteres, pero la ñ, las letras con tilde y los emojis ocupan más de uno.',
     done: (name: string) => `Contraseña de ${name} restablecida`,
   },
   venuePage: {

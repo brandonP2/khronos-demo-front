@@ -5,6 +5,7 @@ import { api } from '../api/endpoints'
 import { useAuth, useMe } from '../auth/AuthContext'
 import { Button, ErrorNote, Field, PageHead, useToast } from '../components/ui'
 import { LOCALES, useFmt, useLocale, useT, type Locale } from '../lib/i18n'
+import { isPasswordTooLong, isValidPassword, passwordError } from '../lib/password'
 
 export default function Account() {
   const t = useT()
@@ -47,7 +48,7 @@ export default function Account() {
 
   const fe = saveProfile.error instanceof ApiError ? saveProfile.error.fieldErrors : {}
   const mismatch = pw.repeat && pw.next !== pw.repeat ? t.fields.mismatch : undefined
-  const pwValid = pw.current && pw.next.length >= 8 && pw.next === pw.repeat
+  const pwValid = pw.current && !isPasswordTooLong(pw.current) && isValidPassword(pw.next) && pw.next === pw.repeat
 
   return (
     <div className="page" style={{ maxWidth: 880 }}>
@@ -114,7 +115,7 @@ export default function Account() {
             if (pwValid) changePassword.mutate()
           }}
         >
-          <Field label={t.account.currentPassword}>
+          <Field label={t.account.currentPassword} error={passwordError(pw.current, t)}>
             {(id) => (
               <input
                 id={id}
@@ -128,7 +129,7 @@ export default function Account() {
             )}
           </Field>
           <div className="row-2">
-            <Field label={t.account.newPassword} hint={t.fields.passwordHint}>
+            <Field label={t.account.newPassword} hint={t.fields.passwordHint} error={passwordError(pw.next, t, !!pw.repeat)}>
               {(id) => (
                 <input
                   id={id}

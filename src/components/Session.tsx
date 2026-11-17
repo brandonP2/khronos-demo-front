@@ -4,6 +4,7 @@ import { Clock, WifiOff } from 'lucide-react'
 import { useAuth } from '../auth/AuthContext'
 import { loginErrorText } from '../auth/loginErrors'
 import { useFmt, useT } from '../lib/i18n'
+import { isPasswordTooLong, passwordError } from '../lib/password'
 import { Button, Dialog, Empty, ErrorNote, Field, errorMessage, useToast } from './ui'
 
 /** How long before the token runs out the warning appears */
@@ -65,6 +66,7 @@ function RenewDialog({ expiresAt, onClose }: { expiresAt: number; onClose: () =>
   // Read like the login screen does. The username is fixed, so a plain 401 means a wrong
   // password; a disabled account has already ended the session (see renewSession)
   const error = loginErrorText(mutation.error, t, t.session.wrongPassword)
+  const canSend = !!password && !isPasswordTooLong(password)
 
   return (
     <Dialog
@@ -77,7 +79,7 @@ function RenewDialog({ expiresAt, onClose }: { expiresAt: number; onClose: () =>
           <Button variant="ghost" onClick={onClose}>
             {t.common.cancel}
           </Button>
-          <Button variant="primary" disabled={!password} loading={mutation.isPending} onClick={() => mutation.mutate()}>
+          <Button variant="primary" disabled={!canSend} loading={mutation.isPending} onClick={() => mutation.mutate()}>
             {t.session.renew}
           </Button>
         </>
@@ -87,13 +89,13 @@ function RenewDialog({ expiresAt, onClose }: { expiresAt: number; onClose: () =>
         className="form"
         onSubmit={(e) => {
           e.preventDefault()
-          if (password) mutation.mutate()
+          if (canSend) mutation.mutate()
         }}
       >
         <p className="secondary" style={{ margin: 0 }}>
           {t.session.signedInAs(user?.username ?? '')}
         </p>
-        <Field label={t.fields.password}>
+        <Field label={t.fields.password} error={passwordError(password, t)}>
           {(id) => (
             <input
               id={id}

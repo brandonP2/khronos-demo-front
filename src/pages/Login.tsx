@@ -7,6 +7,7 @@ import { loginErrorText } from '../auth/loginErrors'
 import { Board } from '../components/Board'
 import { Button, ErrorNote, Field, Logo } from '../components/ui'
 import { useFmt, useT } from '../lib/i18n'
+import { isPasswordTooLong, passwordError } from '../lib/password'
 import { today } from '../lib/time'
 
 export default function Login() {
@@ -60,7 +61,7 @@ export default function Login() {
               />
             )}
           </Field>
-          <Field label={t.fields.password}>
+          <Field label={t.fields.password} error={passwordError(password, t)}>
             {(id) => (
               <input
                 id={id}
@@ -79,7 +80,12 @@ export default function Login() {
             </div>
           )}
           <ErrorNote error={loginErrorText(error, t)} />
-          <Button type="submit" variant="primary" loading={busy} disabled={!username || !password || lockedUntil !== null}>
+          <Button
+            type="submit"
+            variant="primary"
+            loading={busy}
+            disabled={!username || !password || isPasswordTooLong(password) || lockedUntil !== null}
+          >
             {lockedUntil !== null ? <WaitCountdown until={lockedUntil} onDone={unlock} /> : t.login.signIn}
           </Button>
         </form>

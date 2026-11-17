@@ -151,8 +151,15 @@ describe('ResetPasswordDialog', () => {
     expect(screen.getByText('Tiene que tener al menos 8 caracteres')).toBeTruthy()
     expect(submit.disabled).toBe(true)
 
+    const tooLong = /^Es demasiado larga/
     fireEvent.change(next, { target: { value: 'x'.repeat(73) } })
-    expect(screen.getByText('Puede tener 72 caracteres como máximo')).toBeTruthy()
+    expect(screen.getByText(tooLong)).toBeTruthy()
+
+    // 40 characters, but 80 bytes: the API would refuse it
+    fireEvent.change(next, { target: { value: 'ñ'.repeat(40) } })
+    fireEvent.change(repeat, { target: { value: 'ñ'.repeat(40) } })
+    expect(screen.getByText(tooLong)).toBeTruthy()
+    expect(submit.disabled).toBe(true)
 
     fireEvent.change(next, { target: { value: 'nueva-clave-segura' } })
     fireEvent.change(repeat, { target: { value: 'otra-clave' } })

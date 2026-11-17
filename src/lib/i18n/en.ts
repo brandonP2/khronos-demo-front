@@ -239,7 +239,7 @@ export const en: Messages = {
     repeat: 'Repeat new password',
     hint: '8 to 72 characters',
     tooShort: 'Use at least 8 characters',
-    tooLong: 'Use 72 characters at most',
+    tooLong: 'Too long. It fits 72 characters, but accented letters and emoji take up more than one.',
     done: (name: string) => `${name}'s password was reset`,
   },
   venuePage: {
