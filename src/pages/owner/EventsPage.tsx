@@ -60,7 +60,11 @@ export default function EventsPage() {
     <div className="page">
       <PageHead
         title={t.eventsPage.title}
-        sub={when === 'upcoming' && list.length ? t.eventsPage.summary(list.length, unstaffed) : undefined}
+        sub={
+          when === 'upcoming' && list.length
+            ? t.eventsPage.summary(list.length, assignments.loading ? 0 : unstaffed)
+            : undefined
+        }
       >
         <div className="segmented" role="group" aria-label={t.common.show}>
           <button aria-pressed={when === 'upcoming'} onClick={() => setWhen('upcoming')}>
@@ -121,7 +125,7 @@ export default function EventsPage() {
                         </span>
                       </span>
                       <span className="staffing">
-                        {on.length === 0 ? (
+                        {assignments.loading ? null : on.length === 0 ? (
                           when === 'upcoming' ? (
                             <span className="unstaffed">{t.eventsPage.nobodyOnIt}</span>
                           ) : (

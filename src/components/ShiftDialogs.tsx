@@ -39,10 +39,14 @@ export function ShiftBatchDialog({
   const invalidate = useInvalidate()
   const toast = useToast()
   const active = staff.filter((s) => s.isActive)
-  const [week, setWeek] = useState(anchorDate)
+  const now = today()
+  // Shifts cannot be planned in the past, so a past day from the board or a draft is dropped
+  const requestedDates = draft?.dates ?? [anchorDate]
+  const droppedPast = requestedDates.some((d) => d < now)
+  const [week, setWeek] = useState(anchorDate < now ? now : anchorDate)
   const [workerIds, setWorkerIds] = useState<number[]>(draft?.workerIds ?? [])
   const [zoneId, setZoneId] = useState<number | ''>(draft?.zoneId ?? zones[0]?.id ?? '')
-  const [dates, setDates] = useState<string[]>(draft?.dates ?? [anchorDate])
+  const [dates, setDates] = useState<string[]>(() => requestedDates.filter((d) => d >= now))
   const [startTime, setStartTime] = useState(draft?.startTime ?? '09:00')
   const [endTime, setEndTime] = useState(draft?.endTime ?? '17:00')
   const [failedIndex, setFailedIndex] = useState<number | null>(null)
@@ -52,11 +56,12 @@ export function ShiftBatchDialog({
 
   const batch: ShiftInput[] = useMemo(() => {
     if (!zoneId) return []
-    const sortedDates = [...dates].sort()
-    return sortedDates.flatMap((date) =>
+    // Checked again here in case the dialog stays open past midnight
+    const upcomingDates = dates.filter((d) => d >= now).sort()
+    return upcomingDates.flatMap((date) =>
       workerIds.map((workerId) => ({ workerId, zoneId, date, startTime, endTime })),
     )
-  }, [dates, workerIds, zoneId, startTime, endTime])
+  }, [dates, workerIds, zoneId, startTime, endTime, now])
 
   const mutation = useMutation({
     mutationFn: () => api.shifts.create(batch),
@@ -137,12 +142,13 @@ export function ShiftBatchDialog({
                 className="chip plain"
                 aria-pressed={dates.includes(d)}
                 onClick={() => setDates((list) => toggle(list, d))}
-                disabled={d < today()}
+                disabled={d < now}
               >
                 {fmt.weekday(d)} <span className="sub">{fmt.dayNumber(d)}</span>
               </button>
             ))}
           </div>
+          {droppedPast && <span className="hint">{t.shiftBatch.pastSkipped}</span>}
           {dates.some((d) => !weekDays(week).includes(d)) && (
             <span className="hint">
               {t.shiftBatch.alsoSelected(

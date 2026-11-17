@@ -6,8 +6,8 @@ import { api } from '../api/endpoints'
 import type { Assignment, EventInput, KEvent, Shift, Zone } from '../api/types'
 import { useFmt, useT } from '../lib/i18n'
 import { useInvalidate, type StaffMember } from '../lib/queries'
-import { eventDate, eventTime, hhmm, minutes, shiftCovers, toDateTime, today } from '../lib/time'
-import { Avatar, Button, ConfirmDialog, Dialog, Drawer, ErrorNote, Field, useToast } from './ui'
+import { eventDate, eventTime, fromMinutes, hhmm, minutes, shiftCovers, toDateTime, today } from '../lib/time'
+import { Avatar, Button, ConfirmDialog, Dialog, Drawer, ErrorNote, Field, errorMessage, useToast } from './ui'
 import type { ShiftDraft } from './ShiftDialogs'
 
 /**
@@ -61,6 +61,17 @@ export function EventDrawer({
     onSuccess: () => invalidate.schedule(),
   })
 
+  // Assignments are saved all or nothing; the error's batch index says whose one failed
+  const failedId =
+    assign.error instanceof ApiError && assign.error.batchIndex !== null
+      ? (assign.variables?.[assign.error.batchIndex] ?? null)
+      : null
+  const failedName =
+    failedId === null ? null : (staff.find((s) => s.userId === failedId)?.name ?? t.common.unknownPerson(failedId))
+  const assignError = failedName ? t.eventDrawer.failedFor(failedName, errorMessage(assign.error, t)) : assign.error
+  const rest =
+    failedId === null ? [] : available.filter((s) => s.userId !== failedId && assign.variables?.includes(s.userId))
+
   if (confirmDelete) {
     return (
       <ConfirmDialog
@@ -80,7 +91,8 @@ export function EventDrawer({
   }
 
   const time = eventTime(event.dateTime)
-  const suggestedEnd = `${String(Math.min(23, Math.floor(minutes(time) / 60) + 4)).padStart(2, '0')}:${time.slice(3)}`
+  // Four hours from the event, but always after it and before midnight, where shifts end
+  const suggestedEnd = fromMinutes(Math.min(minutes(time) + 4 * 60, 23 * 60 + 59))
 
   return (
     <Drawer
@@ -178,7 +190,14 @@ export function EventDrawer({
             )
           })
         )}
-        <ErrorNote error={assign.error ?? unassign.error} />
+        <ErrorNote error={assignError ?? unassign.error} />
+        {rest.length > 0 && !assign.isPending && (
+          <div>
+            <Button size="sm" onClick={() => assign.mutate(rest.map((s) => s.userId))}>
+              {t.eventDrawer.assignRest} ({rest.length})
+            </Button>
+          </div>
+        )}
       </section>
 
       {notOnShift.length > 0 && !isPast && (

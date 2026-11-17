@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { addDays, durationLabel, hhmm, makeFmt, minutes, shiftCovers, toDateTime, today, weekDays, weekStart } from './time'
+import { addDays, durationLabel, fromMinutes, hhmm, makeFmt, minutes, shiftCovers, toDateTime, today, weekDays, weekStart } from './time'
 
 describe('dates', () => {
   it('starts the week on Monday', () => {
@@ -36,6 +36,12 @@ describe('times', () => {
     expect(minutes('18:30')).toBe(1110)
     expect(minutes('18:30:00')).toBe(1110)
     expect(hhmm('09:05:00')).toBe('09:05')
+  })
+
+  it('turns minutes back into HH:mm', () => {
+    expect(fromMinutes(0)).toBe('00:00')
+    expect(fromMinutes(23 * 60 + 59)).toBe('23:59')
+    expect(fromMinutes(19 * 60 + 30)).toBe('19:30')
   })
 
   it('labels durations', () => {

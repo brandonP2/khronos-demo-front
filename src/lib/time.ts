@@ -44,6 +44,11 @@ export function minutes(time: string): number {
   return h * 60 + (m || 0)
 }
 
+/** 1110 to "18:30" */
+export function fromMinutes(total: number): string {
+  return `${pad(Math.floor(total / 60))}:${pad(total % 60)}`
+}
+
 export function eventDate(dateTime: string): string {
   return dateTime.slice(0, 10)
 }

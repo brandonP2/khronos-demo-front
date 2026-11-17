@@ -19,6 +19,8 @@ interface BoardProps {
   /** Events of the day shown */
   events: KEvent[]
   assignments: Map<number, Assignment[]>
+  /** While assignments load, pins do not claim an event has nobody on it */
+  assignmentsLoading?: boolean
   selectedEventId?: number | null
   onEventClick?: (event: KEvent) => void
   onShiftClick?: (shift: Shift) => void
@@ -52,6 +54,7 @@ export function Board({
   shifts,
   events,
   assignments,
+  assignmentsLoading = false,
   selectedEventId,
   onEventClick,
   onShiftClick,
@@ -126,7 +129,7 @@ export function Board({
                       >
                         <span className="t">{eventTime(ev.dateTime)}</span>
                         {ev.title}
-                        <span className="staffed">{t.board.staffed(staffed)}</span>
+                        <span className="staffed">{assignmentsLoading ? '…' : t.board.staffed(staffed)}</span>
                       </button>
                     )
                   })}

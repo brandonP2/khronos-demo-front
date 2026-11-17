@@ -43,6 +43,11 @@ export default function SchedulePage() {
   const dayEvents = useMemo(() => (events.data ?? []).filter((e) => eventDate(e.dateTime) === date), [events.data, date])
 
   const selectedEvent = (events.data ?? []).find((e) => e.id === eventId) ?? null
+  // Moving to another day or week closes the event panel, which belongs to the day left behind
+  const goTo = (day: string) => {
+    setDate(day)
+    setEventId(null)
+  }
   const loading = zones.isLoading || staff.isLoading || shifts.isLoading || events.isLoading
   const error = zones.error ?? staff.error ?? shifts.error ?? events.error
 
@@ -112,7 +117,7 @@ export default function SchedulePage() {
       </PageHead>
 
       <div className="week">
-        <Button variant="ghost" iconOnly icon={ChevronLeft} aria-label={t.common.previousWeek} onClick={() => setDate(addDays(date, -7))} />
+        <Button variant="ghost" iconOnly icon={ChevronLeft} aria-label={t.common.previousWeek} onClick={() => goTo(addDays(date, -7))} />
         <div className="week-days">
           {days.map((d) => {
             const c = countOn(d)
@@ -121,10 +126,7 @@ export default function SchedulePage() {
                 key={d}
                 className={d === today() ? 'week-day is-today' : 'week-day'}
                 aria-pressed={d === date}
-                onClick={() => {
-                  setDate(d)
-                  setEventId(null)
-                }}
+                onClick={() => goTo(d)}
               >
                 <span className="wd">
                   {fmt.weekday(d)}
@@ -136,9 +138,9 @@ export default function SchedulePage() {
             )
           })}
         </div>
-        <Button variant="ghost" iconOnly icon={ChevronRight} aria-label={t.common.nextWeek} onClick={() => setDate(addDays(date, 7))} />
+        <Button variant="ghost" iconOnly icon={ChevronRight} aria-label={t.common.nextWeek} onClick={() => goTo(addDays(date, 7))} />
         {!days.includes(today()) && (
-          <Button size="sm" onClick={() => setDate(today())}>
+          <Button size="sm" onClick={() => goTo(today())}>
             {t.common.today}
           </Button>
         )}
@@ -162,8 +164,19 @@ export default function SchedulePage() {
         </div>
         <div className="card stat">
           <span className="label">{t.schedule.unstaffed}</span>
-          <span className={unstaffed ? 'figure accent' : 'figure'}>{unstaffed}</span>
-          <span className="meta">{unstaffed ? t.schedule.unstaffedHint : t.schedule.allStaffed}</span>
+          {assignments.loading ? (
+            <>
+              <span className="figure muted" aria-busy="true">
+                —
+              </span>
+              <span className="meta">{t.schedule.loadingAssignments}</span>
+            </>
+          ) : (
+            <>
+              <span className={unstaffed ? 'figure accent' : 'figure'}>{unstaffed}</span>
+              <span className="meta">{unstaffed ? t.schedule.unstaffedHint : t.schedule.allStaffed}</span>
+            </>
+          )}
         </div>
       </div>
 
@@ -174,6 +187,7 @@ export default function SchedulePage() {
           shifts={dayShifts}
           events={dayEvents}
           assignments={byEvent}
+          assignmentsLoading={assignments.loading}
           selectedEventId={eventId}
           onEventClick={(e) => setEventId(e.id)}
           onShiftClick={(shift) => setModal({ kind: 'edit-shift', shift })}

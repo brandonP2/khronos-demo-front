@@ -103,6 +103,7 @@ export const es = {
     unstaffed: 'Eventos sin nadie',
     unstaffedHint: 'Elige uno en el tablero para asignar personal',
     allStaffed: 'Todos los eventos tienen a alguien',
+    loadingAssignments: 'Cargando asignaciones…',
   },
   shiftBatch: {
     title: 'Añadir turnos',
@@ -114,6 +115,7 @@ export const es = {
     nobodyActive: 'Todavía no hay nadie activo en el equipo. Añade personas desde la página Equipo.',
     days: 'Días',
     alsoSelected: (days: string) => `También seleccionados: ${days}`,
+    pastSkipped: 'Los días que ya han pasado no se incluyen.',
     zone: 'Zona',
     starts: 'Empieza',
     ends: 'Termina',
@@ -166,6 +168,9 @@ export const es = {
     takeOff: 'Quitar',
     onShiftAt: (time: string) => `De turno a las ${time}`,
     assignAll: (n: number) => `Asignar a los ${n}`,
+    assignRest: 'Asignar al resto',
+    /** A batch failed on one person: their name, then the API's reason */
+    failedFor: (name: string, message: string) => `${name}: ${message}`,
     nobodyElse: (zone: string, time: string) => `Nadie más tiene turno en ${zone} a las ${time}`,
     assign: 'Asignar',
     notOnShift: 'Sin turno',
