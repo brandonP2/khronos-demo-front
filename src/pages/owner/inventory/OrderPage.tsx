@@ -24,6 +24,7 @@ import {
   orderTotal,
   parseQuantity,
   proposeOrderLines,
+  quantityValue,
   toMilli,
   useQuantityText,
 } from '../../../lib/stock'
@@ -192,7 +193,9 @@ function OrderEditor({
     unitCost: isBlank(l.costText) ? null : parseAmount(l.costText),
     costInvalid: !isBlank(l.costText) && parseAmount(l.costText) === null,
   }))
-  const { total, withoutCost } = orderTotal(parsed.map((l) => ({ quantity: l.quantity, unitCost: l.unitCost })))
+  const { total, withoutCost } = orderTotal(
+    parsed.map((l, i) => ({ hasProduct: !!lines[i].productId, quantity: l.quantity, unitCost: l.unitCost })),
+  )
 
   const lineErrors = lines.map((l, i) => ({
     product: !l.productId
@@ -364,7 +367,8 @@ function OrderEditor({
           <ol className="order-lines">
             {lines.map((line, i) => {
               const product = productById.get(line.productId)
-              const value = parsed[i].quantity === null ? null : orderTotal([{ quantity: parsed[i].quantity, unitCost: parsed[i].unitCost }]).total
+              const quantity = parsed[i].quantity
+              const value = quantity === null ? null : quantityValue(quantity, parsed[i].unitCost)
               return (
                 <li key={line.key} className="order-line">
                   <Field label={o.product} error={shown(lineErrors[i].product)}>

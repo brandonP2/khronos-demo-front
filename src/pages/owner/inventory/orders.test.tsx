@@ -101,6 +101,12 @@ describe('purchase orders', () => {
     expect(screen.getByText('1 línea sin coste no suma')).toBeTruthy()
     fireEvent.change(within(second).getByLabelText('Coste por unidad'), { target: { value: '10,5' } })
     expect(total()).toBe('67,00 €')
+    // A line still being filled in is not a line without cost
+    fireEvent.click(screen.getByRole('button', { name: 'Añadir línea' }))
+    expect(screen.queryByText(/sin coste no suma/)).toBeNull()
+    fireEvent.change(within(document.querySelectorAll('.order-line')[2] as HTMLElement).getByLabelText('Producto'), { target: { value: '3' } })
+    expect(screen.queryByText(/sin coste no suma/)).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Quitar la línea 3' }))
 
     fireEvent.click(screen.getByRole('button', { name: 'Guardar borrador' }))
     expect(await screen.findByText('Pedido guardado como borrador')).toBeTruthy()

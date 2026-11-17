@@ -346,15 +346,24 @@ export function proposeOrderLines(products: Product[], supplierId: number): Purc
     .map((p) => ({ productId: p.id, quantity: suggestedQuantity(p), unitCost: p.unitCost }))
 }
 
-/** The order's total and how many lines leave it out; null when no line has a cost */
-export function orderTotal(lines: { quantity: number | null; unitCost: number | null }[]): {
-  total: number | null
-  withoutCost: number
-} {
-  const valued = lines.map((l) => (l.quantity === null ? null : quantityValue(l.quantity, l.unitCost)))
-  const known = valued.filter((v): v is number => v !== null)
+/** A line of an order or a receipt as it is being typed */
+export interface TotalLine {
+  hasProduct: boolean
+  /** null when what is typed is not a quantity */
+  quantity: number | null
+  unitCost: number | null
+}
+
+/**
+ * The order's total, and how many lines leave it out for having no cost. Only a line with a
+ * product and a quantity above 0 counts: one still being filled in neither adds up nor is "without
+ * cost", and neither is a line received with 0. total is null when no line that counts has a cost.
+ */
+export function orderTotal(lines: TotalLine[]): { total: number | null; withoutCost: number } {
+  const counted = lines.filter((l) => l.hasProduct && l.quantity !== null && toMilli(l.quantity) > 0)
+  const known = counted.map((l) => quantityValue(l.quantity ?? 0, l.unitCost)).filter((v): v is number => v !== null)
   return {
     total: known.length ? fromCents(known.reduce((sum, v) => sum + toCents(v), 0)) : null,
-    withoutCost: valued.length - known.length,
+    withoutCost: counted.length - known.length,
   }
 }

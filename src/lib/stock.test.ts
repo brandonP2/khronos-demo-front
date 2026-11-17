@@ -326,12 +326,20 @@ describe('purchase orders', () => {
   })
 
   it('adds up the lines with a cost and counts the ones without', () => {
-    expect(orderTotal([{ quantity: 3, unitCost: 11.4 }, { quantity: 1.5, unitCost: 2.35 }])).toEqual({ total: 37.73, withoutCost: 0 })
-    expect(orderTotal([{ quantity: 3, unitCost: 10 }, { quantity: 2, unitCost: null }, { quantity: null, unitCost: 4 }])).toEqual({
-      total: 30,
-      withoutCost: 2,
-    })
-    expect(orderTotal([{ quantity: 3, unitCost: null }])).toEqual({ total: null, withoutCost: 1 })
+    const line = (quantity: number | null, unitCost: number | null, hasProduct = true) => ({ hasProduct, quantity, unitCost })
+    expect(orderTotal([line(3, 11.4), line(1.5, 2.35)])).toEqual({ total: 37.73, withoutCost: 0 })
+    expect(orderTotal([line(3, 10), line(2, null)])).toEqual({ total: 30, withoutCost: 1 })
+    expect(orderTotal([line(3, null)])).toEqual({ total: null, withoutCost: 1 })
     expect(orderTotal([])).toEqual({ total: null, withoutCost: 0 })
+  })
+
+  it('leaves out of both the lines still being filled in and the ones received with 0', () => {
+    const line = (quantity: number | null, unitCost: number | null, hasProduct = true) => ({ hasProduct, quantity, unitCost })
+    // No product yet, no quantity yet, a quantity that is not one, 0: none of them is "without cost"
+    expect(orderTotal([line(3, 10), line(2, null, false), line(null, null), line(0, null), line(0, 4)])).toEqual({
+      total: 30,
+      withoutCost: 0,
+    })
+    expect(orderTotal([line(null, 4), line(1, 4, false)])).toEqual({ total: null, withoutCost: 0 })
   })
 })

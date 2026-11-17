@@ -18,7 +18,7 @@ import { closedCashDay } from '../../../lib/apiMessages'
 import { useFmt, useT } from '../../../lib/i18n'
 import { isBlank, parseAmount, toCents } from '../../../lib/money'
 import { keys, useInvalidate, usePurchaseOrder } from '../../../lib/queries'
-import { orderTotal, parseQuantity, useQuantityText } from '../../../lib/stock'
+import { orderTotal, parseQuantity, quantityValue, useQuantityText } from '../../../lib/stock'
 import { venueTimeZone, zonedToday } from '../../../lib/time'
 import { useVenue } from '../../../lib/VenueContext'
 
@@ -93,7 +93,7 @@ function ReceiveForm({ order, today }: { order: PurchaseOrder; today: string }) 
     unitCost: isBlank(r.costText) ? null : parseAmount(r.costText),
     costInvalid: !isBlank(r.costText) && parseAmount(r.costText) === null,
   }))
-  const { total } = orderTotal(parsed)
+  const { total } = orderTotal(parsed.map((p) => ({ ...p, hasProduct: true })))
   const errors = {
     date: !date || date > today ? rc.futureDate : undefined,
     expense: createExpense && (total === null || toCents(total) <= 0) ? rc.expenseNeedsTotal : undefined,
@@ -150,7 +150,8 @@ function ReceiveForm({ order, today }: { order: PurchaseOrder; today: string }) 
         <ul className="list receive-lines">
           {order.lines.map((line, i) => {
             const row = rows[i]
-            const value = parsed[i].quantity === null ? null : orderTotal([parsed[i]]).total
+            const quantity = parsed[i].quantity
+            const value = quantity === null ? null : quantityValue(quantity, parsed[i].unitCost)
             return (
               <li key={line.id} className="list-row receive-line">
                 <div className="receive-product">
