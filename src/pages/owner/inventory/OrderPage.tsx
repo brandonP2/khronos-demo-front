@@ -179,6 +179,10 @@ function OrderEditor({
   const [submitted, setSubmitted] = useState(false)
   const [addingSupplier, setAddingSupplier] = useState(false)
   const [confirm, setConfirm] = useState<'remove' | 'cancel' | null>(null)
+  // The draft a new order became on its first save. If marking it as ordered fails after that, a
+  // retry saves and orders this same draft instead of creating another one.
+  const [created, setCreated] = useState<PurchaseOrder | null>(null)
+  const draft = order ?? created ?? undefined
 
   const productById = new Map(products.map((p) => [String(p.id), p]))
   const supplierName = suppliers.find((s) => String(s.id) === supplierId)?.name ?? ''
@@ -206,7 +210,7 @@ function OrderEditor({
   const valid = !errors.supplier && !errors.lines && lineErrors.every((e) => !e.product && !e.quantity && !e.cost)
 
   const input = (): PurchaseOrderInput => ({
-    ...(order ? {} : { establishmentId: venueId }),
+    ...(draft ? {} : { establishmentId: venueId }),
     supplierId: Number(supplierId),
     expectedDate: expectedDate || null,
     notes: notes.trim() || null,
@@ -215,13 +219,21 @@ function OrderEditor({
 
   const mutation = useMutation({
     mutationFn: async (markOrdered: boolean) => {
-      let saved = order ? await api.purchaseOrders.update(order.id, input()) : await api.purchaseOrders.create(input())
+      const isNew = !draft
+      let saved: PurchaseOrder
+      if (draft) saved = await api.purchaseOrders.update(draft.id, input())
+      else {
+        saved = await api.purchaseOrders.create(input())
+        // From here on the form edits this draft, whatever happens next
+        setCreated(saved)
+        void invalidate.orders()
+      }
       if (markOrdered) saved = await api.purchaseOrders.order(saved.id)
-      return { saved, markOrdered }
+      return { saved, markOrdered, isNew }
     },
-    onSuccess: async ({ saved, markOrdered }) => {
+    onSuccess: async ({ saved, markOrdered, isNew }) => {
       await invalidate.orders()
-      toast(markOrdered ? o.ordered : order ? o.saved : o.created)
+      toast(markOrdered ? o.ordered : isNew ? o.created : o.saved)
       if (!order) navigate(`/inventory/orders/${saved.id}`, { replace: true })
     },
   })
@@ -257,7 +269,7 @@ function OrderEditor({
   const others = products.filter((p) => String(p.supplierId) !== supplierId)
   const productOptions = (line: LineDraft) => {
     const missing = line.productId && !productById.has(line.productId)
-      ? order?.lines.find((l) => String(l.productId) === line.productId)
+      ? draft?.lines.find((l) => String(l.productId) === line.productId)
       : undefined
     return (
       <>
@@ -294,8 +306,8 @@ function OrderEditor({
   return (
     <div className="page order-page">
       <BackToOrders />
-      <PageHead title={order ? o.title(order.id) : o.newTitle} sub={o.statusSub.DRAFT}>
-        {order && <OrderStatusTag status={order.status} />}
+      <PageHead title={draft ? o.title(draft.id) : o.newTitle} sub={o.statusSub.DRAFT}>
+        {draft && <OrderStatusTag status={draft.status} />}
       </PageHead>
 
       <section className="card">
@@ -420,7 +432,7 @@ function OrderEditor({
       <ErrorNote error={mutation.error} />
       <p className="muted inventory-hint">{o.markOrderedHint}</p>
       <div className="actions order-actions">
-        {order && (
+        {draft && (
           <>
             <Button variant="ghost" icon={Trash2} onClick={() => setConfirm('remove')}>
               {o.remove}
@@ -448,13 +460,13 @@ function OrderEditor({
       {addingSupplier && (
         <SupplierFormDialog venueId={venueId} onClose={() => setAddingSupplier(false)} onSaved={(s) => setSupplierId(String(s.id))} />
       )}
-      {order && confirm === 'remove' && (
+      {draft && confirm === 'remove' && (
         <ConfirmDialog
           title={o.removeTitle}
           confirmLabel={o.remove}
           onClose={() => setConfirm(null)}
           onConfirm={async () => {
-            await api.purchaseOrders.remove(order.id)
+            await api.purchaseOrders.remove(draft.id)
             await invalidate.orders()
             toast(o.removed)
             navigate('/inventory/orders', { replace: true })
@@ -463,12 +475,19 @@ function OrderEditor({
           {o.removeBody}
         </ConfirmDialog>
       )}
-      {order && confirm === 'cancel' && <CancelOrderDialog order={order} onClose={() => setConfirm(null)} />}
+      {draft && confirm === 'cancel' && (
+        <CancelOrderDialog
+          order={draft}
+          onClose={() => setConfirm(null)}
+          // A draft created on this page is still at /new: go to it, now cancelled
+          onCancelled={order ? undefined : () => navigate(`/inventory/orders/${draft.id}`, { replace: true })}
+        />
+      )}
     </div>
   )
 }
 
-function CancelOrderDialog({ order, onClose }: { order: PurchaseOrder; onClose: () => void }) {
+function CancelOrderDialog({ order, onClose, onCancelled }: { order: PurchaseOrder; onClose: () => void; onCancelled?: () => void }) {
   const t = useT()
   const toast = useToast()
   const invalidate = useInvalidate()
@@ -482,6 +501,7 @@ function CancelOrderDialog({ order, onClose }: { order: PurchaseOrder; onClose: 
         await api.purchaseOrders.cancel(order.id)
         await invalidate.orders()
         toast(o.cancelled)
+        onCancelled?.()
       }}
     >
       {o.cancelBody}

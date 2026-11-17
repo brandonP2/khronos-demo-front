@@ -186,6 +186,40 @@ describe('purchase orders', () => {
     ])
   })
 
+  it('retries marking a new order as ordered on the draft it already created', async () => {
+    let refuse = true
+    const calls = ordersApi((call) => {
+      if (call.method === 'POST' && call.path === '/purchase-orders') return json(201, order(33, { supplierId: 8, supplierName: 'Cafés Lola' }))
+      if (call.method === 'PUT' && call.path === '/purchase-orders/33') return json(200, order(33, { supplierId: 8, supplierName: 'Cafés Lola' }))
+      if (call.method === 'PUT' && call.path === '/purchase-orders/33/order') {
+        if (!refuse) return json(200, order(33, { status: 'ORDERED' }))
+        refuse = false
+        return json(500, { status: 500, message: 'Could not mark the order as ordered' })
+      }
+      if (call.method === 'GET' && call.path === '/purchase-orders/33') return json(200, order(33, { status: 'ORDERED' }))
+      if (call.path.startsWith('/purchase-orders/establishment/1')) return json(200, [])
+    })
+    renderApp('/inventory/orders/new')
+    await screen.findByRole('heading', { name: 'Nuevo pedido' })
+    fireEvent.change(screen.getByLabelText('Proveedor'), { target: { value: '8' } })
+    fireEvent.change(screen.getByLabelText('Producto'), { target: { value: '4' } })
+    fireEvent.change(screen.getByLabelText('Cantidad'), { target: { value: '2' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Marcar como pedido' }))
+
+    // The draft exists now, so the form edits it and says which one it is
+    expect(await screen.findByText('Could not mark the order as ordered')).toBeTruthy()
+    expect(screen.getByRole('heading', { name: 'Pedido #33' })).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Marcar como pedido' }))
+    expect(await screen.findByText('Marcado como pedido')).toBeTruthy()
+    expect(calls.filter((c) => c.method !== 'GET').map((c) => `${c.method} ${c.path}`)).toEqual([
+      'POST /purchase-orders',
+      'PUT /purchase-orders/33/order',
+      'PUT /purchase-orders/33',
+      'PUT /purchase-orders/33/order',
+    ])
+    expect(calls.find((c) => c.method === 'PUT' && c.path === '/purchase-orders/33')!.body).not.toHaveProperty('establishmentId')
+  })
+
   it('edits a draft, deletes it, and offers to add a supplier when there is none', async () => {
     const draft = order(20, { lines: [orderLine(1, { productId: 3, productName: 'Vodka', quantity: 6, unitCost: 9, lineTotal: 54 })], total: 54 })
     const calls = ordersApi((call) => {
