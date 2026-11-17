@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { dictionaries, type Locale } from '.'
+import { count } from './count'
 
 /** "team.title: string", "common.shifts: function", ... for every leaf of a dictionary */
 function shape(value: unknown, path = ''): string[] {
@@ -34,5 +35,13 @@ describe('dictionaries', () => {
     expect(dictionaries.en.common.shifts(3)).toBe('3 shifts')
     expect(dictionaries.es.common.wait(45)).toBe('45 segundos')
     expect(dictionaries.es.common.wait(61)).toBe('2 minutos')
+  })
+
+  it('counts with one shared helper', () => {
+    expect(count(1, 'turno', 'turnos')).toBe('1 turno')
+    expect(count(0, 'turno', 'turnos')).toBe('0 turnos')
+    expect(count(2, 'local', 'locales')).toBe('2 locales')
+    expect(count(2, 'shift')).toBe('2 shifts')
+    expect(count(3, 'person', 'people')).toBe('3 people')
   })
 })

@@ -1,7 +1,6 @@
 // English, kept as the app's original wording. Same keys as es.ts, which defines the shape.
+import { count } from './count'
 import type { Messages } from './es'
-
-const count = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`
 
 export const en: Messages = {
   common: {

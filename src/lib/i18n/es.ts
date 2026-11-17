@@ -2,7 +2,7 @@
 // en.ts must have exactly the same keys, and the type check fails when one is missing.
 // Strings with values are functions, so each language can handle plurals and word order.
 
-const count = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`
+import { count } from './count'
 
 export const es = {
   common: {
