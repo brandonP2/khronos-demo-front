@@ -22,7 +22,16 @@ const venue = {
   ownerPhone: null,
 }
 // The API's JSON, so it is left untyped and the test does not depend on every field of Shift
-const shiftOn = (id: number, date: string) => ({ id, workerId: 2, zoneId: 7, date, startTime: '18:00:00', endTime: '23:00:00' })
+const shiftOn = (id: number, date: string) => ({
+  id,
+  workerId: 2,
+  zoneId: 7,
+  date,
+  startTime: '18:00:00',
+  endTime: '23:00:00',
+  endsNextDay: false,
+  durationMinutes: 300,
+})
 
 function renderApp() {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
