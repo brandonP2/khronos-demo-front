@@ -649,12 +649,15 @@ export const es = {
     title: 'Ventas y costes por día',
     sales: 'Ventas',
     cost: 'Coste total',
-    costHint: 'gastos + personal',
+    costHint: 'gastos sin nóminas + personal',
+    costHintPayroll: 'gastos, nóminas incluidas',
     group: 'Ventas y coste total por día. Usa las flechas para recorrer los días.',
     day: (day: string, figures: string) => `${day}: ${figures}`,
     dayMissing: (day: string, figures: string) => `${day}: sin cierre de caja; ${figures}`,
-    figures: (sales: string, cost: string, expenses: string, labor: string, margin: string) =>
-      `ventas ${sales}, coste total ${cost} (gastos ${expenses}, personal ${labor}), margen ${margin}`,
+    figures: (sales: string, cost: string, besidesStaff: string, labor: string, margin: string) =>
+      `ventas ${sales}, coste total ${cost} (gastos sin nóminas ${besidesStaff}, personal ${labor}), margen ${margin}`,
+    figuresNoRate: (sales: string, cost: string, margin: string) =>
+      `ventas ${sales}, coste total ${cost} (gastos con nóminas; personal sin tarifa), margen ${margin}`,
     emptyDay: (day: string) => `${day}: sin datos`,
     noClosing: 'Sin cierre de caja',
     readout: (sales: string, expenses: string, labor: string, margin: string) =>

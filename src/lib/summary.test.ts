@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { SummaryDay } from '../api/types'
-import { barPercent, chartScale, dayCost, isEmptyDay, isEmptyPrevious, niceCeiling, percentOf, trend } from './summary'
+import { barPercent, chartScale, dayCost, dayCostBesidesStaff, isEmptyDay, isEmptyPrevious, niceCeiling, percentOf, trend } from './summary'
 
 const day = (date: string, patch: Partial<SummaryDay> = {}): SummaryDay => ({
   date,
@@ -60,8 +60,11 @@ describe('chart scale', () => {
     expect(niceCeiling(0)).toBe(0)
   })
 
-  it('takes the higher of sales and total cost, staff cost unknown counting as 0', () => {
-    const days = [day('2026-11-16', { sales: 900, expenses: 300, laborCost: 400 }), day('2026-11-17', { sales: 200, expenses: 1500, laborCost: null })]
+  it('takes the higher of sales and total cost', () => {
+    const days = [
+      day('2026-11-16', { sales: 900, expenses: 300, laborCost: 400, margin: 200 }),
+      day('2026-11-17', { sales: 200, expenses: 1500, laborCost: null, margin: -1300 }),
+    ]
     expect(dayCost(days[1])).toBe(1500)
     expect(chartScale(days)).toEqual({ max: 2000, ticks: [0, 1000, 2000] })
   })
@@ -72,6 +75,27 @@ describe('chart scale', () => {
     expect(barPercent(0, 2000)).toBe(0)
     expect(barPercent(10, 0)).toBe(0)
     expect(chartScale([day('2026-11-16')])).toEqual({ max: 0, ticks: [0] })
+  })
+})
+
+describe("a day's total cost", () => {
+  it('is what the margin takes off the sales, so payroll is not counted twice with the hours', () => {
+    // 500 € of expenses, 200 € of them payroll, and 300 € of staff from the hours: the margin
+    // takes off 300 € of other expenses and the 300 € of staff, not 800 €
+    const withHours = day('2026-11-16', { sales: 1000, expenses: 500, laborCost: 300, margin: 400 })
+    expect(dayCost(withHours)).toBe(600)
+    expect(dayCostBesidesStaff(withHours)).toBe(300)
+    expect(withHours.sales - dayCost(withHours)).toBe(withHours.margin)
+  })
+
+  it('is every expense, payroll included, when there are no rates', () => {
+    const byPayroll = day('2026-11-16', { sales: 1000, expenses: 500, laborCost: null, margin: 500 })
+    expect(dayCost(byPayroll)).toBe(500)
+    expect(dayCostBesidesStaff(byPayroll)).toBeNull()
+  })
+
+  it('works in cents', () => {
+    expect(dayCost(day('2026-11-16', { sales: 0.3, margin: 0.1 }))).toBe(0.2)
   })
 })
 

@@ -1,12 +1,12 @@
-// The summary's daily chart, drawn with plain elements: per day, sales next to the total cost
-// (expenses plus staff), on one axis in euros. Keyboard and screen readers get every value:
-// the days are one tab stop walked with the arrow keys, each day's name carries its figures
-// (the readout line shows the same for the eye, and is not announced again), and a table with
-// the same numbers sits behind the chart for screen readers.
+// The summary's daily chart, drawn with plain elements: per day, sales next to the total cost the
+// margin takes off (sales - margin: expenses without payroll plus staff), on one axis in euros.
+// Keyboard and screen readers get every value: the days are one tab stop walked with the arrow
+// keys, each day's name carries its figures (the readout line shows the same for the eye, and is
+// not announced again), and a table with the same numbers sits behind the chart for screen readers.
 import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent } from 'react'
-import type { SummaryDay } from '../api/types'
+import type { LaborCostSource, SummaryDay } from '../api/types'
 import { useFmt, useT } from '../lib/i18n'
-import { barPercent, chartScale, dayCost, isEmptyDay } from '../lib/summary'
+import { barPercent, chartScale, dayCost, dayCostBesidesStaff, isEmptyDay } from '../lib/summary'
 import { parseISODate } from '../lib/time'
 
 /** The last day up to today with something in it, else the last day up to today */
@@ -17,7 +17,17 @@ function defaultDay(days: SummaryDay[], today: string): number {
   return lastPast >= 0 ? lastPast : Math.max(0, days.length - 1)
 }
 
-export function SummaryChart({ days, today }: { days: SummaryDay[]; /** The venue's today */ today: string }) {
+export function SummaryChart({
+  days,
+  today,
+  laborCostSource,
+}: {
+  days: SummaryDay[]
+  /** The venue's today */
+  today: string
+  /** The staff cost the margins took off, which decides what the total cost is made of */
+  laborCostSource: LaborCostSource
+}) {
   const t = useT()
   const fmt = useFmt()
   const titleId = useId()
@@ -26,6 +36,7 @@ export function SummaryChart({ days, today }: { days: SummaryDay[]; /** The venu
   const scroller = useRef<HTMLDivElement>(null)
   const columns = useRef<(HTMLButtonElement | null)[]>([])
   const current = days[Math.min(active, days.length - 1)]
+  const costHint = laborCostSource === 'PAYROLL_EXPENSES' ? t.chart.costHintPayroll : t.chart.costHint
   const size = days.length <= 14 ? 'wide' : days.length <= 31 ? 'mid' : 'dense'
 
   // Long periods scroll sideways: start at the most recent days
@@ -41,7 +52,12 @@ export function SummaryChart({ days, today }: { days: SummaryDay[]; /** The venu
   // The one way a day is announced: its button's name, read when it gets the focus
   const label = (d: SummaryDay) => {
     if (isEmptyDay(d)) return t.chart.emptyDay(fmt.long(d.date))
-    const figures = t.chart.figures(money(d.sales), money(dayCost(d)), money(d.expenses), labor(d), money(d.margin))
+    const besidesStaff = dayCostBesidesStaff(d)
+    // Without a staff cost the payroll expenses stand in for it, and the cost is every expense
+    const figures =
+      besidesStaff === null || d.laborCost === null
+        ? t.chart.figuresNoRate(money(d.sales), money(dayCost(d)), money(d.margin))
+        : t.chart.figures(money(d.sales), money(dayCost(d)), money(besidesStaff), money(d.laborCost), money(d.margin))
     return (missing(d) ? t.chart.dayMissing : t.chart.day)(fmt.long(d.date), figures)
   }
 
@@ -79,7 +95,7 @@ export function SummaryChart({ days, today }: { days: SummaryDay[]; /** The venu
           </li>
           <li>
             <span className="swatch cost" />
-            {t.chart.cost} <span className="muted">({t.chart.costHint})</span>
+            {t.chart.cost} <span className="muted">({costHint})</span>
           </li>
           {days.some(missing) && (
             <li>
@@ -154,7 +170,9 @@ export function SummaryChart({ days, today }: { days: SummaryDay[]; /** The venu
             <th scope="col">{t.chart.columns.sales}</th>
             <th scope="col">{t.chart.columns.expenses}</th>
             <th scope="col">{t.chart.columns.labor}</th>
-            <th scope="col">{t.chart.columns.cost}</th>
+            <th scope="col">
+              {t.chart.columns.cost} ({costHint})
+            </th>
             <th scope="col">{t.chart.columns.margin}</th>
             <th scope="col">{t.chart.columns.closing}</th>
           </tr>

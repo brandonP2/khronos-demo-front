@@ -195,7 +195,7 @@ function SummaryBody({ data, refreshing, today }: { data: BusinessSummary; refre
       {!empty && (
         <>
           <section className="card chart-card" aria-busy={refreshing || undefined}>
-            <SummaryChart key={`${data.from}_${data.to}`} days={data.days} today={today} />
+            <SummaryChart key={`${data.from}_${data.to}`} days={data.days} today={today} laborCostSource={totals.laborCostSource} />
           </section>
 
           <section className="card">

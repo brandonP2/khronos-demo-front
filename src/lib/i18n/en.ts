@@ -624,12 +624,15 @@ export const en: Messages = {
     title: 'Sales and costs by day',
     sales: 'Sales',
     cost: 'Total cost',
-    costHint: 'expenses + staff',
+    costHint: 'expenses without payroll + staff',
+    costHintPayroll: 'expenses, payroll included',
     group: 'Sales and total cost by day. Use the arrow keys to go through the days.',
     day: (day: string, figures: string) => `${day}: ${figures}`,
     dayMissing: (day: string, figures: string) => `${day}: no cash closing; ${figures}`,
-    figures: (sales: string, cost: string, expenses: string, labor: string, margin: string) =>
-      `sales ${sales}, total cost ${cost} (expenses ${expenses}, staff ${labor}), margin ${margin}`,
+    figures: (sales: string, cost: string, besidesStaff: string, labor: string, margin: string) =>
+      `sales ${sales}, total cost ${cost} (expenses without payroll ${besidesStaff}, staff ${labor}), margin ${margin}`,
+    figuresNoRate: (sales: string, cost: string, margin: string) =>
+      `sales ${sales}, total cost ${cost} (expenses with payroll; staff no rate), margin ${margin}`,
     emptyDay: (day: string) => `${day}: no data`,
     noClosing: 'No cash closing',
     readout: (sales: string, expenses: string, labor: string, margin: string) =>

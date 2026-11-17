@@ -258,10 +258,10 @@ describe('summary chart', () => {
       [...column.querySelectorAll<HTMLElement>('.chart-bar')].map((bar) => bar.style.height)
     expect(heights(columns[0])).toEqual(['50%', '25%'])
     expect(heights(columns[1])).toEqual(['100%', '50%'])
-    // Staff cost unknown counts as 0 in the total cost
+    // With no staff cost the total cost is every expense
     expect(heights(columns[3])).toEqual(['30%', '60%'])
     expect(plain(columns[0].getAttribute('aria-label'))).toBe(
-      'Lunes, 9 de noviembre: ventas 1.000,00 €, coste total 500,00 € (gastos 200,00 €, personal 300,00 €), margen 500,00 €',
+      'Lunes, 9 de noviembre: ventas 1.000,00 €, coste total 500,00 € (gastos sin nóminas 200,00 €, personal 300,00 €), margen 500,00 €',
     )
     // The axis labels, in full under 10.000 €
     expect([...document.querySelectorAll('.chart-axis span')].map((s) => plain(s.textContent))).toEqual(['0 €', '1.000 €', '2.000 €'])
@@ -276,7 +276,7 @@ describe('summary chart', () => {
     expect(columns[6].classList.contains('empty')).toBe(true)
     // A day with activity and no closing is never "no data", even with nothing to draw
     expect(plain(columns[2].getAttribute('aria-label'))).toBe(
-      'Miércoles, 11 de noviembre: sin cierre de caja; ventas 0,00 €, coste total 0,00 € (gastos 0,00 €, personal 0,00 €), margen 0,00 €',
+      'Miércoles, 11 de noviembre: sin cierre de caja; ventas 0,00 €, coste total 0,00 € (gastos sin nóminas 0,00 €, personal 0,00 €), margen 0,00 €',
     )
     expect(columns[2].classList.contains('empty')).toBe(false)
     expect(columns[2].classList.contains('missing')).toBe(true)
@@ -308,7 +308,7 @@ describe('summary chart', () => {
     // Every figure of the readout is in the name, so nothing is lost for a screen reader
     act(() => columns[3].focus())
     expect(plain(columns[3].getAttribute('aria-label'))).toBe(
-      'Jueves, 12 de noviembre: ventas 600,00 €, coste total 1.200,00 € (gastos 1.200,00 €, personal sin tarifa), margen -600,00 €',
+      'Jueves, 12 de noviembre: ventas 600,00 €, coste total 1.200,00 € (gastos con nóminas; personal sin tarifa), margen -600,00 €',
     )
     expect(plain(readout.textContent)).toBe('Jueves, 12 de noviembre Ventas 600,00 € · Gastos 1.200,00 € · Personal sin tarifa · Margen -600,00 €')
   })
@@ -325,6 +325,38 @@ describe('summary chart', () => {
       'Viernes, 13 de noviembre Ventas 0,00 € · Gastos 0,00 € · Personal sin tarifa · Margen 0,00 € · Sin cierre de caja',
     )
     expect(screen.getByText('Sin cierre de caja', { selector: '.chart-legend li' })).toBeTruthy()
+  })
+
+  it('draws the cost the margin takes off, so payroll is not counted twice with the hours', async () => {
+    // 1.000 € of sales, 500 € of expenses (200 € of them payroll) and 300 € of staff from the hours:
+    // the margin takes off 300 € of other expenses and the staff, so the cost is 600 €, not 800 €
+    const days = summary().days.map((d) =>
+      d.date === '2026-11-09' ? { ...d, sales: 1000, expenses: 500, laborCost: 300, margin: 400 } : d,
+    )
+    summaryApi(summary({ days }))
+    renderApp('/')
+    const chart = await screen.findByRole('group', { name: /Ventas y coste total por día/ })
+    const monday = within(chart).getAllByRole('button')[0]
+    expect([...monday.querySelectorAll<HTMLElement>('.chart-bar')].map((bar) => bar.style.height)).toEqual(['50%', '30%'])
+    expect(plain(monday.getAttribute('aria-label'))).toBe(
+      'Lunes, 9 de noviembre: ventas 1.000,00 €, coste total 600,00 € (gastos sin nóminas 300,00 €, personal 300,00 €), margen 400,00 €',
+    )
+    expect(plain(screen.getByText(/^Coste total/, { selector: '.chart-legend li' }).textContent)).toBe('Coste total (gastos sin nóminas + personal)')
+    const table = screen.getByRole('table', { name: 'Ventas, gastos, coste de personal y margen estimado por día' })
+    expect(within(table).getByRole('columnheader', { name: 'Coste total (gastos sin nóminas + personal)' })).toBeTruthy()
+    expect(plain(within(table).getAllByRole('row')[1].textContent)).toBe('Lunes, 9 de noviembre1.000,00 €500,00 €300,00 €600,00 €400,00 €Cerrado')
+  })
+
+  it('says the cost is every expense, payroll included, when the payroll stands in for the staff cost', async () => {
+    const days = summary().days.map((d) => ({ ...d, laborCost: null, margin: d.sales - d.expenses }))
+    summaryApi(summary({ days }, { laborCost: null, laborCostSource: 'PAYROLL_EXPENSES', laborCostPercent: null }))
+    renderApp('/')
+    const chart = await screen.findByRole('group', { name: /Ventas y coste total por día/ })
+    const monday = within(chart).getAllByRole('button')[0]
+    expect(plain(monday.getAttribute('aria-label'))).toBe(
+      'Lunes, 9 de noviembre: ventas 1.000,00 €, coste total 200,00 € (gastos con nóminas; personal sin tarifa), margen 800,00 €',
+    )
+    expect(plain(screen.getByText(/^Coste total/, { selector: '.chart-legend li' }).textContent)).toBe('Coste total (gastos, nóminas incluidas)')
   })
 
   it('has a table with every value behind the chart', async () => {

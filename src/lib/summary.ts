@@ -1,4 +1,5 @@
-// The business summary: each figure against the period before, and the scale of the daily chart.
+// The business summary: each figure against the period before, each day's cost as its margin
+// counts it, and the scale of the daily chart.
 import type { SummaryDay, SummaryPrevious } from '../api/types'
 import { fromCents, toCents } from './money'
 
@@ -31,9 +32,21 @@ export function isEmptyPrevious(previous: SummaryPrevious): boolean {
   return previous.sales === 0 && previous.expenses === 0 && (previous.laborCost ?? 0) === 0
 }
 
-/** Expenses plus staff cost; staff cost counts as 0 when it is unknown */
+/**
+ * What the day's margin takes off its sales: sales - margin, so sales - cost is always the API's
+ * margin. With the staff cost from the hours, that is the expenses without payroll plus the staff
+ * cost (payroll is not counted twice); with no rates, every expense, payroll included.
+ */
 export function dayCost(day: SummaryDay): number {
-  return fromCents(toCents(day.expenses) + toCents(day.laborCost ?? 0))
+  return fromCents(toCents(day.sales) - toCents(day.margin))
+}
+
+/**
+ * The day's cost other than staff: its expenses without payroll. null when the staff cost is
+ * unknown, as the payroll expenses then stand in for it and are not told apart day by day.
+ */
+export function dayCostBesidesStaff(day: SummaryDay): number | null {
+  return day.laborCost === null ? null : fromCents(toCents(dayCost(day)) - toCents(day.laborCost))
 }
 
 /**
