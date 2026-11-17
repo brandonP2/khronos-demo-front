@@ -68,7 +68,7 @@ export function RatesCard({ workerId, today }: { workerId: number; today: string
                 {perHour(r)}
               </span>
               <span className="muted" style={{ flex: 1 }}>
-                {t.rates.from(fmt.long(r.effectiveFrom))}
+                {t.rates.from(fmt.longInSentence(r.effectiveFrom))}
               </span>
               {r === current && <span className="tag good">{t.rates.current}</span>}
               {r.effectiveFrom > today && <span className="tag">{t.rates.upcoming}</span>}
@@ -78,7 +78,7 @@ export function RatesCard({ workerId, today }: { workerId: number; today: string
                   variant="ghost"
                   iconOnly
                   icon={Trash2}
-                  aria-label={t.rates.remove(perHour(r), fmt.long(r.effectiveFrom))}
+                  aria-label={t.rates.remove(perHour(r), fmt.longInSentence(r.effectiveFrom))}
                   onClick={() => setRemoving(r)}
                 />
               )}
@@ -132,7 +132,7 @@ export function RatesCard({ workerId, today }: { workerId: number; today: string
             toast(t.rates.removed)
           }}
         >
-          {t.rates.remove(perHour(removing), fmt.long(removing.effectiveFrom))}. {t.rates.removeBody}
+          {t.rates.remove(perHour(removing), fmt.longInSentence(removing.effectiveFrom))}. {t.rates.removeBody}
         </ConfirmDialog>
       )}
     </section>

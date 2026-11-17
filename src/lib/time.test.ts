@@ -229,6 +229,11 @@ describe('makeFmt', () => {
     expect(es.week('2026-11-18')).toBe('16 nov – 22 nov')
   })
 
+  it('keeps the Spanish weekday in lower case inside a sentence', () => {
+    expect(es.longInSentence('2026-10-18')).toBe('domingo, 18 de octubre')
+    expect(en.longInSentence('2026-10-18')).toBe('Sunday 18 October')
+  })
+
   it('keeps the English formats', () => {
     expect(en.long('2026-11-16')).toBe('Monday 16 November')
     expect(en.weekday('2026-11-16')).toBe('Mon')

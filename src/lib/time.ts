@@ -316,6 +316,8 @@ export function makeFmt(locale: string, words: RelativeDayWords) {
     day: (iso: string) => dayFmt.format(date(iso)),
     /** "Lunes, 16 de noviembre" / "Monday 16 November" */
     long: (iso: string) => cap(longFmt.format(date(iso))),
+    /** "lunes, 16 de noviembre" / "Monday 16 November", for use inside a sentence */
+    longInSentence: (iso: string) => longFmt.format(date(iso)),
     /** "Lun" / "Mon" */
     weekday: (iso: string) => cap(weekdayFmt.format(date(iso))),
     /** "lunes" / "Monday", for use inside a sentence */

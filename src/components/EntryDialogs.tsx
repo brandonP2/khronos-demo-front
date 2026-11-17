@@ -132,7 +132,7 @@ export function EntryFormDialog({
   return (
     <Dialog
       title={entry ? t.entryForm.correctTitle : t.entryForm.addTitle(workerName)}
-      sub={entry ? t.entryForm.correctSub(workerName, fmt.long(entry.businessDate)) : t.entryForm.addSub}
+      sub={entry ? t.entryForm.correctSub(workerName, fmt.longInSentence(entry.businessDate)) : t.entryForm.addSub}
       onClose={onClose}
       busy={mutation.isPending}
       footer={
@@ -248,7 +248,7 @@ export function VoidEntryDialog({
   return (
     <Dialog
       title={t.voidEntry.title}
-      sub={t.voidEntry.sub(workerName, fmt.long(entry.businessDate))}
+      sub={t.voidEntry.sub(workerName, fmt.longInSentence(entry.businessDate))}
       onClose={onClose}
       busy={mutation.isPending}
       footer={

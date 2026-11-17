@@ -101,7 +101,7 @@ export function HistoryDialog({ entry, timeZone, onClose }: { entry: TimeEntry; 
   const fmt = useFmt()
   const history = useEntryHistory(entry.id)
   return (
-    <Dialog title={t.entries.historyTitle} sub={t.entries.historySub(fmt.long(entry.businessDate))} onClose={onClose}>
+    <Dialog title={t.entries.historyTitle} sub={t.entries.historySub(fmt.longInSentence(entry.businessDate))} onClose={onClose}>
       {history.isLoading ? (
         <Loading rows={2} />
       ) : history.error ? (

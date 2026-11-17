@@ -180,6 +180,7 @@ describe('person page', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Anular: fichaje del vie, 14 nov a las 18:10' }))
     const dialog = screen.getByRole('dialog', { name: 'Anular fichaje' })
+    expect(within(dialog).getByText('Lucía Romero, viernes, 14 de noviembre.')).toBeTruthy()
     const confirm = within(dialog).getByRole('button', { name: 'Anular fichaje' }) as HTMLButtonElement
     expect(confirm.disabled).toBe(true)
     fireEvent.change(within(dialog).getByLabelText('Motivo'), { target: { value: 'Fichaje duplicado' } })
@@ -222,6 +223,8 @@ describe('person page', () => {
     )
     renderApp(PERSON)
     expect(await screen.findByText('Vigente')).toBeTruthy()
+    // Inside a sentence the weekday stays in lower case
+    expect(screen.getByText('desde el jueves, 1 de enero')).toBeTruthy()
     const amount = screen.getByLabelText('Euros por hora')
     const from = screen.getByLabelText('Se aplica desde')
     const add = screen.getByRole('button', { name: 'Añadir tarifa' }) as HTMLButtonElement
