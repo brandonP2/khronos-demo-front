@@ -8,7 +8,7 @@ import { Board } from '../components/Board'
 import { Button, ErrorNote, Field, Logo } from '../components/ui'
 import { useFmt, useT } from '../lib/i18n'
 import { isPasswordTooLong, passwordError } from '../lib/password'
-import { minutes, today } from '../lib/time'
+import { endsNextDay, spanMinutes, today } from '../lib/time'
 
 export default function Login() {
   const t = useT()
@@ -139,8 +139,8 @@ function PreviewBoard() {
     date: d,
     startTime,
     endTime,
-    endsNextDay: false,
-    durationMinutes: minutes(endTime) - minutes(startTime),
+    endsNextDay: endsNextDay(startTime, endTime),
+    durationMinutes: spanMinutes(startTime, endTime),
   })
   const shifts = [
     s(1, 1, 1, '16:00', '23:30'),
