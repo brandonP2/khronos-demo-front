@@ -262,6 +262,17 @@ describe('cash closing form', () => {
     ).toBeTruthy()
   })
 
+  it('refuses an amount like 0,125 instead of reading 125 €', async () => {
+    const calls = cashServer(null)
+    renderApp(`/cash?date=${DAY}`)
+    await screen.findByLabelText('Ventas en efectivo')
+    type('Retiradas de efectivo', '0,125')
+    fireEvent.blur(field('Retiradas de efectivo'))
+    expect(screen.getByText('Escribe un importe, como 1.234,50')).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar borrador' }))
+    expect(writes(calls)).toHaveLength(0)
+  })
+
   it('needs the counted cash to close', async () => {
     const calls = cashServer(null)
     renderApp(`/cash?date=${DAY}`)

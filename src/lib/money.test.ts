@@ -25,6 +25,17 @@ describe('typed amounts', () => {
     expect(parseAmount(text)).toBeNull()
   })
 
+  // A group of thousands never starts with 0: these are typos for 0,13 or 0,50, not 125 € or 500 €
+  it.each(['0,125', '0.500', '0,125.50', '0.125,50', '00.125', '012.345', '0.000'])('refuses %j instead of reading thousands', (text) => {
+    expect(parseAmount(text)).toBeNull()
+  })
+
+  it('still reads thousands that do not start with 0', () => {
+    expect(parseAmount('100.000')).toBe(100000)
+    expect(parseAmount('1.000,05')).toBe(1000.05)
+    expect(parseAmount('0,50')).toBe(0.5)
+  })
+
   it('adds money in cents', () => {
     expect(sumMoney([0.1, 0.2])).toBe(0.3)
     expect(sumMoney([])).toBe(0)

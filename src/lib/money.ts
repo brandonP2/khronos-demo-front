@@ -20,7 +20,8 @@ export function isBlank(text: string): boolean {
  * A typed amount in euros, or null when it is not one (an empty field included). A separator
  * followed by exactly three digits groups thousands ("1.234", "1,234"); followed by one or two
  * digits it is the decimal mark ("12,5", "12.50"). With both kinds, the last one is the decimal
- * mark ("1.234,50", "1,234.50"). Never negative, two decimals at most.
+ * mark ("1.234,50", "1,234.50"). Thousands never follow a leading zero, so "0,125" and "0.500"
+ * are refused rather than read as 125 and 500. Never negative, two decimals at most.
  */
 export function parseAmount(text: string): number | null {
   const plain = text.replace(/[\s\u00a0\u202f€]/g, '')
@@ -34,9 +35,10 @@ export function parseAmount(text: string): number | null {
   const cents = decimalMark ? tail : ''
   if (decimalMark && !/^\d{1,2}$/.test(cents)) return null
   if (!/^\d+$/.test(whole)) {
-    // Thousands grouped in threes by one kind of separator, which is not the decimal mark
+    // Thousands grouped in threes by one kind of separator, which is not the decimal mark,
+    // after a first group that does not start with 0
     const separators = new Set(whole.replace(/\d/g, ''))
-    if (!/^\d{1,3}([.,]\d{3})+$/.test(whole) || separators.size !== 1 || separators.has(decimalMark ?? '')) return null
+    if (!/^[1-9]\d{0,2}([.,]\d{3})+$/.test(whole) || separators.size !== 1 || separators.has(decimalMark ?? '')) return null
     whole = whole.replace(/[.,]/g, '')
   }
   return fromCents(Number(whole) * 100 + Number(cents.padEnd(2, '0') || 0))
