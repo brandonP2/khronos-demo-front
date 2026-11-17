@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { MemoryRouter } from 'react-router-dom'
 import App from '../App'
@@ -127,6 +127,22 @@ describe('login', () => {
     expect(await screen.findByText('Demasiados intentos. Espera 30 segundos y vuelve a probar.')).toBeTruthy()
     const button = screen.getByRole('button', { name: 'Espera 30 s' }) as HTMLButtonElement
     expect(button.disabled).toBe(true)
+  })
+
+  it('counts the wait down and unlocks the button when it is over', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    try {
+      mockFetch(() => json(429, { status: 429, message: 'Too many login attempts' }, { 'Retry-After': '2' }))
+      renderApp()
+      signIn()
+      expect(await screen.findByRole('button', { name: 'Espera 2 s' })).toBeTruthy()
+      await act(() => vi.advanceTimersByTimeAsync(1000))
+      expect(screen.getByRole('button', { name: 'Espera 1 s' })).toBeTruthy()
+      await act(() => vi.advanceTimersByTimeAsync(1000))
+      expect((screen.getByRole('button', { name: 'Entrar' }) as HTMLButtonElement).disabled).toBe(false)
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   it('words wrong credentials and disabled accounts', async () => {

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { Clock } from 'lucide-react'
 import { ApiError } from '../api/client'
 import type { Assignment, KEvent, Shift, Zone } from '../api/types'
@@ -18,23 +18,11 @@ export default function Login() {
   const [error, setError] = useState<unknown>(null)
   // After a 429 the button stays locked for as long as Retry-After says
   const [lockedUntil, setLockedUntil] = useState<number | null>(null)
-  const [now, setNow] = useState(() => Date.now())
-
-  useEffect(() => {
-    if (!lockedUntil) return
-    const id = setInterval(() => {
-      const current = Date.now()
-      setNow(current)
-      if (current >= lockedUntil) setLockedUntil(null)
-    }, 1000)
-    return () => clearInterval(id)
-  }, [lockedUntil])
-
-  const secondsLeft = lockedUntil ? Math.max(0, Math.ceil((lockedUntil - now) / 1000)) : 0
+  const unlock = useCallback(() => setLockedUntil(null), [])
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (secondsLeft > 0) return
+    if (lockedUntil !== null) return
     setBusy(true)
     setError(null)
     try {
@@ -42,7 +30,6 @@ export default function Login() {
     } catch (err) {
       setError(err)
       if (err instanceof ApiError && err.kind === 'rate-limited' && err.retryAfter) {
-        setNow(Date.now())
         setLockedUntil(Date.now() + err.retryAfter * 1000)
       }
       setBusy(false)
@@ -92,8 +79,8 @@ export default function Login() {
             </div>
           )}
           <ErrorNote error={loginErrorText(error, t)} />
-          <Button type="submit" variant="primary" loading={busy} disabled={!username || !password || secondsLeft > 0}>
-            {secondsLeft > 0 ? t.login.waitButton(secondsLeft) : t.login.signIn}
+          <Button type="submit" variant="primary" loading={busy} disabled={!username || !password || lockedUntil !== null}>
+            {lockedUntil !== null ? <WaitCountdown until={lockedUntil} onDone={unlock} /> : t.login.signIn}
           </Button>
         </form>
       </div>
@@ -102,6 +89,23 @@ export default function Login() {
       </div>
     </div>
   )
+}
+
+/** The locked button's label. It ticks on its own, so the form and the preview do not re-render every second */
+function WaitCountdown({ until, onDone }: { until: number; onDone: () => void }) {
+  const t = useT()
+  const [now, setNow] = useState(() => Date.now())
+
+  useEffect(() => {
+    const id = setInterval(() => {
+      const current = Date.now()
+      setNow(current)
+      if (current >= until) onDone()
+    }, 1000)
+    return () => clearInterval(id)
+  }, [until, onDone])
+
+  return <>{t.login.waitButton(Math.max(0, Math.ceil((until - now) / 1000)))}</>
 }
 
 /** A sample day rendered by the real board, so the first screen shows what the product does */
