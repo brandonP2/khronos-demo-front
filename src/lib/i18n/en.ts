@@ -60,6 +60,7 @@ export const en: Messages = {
     reasonRequired: 'With this difference, closing the till needs a reason.',
     notCounted: 'Enter the cash counted to close the till.',
     dayClosed: "That day's till is closed: reopen its closing to change its cash expenses.",
+    forbidden: 'Your account does not have permission to do this.',
     rangeTooLong: 'The period can’t be longer than 366 days.',
     rangeOrder: 'The start of the period can’t be after its end.',
   },

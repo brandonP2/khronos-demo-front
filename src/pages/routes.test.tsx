@@ -97,6 +97,9 @@ describe('a worker and the business pages', () => {
     '/inventory?low=1',
     '/inventory/count',
     '/inventory/movements',
+    '/inventory/orders',
+    '/inventory/orders/new',
+    '/inventory/orders/3',
     '/inventory/orders/3/receive',
     '/inventory/suppliers',
   ])('cannot open %s, and nothing of it is asked for', async (path) => {

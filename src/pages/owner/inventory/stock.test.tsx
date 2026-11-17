@@ -300,6 +300,21 @@ describe('quick movements', () => {
     })
   })
 
+  it('words the API refusing the account, as it does a worker’s, before any check of the request', async () => {
+    stockApi((call) =>
+      call.method === 'POST' && call.path === '/stock-movements'
+        ? json(403, { status: 403, message: 'You do not have permission to perform this action' })
+        : undefined,
+    )
+    renderApp('/inventory')
+    await screen.findByTestId('product-1')
+    fireEvent.click(within(row(1)).getByRole('button', { name: 'Consumo de Ginebra Puerto' }))
+    const dialog = screen.getByRole('dialog', { name: 'Consumo de Ginebra Puerto' })
+    fireEvent.change(within(dialog).getByLabelText('Cantidad'), { target: { value: '1' } })
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Anotar consumo' }))
+    expect(await within(dialog).findByText('Tu cuenta no tiene permiso para hacer esto.')).toBeTruthy()
+  })
+
   it('records usage without a reason, saying stock does not go down with sales on its own', async () => {
     const calls = stockApi((call) =>
       call.method === 'POST' && call.path === '/stock-movements' ? json(201, movement(52, { stockAfter: 4 })) : undefined,

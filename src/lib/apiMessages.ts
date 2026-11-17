@@ -31,6 +31,8 @@ const KNOWN: Record<string, ApiMessageKey> = {
   'The movement date cannot be in the future': 'futureDay',
   'The count date cannot be in the future': 'futureDay',
   'The received date cannot be in the future': 'futureDay',
+  // Any request the account may not make, such as a worker's on the inventory
+  'You do not have permission to perform this action': 'forbidden',
   // Any list of a period
   'The date range cannot be longer than 366 days': 'rangeTooLong',
   "'from' must not be after 'to'": 'rangeOrder',

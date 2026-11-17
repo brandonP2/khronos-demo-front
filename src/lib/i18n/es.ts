@@ -66,6 +66,7 @@ export const es = {
     reasonRequired: 'Con este descuadre hace falta un motivo para cerrar la caja.',
     notCounted: 'Escribe el efectivo contado para poder cerrar la caja.',
     dayClosed: 'La caja de ese día está cerrada: reabre su cierre para cambiar sus gastos en efectivo.',
+    forbidden: 'Tu cuenta no tiene permiso para hacer esto.',
     rangeTooLong: 'El periodo no puede pasar de 366 días.',
     rangeOrder: 'El inicio del periodo no puede ser posterior al final.',
   },
