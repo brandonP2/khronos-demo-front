@@ -36,6 +36,8 @@ export interface LineDraft {
   productId: string
   quantityText: string
   costText: string
+  /** The product changed after a quantity was typed: that quantity is checked again, now */
+  recheck?: boolean
 }
 
 let lineKeys = 0
@@ -252,10 +254,14 @@ function OrderEditor({
 
   const pickProduct = (line: LineDraft, productId: string) => {
     const product = productById.get(productId)
-    // The product's last cost fills an empty cost
+    const typed = parseQuantity(line.quantityText)
     update(line.key, {
       productId,
+      // The product's last cost fills an empty cost
       costText: isBlank(line.costText) && product?.unitCost != null ? fmt.amount(product.unitCost) : line.costText,
+      // A quantity typed before is now in this product's unit: it reads back in it and is checked again
+      quantityText: typed === null ? line.quantityText : fmt.quantityInput(typed),
+      recheck: !isBlank(line.quantityText),
     })
   }
 
@@ -366,7 +372,8 @@ function OrderEditor({
           )}
           <ol className="order-lines">
             {lines.map((line, i) => {
-              const product = productById.get(line.productId)
+              // An inactive product left on a draft is not in the list, but its line knows the unit
+              const unit = productById.get(line.productId)?.unit ?? draft?.lines.find((l) => String(l.productId) === line.productId)?.unit
               const quantity = parsed[i].quantity
               const value = quantity === null ? null : quantityValue(quantity, parsed[i].unitCost)
               return (
@@ -378,11 +385,11 @@ function OrderEditor({
                       </select>
                     )}
                   </Field>
-                  <Field label={o.quantity} error={shown(lineErrors[i].quantity)}>
+                  <Field label={o.quantity} error={submitted || line.recheck ? lineErrors[i].quantity : undefined}>
                     {(id) => (
                       <QuantityInput
                         id={id}
-                        unit={product?.unit ?? 'UNIT'}
+                        unit={unit}
                         value={line.quantityText}
                         placeholder="0"
                         onChange={(text) => update(line.key, { quantityText: text })}

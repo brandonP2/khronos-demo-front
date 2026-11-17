@@ -192,6 +192,27 @@ describe('purchase orders', () => {
     ])
   })
 
+  it('shows no unit until the product is chosen, and checks the quantity again when it is', async () => {
+    ordersApi()
+    renderApp('/inventory/orders/new')
+    await screen.findByRole('heading', { name: 'Nuevo pedido' })
+    const line = document.querySelector('.order-line') as HTMLElement
+    expect(line.querySelector('.quantity-unit')).toBeNull()
+    expect(screen.getByLabelText('Cantidad').getAttribute('aria-describedby')).toBeNull()
+    fireEvent.change(screen.getByLabelText('Cantidad'), { target: { value: '0' } })
+    expect(screen.queryByText('Escribe una cantidad mayor que 0')).toBeNull()
+
+    fireEvent.change(screen.getByLabelText('Producto'), { target: { value: '4' } })
+    expect(line.querySelector('.quantity-unit')!.textContent).toBe('kg')
+    expect(screen.getByText('Escribe una cantidad mayor que 0')).toBeTruthy()
+    fireEvent.change(screen.getByLabelText('Cantidad'), { target: { value: '1.50' } })
+    expect(screen.queryByText('Escribe una cantidad mayor que 0')).toBeNull()
+    // Another product keeps the quantity, written as this one reads it
+    fireEvent.change(screen.getByLabelText('Producto'), { target: { value: '1' } })
+    expect((screen.getByLabelText('Cantidad') as HTMLInputElement).value).toBe('1,5')
+    expect(line.querySelector('.quantity-unit')!.textContent).toBe('botellas')
+  })
+
   it('retries marking a new order as ordered on the draft it already created', async () => {
     let refuse = true
     const calls = ordersApi((call) => {
