@@ -318,6 +318,11 @@ export const es = {
     languageLabel: 'Idioma de la aplicación',
     languageHint: 'Se recuerda en este navegador.',
   },
+  crash: {
+    title: 'Algo ha fallado en esta pantalla',
+    body: 'Vuelve a intentarlo. Si sigue pasando, recarga la página: lo que ya está guardado no se pierde.',
+    reload: 'Recargar la página',
+  },
   session: {
     expiresAt: (time: string) => `Tu sesión caduca a las ${time}.`,
     stay: 'Seguir conectado',

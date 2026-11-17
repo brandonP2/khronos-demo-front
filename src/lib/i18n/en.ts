@@ -308,6 +308,11 @@ export const en: Messages = {
     languageLabel: 'App language',
     languageHint: 'Remembered on this browser.',
   },
+  crash: {
+    title: 'Something went wrong on this screen',
+    body: 'Try again. If it keeps happening, reload the page: anything already saved is kept.',
+    reload: 'Reload the page',
+  },
   session: {
     expiresAt: (time: string) => `Your session ends at ${time}.`,
     stay: 'Stay signed in',

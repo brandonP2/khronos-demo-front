@@ -7,6 +7,7 @@ import '@fontsource/ibm-plex-mono/400.css'
 import './styles/app.css'
 import { ApiError } from './api/client'
 import { AuthProvider } from './auth/AuthContext'
+import { ErrorBoundary } from './components/ErrorBoundary'
 import { ToastProvider } from './components/ui'
 import { LocaleProvider } from './lib/i18n'
 import App from './App'
@@ -29,7 +30,9 @@ createRoot(document.getElementById('root')!).render(
         <LocaleProvider>
           <AuthProvider>
             <ToastProvider>
-              <App />
+              <ErrorBoundary standalone>
+                <App />
+              </ErrorBoundary>
             </ToastProvider>
           </AuthProvider>
         </LocaleProvider>

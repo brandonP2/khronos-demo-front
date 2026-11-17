@@ -15,6 +15,7 @@ import { useAuth, useMe } from '../auth/AuthContext'
 import { useT, type Messages } from '../lib/i18n'
 import { useVenue } from '../lib/VenueContext'
 import { displayName, initials } from '../lib/queries'
+import { ErrorBoundary } from './ErrorBoundary'
 import { Avatar, Logo } from './ui'
 
 interface NavItem {
@@ -117,7 +118,10 @@ export function Layout({ venuePicker }: { venuePicker?: ReactNode }) {
           </div>
         </div>
         <main className="main">
-          <Outlet />
+          {/* A crash on one page keeps the menu usable, and clears when another page is opened */}
+          <ErrorBoundary resetKey={location.pathname}>
+            <Outlet />
+          </ErrorBoundary>
         </main>
       </div>
     </div>
