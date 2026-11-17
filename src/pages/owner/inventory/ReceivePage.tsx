@@ -5,7 +5,7 @@
 // received; the screen says so and links to that day's till, as Expenses does.
 import { useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { useMutation } from '@tanstack/react-query'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { ArrowLeft, PackageCheck, Truck } from 'lucide-react'
 import { ApiError } from '../../../api/client'
 import { api } from '../../../api/endpoints'
@@ -17,7 +17,7 @@ import { Button, Empty, ErrorNote, Field, Loading, PageHead, useToast } from '..
 import { closedCashDay } from '../../../lib/apiMessages'
 import { useFmt, useT } from '../../../lib/i18n'
 import { isBlank, parseAmount, toCents } from '../../../lib/money'
-import { useInvalidate, usePurchaseOrder } from '../../../lib/queries'
+import { keys, useInvalidate, usePurchaseOrder } from '../../../lib/queries'
 import { orderTotal, parseQuantity, useQuantityText } from '../../../lib/stock'
 import { venueTimeZone, zonedToday } from '../../../lib/time'
 import { useVenue } from '../../../lib/VenueContext'
@@ -73,6 +73,7 @@ function ReceiveForm({ order, today }: { order: PurchaseOrder; today: string }) 
   const q = useQuantityText()
   const toast = useToast()
   const navigate = useNavigate()
+  const qc = useQueryClient()
   const invalidate = useInvalidate()
   const rc = t.inventory.receive
   const [rows, setRows] = useState(() =>
@@ -108,10 +109,13 @@ function ReceiveForm({ order, today }: { order: PurchaseOrder; today: string }) 
 
   const mutation = useMutation({
     mutationFn: () => api.purchaseOrders.receive(order.id, input),
-    onSuccess: async () => {
-      await invalidate.orders()
-      toast(rc.done)
+    onSuccess: (received) => {
+      // Straight to the order as the API gave it back, received: waiting for the lists first let
+      // this page reload it and say it is not marked as ordered on the way
+      qc.setQueryData(keys.purchaseOrder(order.id), received)
       navigate(`/inventory/orders/${order.id}`, { replace: true })
+      toast(rc.done)
+      void invalidate.orders()
     },
   })
   // The day's till is closed and the expense was in cash: nothing was received

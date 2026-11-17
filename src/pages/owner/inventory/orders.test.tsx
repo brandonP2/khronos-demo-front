@@ -324,6 +324,25 @@ describe('receiving an order', () => {
     expect(expense.getAttribute('href')).toBe(`/expenses?from=${today}&to=${today}`)
   })
 
+  it('goes straight to the received order, never saying it is not ordered on the way', async () => {
+    let received = false
+    ordersApi((call) => {
+      if (call.method === 'PUT' && call.path === '/purchase-orders/12/receive') {
+        received = true
+        return json(200, { ...ordered, status: 'RECEIVED', receivedDate: today, lines: ordered.lines.map((l) => ({ ...l, receivedQuantity: l.quantity })) })
+      }
+      // Reloading the order after receiving it takes its time
+      if (received && call.method === 'GET' && call.path === '/purchase-orders/12') return new Promise<Response>(() => {})
+    })
+    renderApp('/inventory/orders/12/receive')
+    await screen.findByRole('heading', { name: 'Recibir el pedido #12' })
+    fireEvent.change(screen.getByLabelText('Medio de pago'), { target: { value: 'CARD' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Recibir pedido' }))
+    expect(await screen.findByText('Recibido: su stock ya está sumado.')).toBeTruthy()
+    expect(screen.getByRole('heading', { name: 'Pedido #12' })).toBeTruthy()
+    expect(screen.queryByText('Solo se puede recibir un pedido marcado como pedido.')).toBeNull()
+  })
+
   it('needs a total for the expense, and receives without one when it is not created', async () => {
     const noCost = { ...ordered, lines: ordered.lines.map((l) => ({ ...l, unitCost: null, lineTotal: null })), total: null }
     const calls = ordersApi((call) => {
