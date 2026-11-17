@@ -54,9 +54,14 @@ function writeSession(session: Session | null) {
   }
 }
 
-/** The API answers 401 "This account is disabled" when a worker is deactivated */
+/**
+ * The API answers 401 when a worker is deactivated. Newer APIs say so with the code
+ * ACCOUNT_DISABLED; older ones send no code, only the message "This account is disabled".
+ */
 export function isDisabledAccount(error: unknown): boolean {
-  return error instanceof ApiError && error.status === 401 && /disabled|deactivated/i.test(error.message)
+  if (!(error instanceof ApiError) || error.status !== 401) return false
+  if (error.code) return error.code === 'ACCOUNT_DISABLED'
+  return /disabled|deactivated/i.test(error.message)
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {

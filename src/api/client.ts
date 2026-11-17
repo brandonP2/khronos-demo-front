@@ -19,6 +19,11 @@ export class ApiError extends Error {
   batchIndex: number | null
   /** Seconds to wait before trying again, from the Retry-After header of a 429 */
   retryAfter: number | null
+  /**
+   * Machine-readable reason, such as ACCOUNT_DISABLED. Older APIs do not send it, so code
+   * that checks it keeps a fallback on the message.
+   */
+  code?: string
 
   constructor(body: ApiErrorBody, options: { kind?: ApiErrorKind; retryAfter?: number | null } = {}) {
     const match = /^\w+ \[(\d+)\]: (.*)$/s.exec(body.message ?? '')
@@ -28,6 +33,7 @@ export class ApiError extends Error {
     this.fieldErrors = body.fieldErrors ?? {}
     this.batchIndex = match ? Number(match[1]) : null
     this.retryAfter = options.retryAfter ?? null
+    this.code = typeof body.code === 'string' && body.code ? body.code : undefined
   }
 }
 

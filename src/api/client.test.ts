@@ -66,6 +66,16 @@ describe('401', () => {
     expect(e.message).toBe('This account is disabled')
   })
 
+  it('keeps the error code when the API sends one', async () => {
+    respond(401, { status: 401, message: 'Cuenta bloqueada', code: 'ACCOUNT_DISABLED' })
+    const e = await failure(request('POST', '/auth/login', {}, { anonymous: true }))
+    expect(e.code).toBe('ACCOUNT_DISABLED')
+
+    respond(401, { status: 401, message: 'This account is disabled' })
+    const old = await failure(request('POST', '/auth/login', {}, { anonymous: true }))
+    expect(old.code).toBeUndefined()
+  })
+
   it('does not end the session for a failed login', async () => {
     const handler = vi.fn()
     setUnauthorizedHandler(handler)

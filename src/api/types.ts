@@ -123,4 +123,6 @@ export interface ApiErrorBody {
   message: string
   path?: string
   fieldErrors?: Record<string, string>
+  /** Machine-readable reason, sent by newer APIs: ACCOUNT_DISABLED, INVALID_CREDENTIALS, TOO_MANY_ATTEMPTS, SESSION_EXPIRED */
+  code?: string
 }

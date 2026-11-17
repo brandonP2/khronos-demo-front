@@ -3,9 +3,10 @@ import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { MemoryRouter } from 'react-router-dom'
 import App from '../App'
+import { ApiError } from '../api/client'
 import { ToastProvider } from '../components/ui'
 import { LocaleProvider } from '../lib/i18n'
-import { AuthProvider } from './AuthContext'
+import { AuthProvider, isDisabledAccount } from './AuthContext'
 
 type Handler = (path: string, init?: RequestInit) => Response | Promise<Response>
 
@@ -88,6 +89,33 @@ describe('stored session', () => {
     mockFetch(() => json(401, { status: 401, message: 'Your session has expired or is no longer valid. Sign in again' }))
     renderApp()
     expect(await screen.findByText(/Tu sesión ha terminado/)).toBeTruthy()
+  })
+
+  it('reads a disabled account from the error code, whatever the message says', async () => {
+    storeSession()
+    mockFetch(() => json(401, { status: 401, message: 'Unauthorized', code: 'ACCOUNT_DISABLED' }))
+    renderApp()
+    expect(await screen.findByText(/tu cuenta está desactivada/)).toBeTruthy()
+  })
+})
+
+describe('isDisabledAccount', () => {
+  const error = (body: { message: string; code?: string }, status = 401) => new ApiError({ status, ...body })
+
+  it('trusts the code when the API sends one', () => {
+    expect(isDisabledAccount(error({ message: 'Unauthorized', code: 'ACCOUNT_DISABLED' }))).toBe(true)
+    expect(isDisabledAccount(error({ message: 'Sign in again, this token is disabled', code: 'SESSION_EXPIRED' }))).toBe(false)
+    expect(isDisabledAccount(error({ message: 'Invalid username or password', code: 'INVALID_CREDENTIALS' }))).toBe(false)
+  })
+
+  it('falls back on the message for an API without codes', () => {
+    expect(isDisabledAccount(error({ message: 'This account is disabled' }))).toBe(true)
+    expect(isDisabledAccount(error({ message: 'Invalid username or password' }))).toBe(false)
+  })
+
+  it('only applies to a 401', () => {
+    expect(isDisabledAccount(error({ message: 'This account is disabled', code: 'ACCOUNT_DISABLED' }, 403))).toBe(false)
+    expect(isDisabledAccount(new Error('This account is disabled'))).toBe(false)
   })
 })
 
