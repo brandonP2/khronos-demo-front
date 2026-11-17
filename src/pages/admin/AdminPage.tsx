@@ -5,10 +5,12 @@ import { ApiError } from '../../api/client'
 import { api } from '../../api/endpoints'
 import type { Establishment, User, UserCreate } from '../../api/types'
 import { ResetPasswordDialog } from '../../components/ResetPasswordDialog'
+import { TimeZoneField } from '../../components/TimeZoneField'
 import { Avatar, Button, ConfirmDialog, Dialog, Empty, ErrorNote, Field, Loading, PageHead, useToast } from '../../components/ui'
 import { useT } from '../../lib/i18n'
 import { isValidPassword, passwordError } from '../../lib/password'
 import { displayName, initials } from '../../lib/queries'
+import { DEFAULT_TIME_ZONE } from '../../lib/time'
 
 /** Platform admins onboard owners and their venues; everything after that is done by the owner */
 export default function AdminPage() {
@@ -236,9 +238,10 @@ function NewVenueDialog({ owners, onClose }: { owners: { id: number; name: strin
   const [name, setName] = useState('')
   const [address, setAddress] = useState('')
   const [ownerId, setOwnerId] = useState(owners[0]?.id ?? 0)
+  const [timeZone, setTimeZone] = useState(DEFAULT_TIME_ZONE)
   const mutation = useMutation({
     mutationFn: () =>
-      api.establishments.create({ establishmentName: name.trim(), establishmentAddress: address.trim(), ownerId }),
+      api.establishments.create({ establishmentName: name.trim(), establishmentAddress: address.trim(), ownerId, timeZone }),
     onSuccess: async () => {
       await qc.invalidateQueries({ queryKey: ['admin'] })
       toast(t.admin.venueCreated)
@@ -279,6 +282,11 @@ function NewVenueDialog({ owners, onClose }: { owners: { id: number; name: strin
         <Field label={t.admin.address} hint={t.admin.addressHint}>
           {(id) => <input id={id} className="input" value={address} onChange={(e) => setAddress(e.target.value)} />}
         </Field>
+        <TimeZoneField
+          value={timeZone}
+          onChange={setTimeZone}
+          error={mutation.error instanceof ApiError ? mutation.error.fieldErrors.timeZone : undefined}
+        />
         <ErrorNote error={mutation.error} />
       </div>
     </Dialog>

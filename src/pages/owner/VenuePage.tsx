@@ -1,13 +1,15 @@
 import { useState } from 'react'
 import { useMutation } from '@tanstack/react-query'
 import { Check, Map as MapIcon, Pencil, Plus, Trash2, X } from 'lucide-react'
+import { ApiError } from '../../api/client'
 import { api } from '../../api/endpoints'
 import type { Zone } from '../../api/types'
 import { useMe } from '../../auth/AuthContext'
+import { TimeZoneField } from '../../components/TimeZoneField'
 import { Button, ConfirmDialog, Empty, ErrorNote, Field, Loading, PageHead, useToast } from '../../components/ui'
 import { useT } from '../../lib/i18n'
 import { useEvents, useInvalidate, useShifts, useZones } from '../../lib/queries'
-import { eventDate, today } from '../../lib/time'
+import { DEFAULT_TIME_ZONE, eventDate, today } from '../../lib/time'
 import { useVenue } from '../../lib/VenueContext'
 
 export default function VenuePage() {
@@ -23,6 +25,8 @@ export default function VenuePage() {
 
   const [name, setName] = useState(venue?.establishmentName ?? '')
   const [address, setAddress] = useState(venue?.establishmentAddress ?? '')
+  const savedZone = venue?.timeZone || DEFAULT_TIME_ZONE
+  const [timeZone, setTimeZone] = useState(savedZone)
   const [newZone, setNewZone] = useState('')
   const [editing, setEditing] = useState<{ id: number; name: string } | null>(null)
   const [deleting, setDeleting] = useState<Zone | null>(null)
@@ -33,6 +37,7 @@ export default function VenuePage() {
         establishmentName: name.trim(),
         establishmentAddress: address.trim(),
         ownerId: me.id,
+        timeZone,
       }),
     onSuccess: async () => {
       await invalidate.venues()
@@ -63,7 +68,9 @@ export default function VenuePage() {
     shifts: (shifts.data ?? []).filter((s) => s.zoneId === zoneId && s.date >= now).length,
     events: (events.data ?? []).filter((e) => e.zoneId === zoneId && eventDate(e.dateTime) >= now).length,
   })
-  const venueDirty = name.trim() !== venue.establishmentName || address.trim() !== venue.establishmentAddress
+  const venueDirty =
+    name.trim() !== venue.establishmentName || address.trim() !== venue.establishmentAddress || timeZone !== savedZone
+  const venueErrors = saveVenue.error instanceof ApiError ? saveVenue.error.fieldErrors : {}
 
   return (
     <div className="page" style={{ maxWidth: 880 }}>
@@ -191,6 +198,7 @@ export default function VenuePage() {
               )}
             </Field>
           </div>
+          <TimeZoneField value={timeZone} onChange={setTimeZone} error={venueErrors.timeZone} />
           <ErrorNote error={saveVenue.error} />
           <div>
             <Button type="submit" variant="primary" disabled={!venueDirty || !name.trim() || !address.trim()} loading={saveVenue.isPending}>

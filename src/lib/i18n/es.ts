@@ -294,6 +294,15 @@ export const es = {
       `También se eliminan todos sus turnos y eventos, incluidos ${count(shifts, 'turno próximo', 'turnos próximos')} y ${count(events, 'evento próximo', 'eventos próximos')}. Se avisa por email a quien esté en esos eventos. No se puede deshacer.`,
     deleteBody: 'También se eliminan los turnos y eventos pasados que tenga registrados. No se puede deshacer.',
   },
+  timeZone: {
+    label: 'Zona horaria',
+    hint: 'Las horas de los fichajes se muestran siempre en esta zona, sea cual sea la del móvil de cada persona.',
+    names: {
+      'Europe/Madrid': 'Península y Baleares',
+      'Atlantic/Canary': 'Canarias',
+      'Africa/Ceuta': 'Ceuta y Melilla',
+    },
+  },
   mySchedule: {
     title: 'Mi horario',
     nextShift: 'Próximo turno',

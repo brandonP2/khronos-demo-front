@@ -277,6 +277,15 @@ export const en: Messages = {
       `This also deletes every shift and event in it, including ${count(shifts, 'upcoming shift')} and ${count(events, 'upcoming event')}. People on those events are emailed. This cannot be undone.`,
     deleteBody: 'This also deletes any past shifts and events recorded in it. This cannot be undone.',
   },
+  timeZone: {
+    label: 'Time zone',
+    hint: "Clock-in times are always shown in this zone, whatever the zone of each person's phone.",
+    names: {
+      'Europe/Madrid': 'Mainland Spain and Balearics',
+      'Atlantic/Canary': 'Canary Islands',
+      'Africa/Ceuta': 'Ceuta and Melilla',
+    },
+  },
   mySchedule: {
     title: 'My schedule',
     nextShift: 'Next shift',
