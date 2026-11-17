@@ -10,7 +10,7 @@ import { CopyWeekDialog, ShiftBatchDialog, ShiftEditDialog, type ShiftDraft } fr
 import { Button, Empty, ErrorNote, Loading, PageHead } from '../../components/ui'
 import { useFmt, useT } from '../../lib/i18n'
 import { useAssignments, useEvents, useShifts, useStaff, useZones } from '../../lib/queries'
-import { addDays, endsNextDay, eventDate, shiftMinutes, today, venueTimeZone, weekDays } from '../../lib/time'
+import { addDays, endsNextDay, eventDate, shiftMinutes, venueTimeZone, weekDays, zonedToday } from '../../lib/time'
 import { useVenue } from '../../lib/VenueContext'
 
 type Modal =
@@ -26,7 +26,10 @@ export default function SchedulePage() {
   const fmt = useFmt()
   const me = useMe()
   const { venue } = useVenue()
-  const [date, setDate] = useState(today())
+  // Today is the venue's, which can differ from the device's around midnight
+  const timeZone = venueTimeZone(venue)
+  const day = zonedToday(timeZone)
+  const [date, setDate] = useState(day)
   const [eventId, setEventId] = useState<number | null>(null)
   const [modal, setModal] = useState<Modal>(null)
 
@@ -120,7 +123,7 @@ export default function SchedulePage() {
 
   return (
     <div className="page">
-      <PageHead title={fmt.relative(date)} sub={date === today() ? fmt.long(date) : fmt.month(date)}>
+      <PageHead title={fmt.relative(date, day)} sub={date === day ? fmt.long(date) : fmt.month(date)}>
         <Button icon={Copy} onClick={() => setModal({ kind: 'copy-week' })} disabled={stale}>
           {t.schedule.copyLastWeek}
         </Button>
@@ -132,7 +135,7 @@ export default function SchedulePage() {
         </Button>
       </PageHead>
 
-      {venue && <NowCard venueId={venue.id} staff={staffList} timeZone={venueTimeZone(venue)} />}
+      {venue && <NowCard venueId={venue.id} staff={staffList} timeZone={timeZone} />}
 
       <div className="week">
         <Button variant="ghost" iconOnly icon={ChevronLeft} aria-label={t.common.previousWeek} onClick={() => goTo(addDays(date, -7))} />
@@ -142,7 +145,7 @@ export default function SchedulePage() {
             return (
               <button
                 key={d}
-                className={d === today() ? 'week-day is-today' : 'week-day'}
+                className={d === day ? 'week-day is-today' : 'week-day'}
                 aria-pressed={d === date}
                 onClick={() => goTo(d)}
               >
@@ -157,8 +160,8 @@ export default function SchedulePage() {
           })}
         </div>
         <Button variant="ghost" iconOnly icon={ChevronRight} aria-label={t.common.nextWeek} onClick={() => goTo(addDays(date, 7))} />
-        {!days.includes(today()) && (
-          <Button size="sm" onClick={() => goTo(today())}>
+        {!days.includes(day) && (
+          <Button size="sm" onClick={() => goTo(day)}>
             {t.common.today}
           </Button>
         )}
@@ -229,6 +232,7 @@ export default function SchedulePage() {
           shifts={shifts.data ?? []}
           assignments={byEvent.get(selectedEvent.id) ?? []}
           assignmentsLoading={assignments.loading}
+          timeZone={timeZone}
           onClose={() => setEventId(null)}
           onEdit={() => setModal({ kind: 'edit-event', event: selectedEvent })}
           onAddShift={(draft) => setModal({ kind: 'add-shifts', draft })}
@@ -241,6 +245,7 @@ export default function SchedulePage() {
           zones={zoneList}
           anchorDate={modal.draft?.dates?.[0] ?? date}
           draft={modal.draft}
+          timeZone={timeZone}
           onClose={() => setModal(null)}
         />
       )}
@@ -253,12 +258,13 @@ export default function SchedulePage() {
           staff={staffList}
           zones={zoneList}
           targetWeekDate={date}
+          timeZone={timeZone}
           onClose={() => setModal(null)}
         />
       )}
-      {modal?.kind === 'new-event' && <EventFormDialog zones={zoneList} defaultDate={date} onClose={() => setModal(null)} />}
+      {modal?.kind === 'new-event' && <EventFormDialog zones={zoneList} defaultDate={date} timeZone={timeZone} onClose={() => setModal(null)} />}
       {modal?.kind === 'edit-event' && (
-        <EventFormDialog zones={zoneList} event={modal.event} defaultDate={date} onClose={() => setModal(null)} />
+        <EventFormDialog zones={zoneList} event={modal.event} defaultDate={date} timeZone={timeZone} onClose={() => setModal(null)} />
       )}
     </div>
   )

@@ -6,7 +6,7 @@ import { api } from '../api/endpoints'
 import type { Shift, ShiftInput, Zone } from '../api/types'
 import { useInvalidate, type StaffMember } from '../lib/queries'
 import { useFmt, useT, type Messages } from '../lib/i18n'
-import { addDays, durationLabel, endsNextDay, hhmm, shiftTimeIssue, today, weekDays } from '../lib/time'
+import { addDays, durationLabel, endsNextDay, hhmm, shiftTimeIssue, weekDays, zonedToday } from '../lib/time'
 import { Avatar, Button, ConfirmDialog, Dialog, ErrorNote, Field, ShiftTimes, useToast } from './ui'
 
 /**
@@ -55,12 +55,15 @@ export function ShiftBatchDialog({
   zones,
   anchorDate,
   draft,
+  timeZone,
   onClose,
 }: {
   staff: StaffMember[]
   zones: Zone[]
   anchorDate: string
   draft?: ShiftDraft
+  /** The venue's, which says which days have passed */
+  timeZone: string
   onClose: () => void
 }) {
   const t = useT()
@@ -68,7 +71,7 @@ export function ShiftBatchDialog({
   const invalidate = useInvalidate()
   const toast = useToast()
   const active = staff.filter((s) => s.isActive)
-  const now = today()
+  const now = zonedToday(timeZone)
   // Shifts cannot be planned in the past, so a past day from the board or a draft is dropped
   const requestedDates = draft?.dates ?? [anchorDate]
   const droppedPast = requestedDates.some((d) => d < now)
@@ -384,12 +387,15 @@ export function CopyWeekDialog({
   staff,
   zones,
   targetWeekDate,
+  timeZone,
   onClose,
 }: {
   shifts: Shift[]
   staff: StaffMember[]
   zones: Zone[]
   targetWeekDate: string
+  /** The venue's, which says which days have passed */
+  timeZone: string
   onClose: () => void
 }) {
   const t = useT()
@@ -400,8 +406,9 @@ export function CopyWeekDialog({
   const source = weekDays(addDays(targetWeekDate, -7))
   const activeIds = new Set(staff.filter((s) => s.isActive).map((s) => s.userId))
   const sourceShifts = shifts.filter((s) => source.includes(s.date))
+  const day = zonedToday(timeZone)
   const batch: ShiftInput[] = sourceShifts
-    .filter((s) => activeIds.has(s.workerId) && addDays(s.date, 7) >= today())
+    .filter((s) => activeIds.has(s.workerId) && addDays(s.date, 7) >= day)
     .map((s) => ({
       workerId: s.workerId,
       zoneId: s.zoneId,

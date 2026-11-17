@@ -10,14 +10,15 @@ import { useFmt, useT } from '../../lib/i18n'
 import { keys, useMyVenue } from '../../lib/queries'
 import {
   addDays,
+  deviceTimeZone,
   venueTimeZone,
   eventDate,
   eventTime,
   minutesLabel,
   shiftCovers,
   shiftMinutes,
-  today,
   weekDays,
+  zonedToday,
 } from '../../lib/time'
 
 /** A worker's own view: their shifts by day, with the events they are on inside each shift */
@@ -27,14 +28,16 @@ export default function MySchedule() {
   const me = useMe()
   const [when, setWhen] = useState<'upcoming' | 'past'>('upcoming')
 
-  const now = today()
+  const { worker, venue } = useMyVenue(me.id)
+  const venueId = worker.data?.establishmentId
+  // Today is the venue's. Until the venue has loaded the device's stands in, and the agenda waits for it.
+  const timeZone = venue.data ? venueTimeZone(venue.data) : deviceTimeZone()
+  const now = zonedToday(timeZone)
   const week = weekDays(now)
   // From Monday of this week on, which also covers this week's hours; the past is fetched only when shown
   const ahead: DateRange = { from: week[0] }
   const past: DateRange = { to: addDays(now, -1) }
 
-  const { worker, venue } = useMyVenue(me.id)
-  const venueId = worker.data?.establishmentId
   const zones = useQuery({
     queryKey: keys.zones(venueId ?? 0),
     queryFn: () => api.zones.byEstablishment(venueId!),
@@ -83,7 +86,8 @@ export default function MySchedule() {
     .sort((a, b) => a.date.localeCompare(b.date) || a.startTime.localeCompare(b.startTime))[0]
   const upcomingEvents = (eventsAhead.data ?? []).filter((e) => assignedIds.has(e.id) && eventDate(e.dateTime) >= now).length
 
-  const loading = worker.isLoading || shiftsAhead.isLoading || shifts.isLoading || mine.isLoading || events.isLoading
+  const loading =
+    worker.isLoading || venue.isLoading || shiftsAhead.isLoading || shifts.isLoading || mine.isLoading || events.isLoading
   const error = worker.error ?? shiftsAhead.error ?? shifts.error ?? mine.error ?? events.error
 
   return (
@@ -115,7 +119,7 @@ export default function MySchedule() {
             <div className="card stat">
               <span className="label">{t.mySchedule.nextShift}</span>
               <span className="figure" style={{ fontSize: 22 }}>
-                {next ? fmt.agenda(next.date).title : '—'}
+                {next ? fmt.agenda(next.date, now).title : '—'}
               </span>
               <span className="meta mono">
                 {next ? (
@@ -150,8 +154,8 @@ export default function MySchedule() {
               {days.map(([day, list]) => (
                 <div key={day} className="agenda-day">
                   <div className="agenda-date">
-                    <div className="d">{fmt.agenda(day).title}</div>
-                    <div className="w">{fmt.agenda(day).sub}</div>
+                    <div className="d">{fmt.agenda(day, now).title}</div>
+                    <div className="w">{fmt.agenda(day, now).sub}</div>
                   </div>
                   <div className="agenda-items">
                     {list.map((s) => (

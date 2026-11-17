@@ -218,6 +218,11 @@ export function zonedToday(timeZone: string, now: number = Date.now()): string {
   return zonedDate(now, timeZone)
 }
 
+/** The device's own zone, which stands in for the venue's while that is not known yet */
+export function deviceTimeZone(): string {
+  return Intl.DateTimeFormat().resolvedOptions().timeZone
+}
+
 /** How far the zone's clock is ahead of UTC at an instant, in milliseconds */
 function zoneOffset(epochMs: number, timeZone: string): number {
   const w = wallClock(epochMs, timeZone)
@@ -336,20 +341,20 @@ export function makeFmt(locale: string, words: RelativeDayWords) {
     money: (n: number) => moneyFmt.format(n),
     /** Hours with one decimal from minutes: 450 to "7,5" */
     hours: (mins: number) => numberFmt.format(Math.round(mins / 6) / 10),
-    /** "Today", "Tomorrow", "Yesterday", or the long date */
-    relative(iso: string): string {
-      const t = today()
+    /** "Today", "Tomorrow", "Yesterday", or the long date; `on` is today, the venue's where it matters */
+    relative(iso: string, on: string = today()): string {
+      const t = on
       if (iso === t) return words.today
       if (iso === addDays(t, 1)) return words.tomorrow
       if (iso === addDays(t, -1)) return words.yesterday
       return fmt.long(iso)
     },
     /** Two lines for agenda headers: "Tomorrow" over "Wednesday 18 November", or "Thursday" over "19 November" */
-    agenda(iso: string): { title: string; sub: string } {
+    agenda(iso: string, on: string = today()): { title: string; sub: string } {
       const d = date(iso)
       const weekday = cap(weekdayLongFmt.format(d))
       const sub = dayMonthFmt.format(d)
-      const rel = fmt.relative(iso)
+      const rel = fmt.relative(iso, on)
       return rel === fmt.long(iso) ? { title: weekday, sub } : { title: rel, sub: `${weekday} ${sub}` }
     },
     /** "16 nov – 22 nov" for the week that holds the date */

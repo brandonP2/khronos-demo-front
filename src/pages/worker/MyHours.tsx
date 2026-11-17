@@ -40,7 +40,8 @@ function MyHoursBody({ venueId, timeZone }: { venueId: number; timeZone: string 
   const t = useT()
   const fmt = useFmt()
   const me = useMe()
-  const { value, setValue, period } = usePeriod(undefined, zonedToday(timeZone))
+  const on = zonedToday(timeZone)
+  const { value, setValue, period } = usePeriod(undefined, on)
   const report = useWorkerDays(me.id, period)
   const zones = useQuery({ queryKey: keys.zones(venueId), queryFn: () => api.zones.byEstablishment(venueId) })
   const download = useDownload()
@@ -69,7 +70,7 @@ function MyHoursBody({ venueId, timeZone }: { venueId: number; timeZone: string 
         </Button>
       </PageHead>
 
-      <PeriodPicker value={value} onChange={setValue} on={zonedToday(timeZone)} />
+      <PeriodPicker value={value} onChange={setValue} on={on} />
       <ErrorNote error={download.error} />
 
       {!period ? null : report.isLoading ? (
@@ -108,8 +109,8 @@ function MyHoursBody({ venueId, timeZone }: { venueId: number; timeZone: string 
             {days.map((day) => (
               <div key={day.date} className="agenda-day">
                 <div className="agenda-date">
-                  <div className="d">{fmt.agenda(day.date).title}</div>
-                  <div className="w">{fmt.agenda(day.date).sub}</div>
+                  <div className="d">{fmt.agenda(day.date, on).title}</div>
+                  <div className="w">{fmt.agenda(day.date, on).sub}</div>
                 </div>
                 <div className="agenda-items">
                   <DayCard day={day} zones={zones.data ?? []} timeZone={timeZone} onHistory={setHistoryOf} />

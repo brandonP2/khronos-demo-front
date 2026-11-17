@@ -5,7 +5,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import type { KEvent, Shift, Zone } from '../api/types'
 import { LocaleProvider } from '../lib/i18n'
 import type { StaffMember } from '../lib/queries'
-import { addDays, today } from '../lib/time'
+import { addDays, deviceTimeZone, today } from '../lib/time'
 import { EventDrawer } from './EventDialogs'
 import { ResetPasswordDialog } from './ResetPasswordDialog'
 import { ShiftBatchDialog } from './ShiftDialogs'
@@ -39,6 +39,8 @@ function person(userId: number, firstName: string, lastName: string): StaffMembe
 }
 
 const zones: Zone[] = [{ id: 7, name: 'Sala', establishmentId: 1 }]
+// The dates here are the device's, so the venue is in the device's zone
+const timeZone = deviceTimeZone()
 const lucia = person(1, 'Lucía', 'Romero')
 const marco = person(2, 'Marco', 'Bianchi')
 const tomas = person(3, 'Tomás', 'Vidal')
@@ -61,6 +63,7 @@ describe('ShiftBatchDialog', () => {
         zones={zones}
         anchorDate={yesterday}
         draft={{ workerIds: [1], zoneId: 7, dates: [yesterday, tomorrow], startTime: '18:00', endTime: '23:00' }}
+        timeZone={timeZone}
         onClose={() => {}}
       />,
     )
@@ -102,6 +105,7 @@ describe('EventDrawer', () => {
         shifts={[shift(1, 1), shift(2, 2)]}
         assignments={[]}
         assignmentsLoading={false}
+        timeZone={timeZone}
         onClose={() => {}}
         onEdit={() => {}}
         onAddShift={onAddShift}
@@ -118,6 +122,7 @@ describe('EventDrawer', () => {
         shifts={[shift(1, 1), shift(2, 2)]}
         assignments={[]}
         assignmentsLoading
+        timeZone={timeZone}
         onClose={() => {}}
         onEdit={() => {}}
         onAddShift={() => {}}
@@ -140,6 +145,7 @@ describe('EventDrawer', () => {
         shifts={[shift(1, 1), shift(2, 2)]}
         assignments={[]}
         assignmentsLoading={false}
+        timeZone={timeZone}
         onClose={() => {}}
         onEdit={() => {}}
         onAddShift={onAddShift}
@@ -181,6 +187,7 @@ describe('EventDrawer', () => {
         shifts={[night]}
         assignments={[]}
         assignmentsLoading={false}
+        timeZone={timeZone}
         onClose={() => {}}
         onEdit={() => {}}
         onAddShift={() => {}}

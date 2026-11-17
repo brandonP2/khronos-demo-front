@@ -22,7 +22,7 @@ import {
 import { useFmt, useT } from '../../lib/i18n'
 import { isValidPassword, passwordError } from '../../lib/password'
 import { useInvalidate, useShifts, useStaff, useZones, type StaffMember } from '../../lib/queries'
-import { shiftMinutes, today, weekDays } from '../../lib/time'
+import { shiftMinutes, venueTimeZone, weekDays, zonedToday } from '../../lib/time'
 import { useVenue } from '../../lib/VenueContext'
 
 type Modal =
@@ -37,7 +37,8 @@ export default function TeamPage() {
   const fmt = useFmt()
   const me = useMe()
   const { venue } = useVenue()
-  const week = weekDays(today())
+  // This week where the venue is, which can differ from the device's around midnight
+  const week = weekDays(zonedToday(venueTimeZone(venue)))
   const staff = useStaff(venue?.id)
   const zones = useZones(venue?.id)
   const shifts = useShifts(me.id, zones.data?.map((z) => z.id), { from: week[0], to: week[6] })

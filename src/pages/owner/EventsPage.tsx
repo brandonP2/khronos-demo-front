@@ -7,7 +7,7 @@ import { ShiftBatchDialog, type ShiftDraft } from '../../components/ShiftDialogs
 import { Avatar, Button, Empty, ErrorNote, Loading, PageHead } from '../../components/ui'
 import { useFmt, useT } from '../../lib/i18n'
 import { useAssignments, useEvents, useShifts, useStaff, useZones } from '../../lib/queries'
-import { addDays, eventDate, eventTime, today } from '../../lib/time'
+import { addDays, eventDate, eventTime, venueTimeZone, zonedToday } from '../../lib/time'
 import { useVenue } from '../../lib/VenueContext'
 
 type Modal = { kind: 'new' } | { kind: 'edit'; event: KEvent } | { kind: 'shift'; draft: ShiftDraft } | null
@@ -21,8 +21,9 @@ export default function EventsPage() {
   const [eventId, setEventId] = useState<number | null>(null)
   const [modal, setModal] = useState<Modal>(null)
 
-  // Upcoming fetches from today on, past fetches up to yesterday
-  const day = today()
+  // Upcoming fetches from today on, past fetches up to yesterday; today is the venue's
+  const timeZone = venueTimeZone(venue)
+  const day = zonedToday(timeZone)
   const range = when === 'upcoming' ? { from: day } : { to: addDays(day, -1) }
   // A night shift of the day before can cover an event in today's small hours
   const shiftRange = when === 'upcoming' ? { from: addDays(day, -1) } : range
@@ -107,11 +108,11 @@ export default function EventsPage() {
         </div>
       ) : (
         <div className="agenda">
-          {groups.map(([day, dayEvents]) => (
-            <div key={day} className="agenda-day">
+          {groups.map(([date, dayEvents]) => (
+            <div key={date} className="agenda-day">
               <div className="agenda-date">
-                <div className="d">{fmt.agenda(day).title}</div>
-                <div className="w">{fmt.agenda(day).sub}</div>
+                <div className="d">{fmt.agenda(date, day).title}</div>
+                <div className="w">{fmt.agenda(date, day).sub}</div>
               </div>
               <div className="agenda-items">
                 {dayEvents.map((e) => {
@@ -164,14 +165,15 @@ export default function EventsPage() {
           shifts={shifts.data ?? []}
           assignments={byEvent.get(selected.id) ?? []}
           assignmentsLoading={assignments.loading}
+          timeZone={timeZone}
           onClose={() => setEventId(null)}
           onEdit={() => setModal({ kind: 'edit', event: selected })}
           onAddShift={(draft) => setModal({ kind: 'shift', draft })}
         />
       )}
-      {modal?.kind === 'new' && <EventFormDialog zones={zoneList} defaultDate={day} onClose={() => setModal(null)} />}
+      {modal?.kind === 'new' && <EventFormDialog zones={zoneList} defaultDate={day} timeZone={timeZone} onClose={() => setModal(null)} />}
       {modal?.kind === 'edit' && (
-        <EventFormDialog zones={zoneList} event={modal.event} defaultDate={day} onClose={() => setModal(null)} />
+        <EventFormDialog zones={zoneList} event={modal.event} defaultDate={day} timeZone={timeZone} onClose={() => setModal(null)} />
       )}
       {modal?.kind === 'shift' && (
         <ShiftBatchDialog
@@ -179,6 +181,7 @@ export default function EventsPage() {
           zones={zoneList}
           anchorDate={modal.draft.dates?.[0] ?? day}
           draft={modal.draft}
+          timeZone={timeZone}
           onClose={() => setModal(null)}
         />
       )}

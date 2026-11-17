@@ -5,7 +5,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import type { KEvent, Shift, Zone } from '../api/types'
 import { LocaleProvider } from '../lib/i18n'
 import type { StaffMember } from '../lib/queries'
-import { addDays, today, weekStart } from '../lib/time'
+import { addDays, deviceTimeZone, today, weekStart } from '../lib/time'
 import { Board } from './Board'
 import { CopyWeekDialog, ShiftBatchDialog, ShiftEditDialog } from './ShiftDialogs'
 import { ToastProvider } from './ui'
@@ -39,6 +39,8 @@ function capturePosts() {
 }
 
 const zones: Zone[] = [{ id: 7, name: 'Sala', establishmentId: 1 }]
+// The dates here are the device's, so the venue is in the device's zone
+const timeZone = deviceTimeZone()
 const lucia: StaffMember = {
   userId: 1,
   establishmentId: 1,
@@ -67,6 +69,7 @@ describe('a shift that ends the next day', () => {
         zones={zones}
         anchorDate={tomorrow}
         draft={{ workerIds: [1], zoneId: 7, dates: [tomorrow], startTime, endTime }}
+        timeZone={timeZone}
         onClose={() => {}}
       />,
     )
@@ -127,6 +130,7 @@ describe('Copy last week', () => {
         staff={[lucia]}
         zones={zones}
         targetWeekDate={nextMonday}
+        timeZone={timeZone}
         onClose={() => {}}
       />,
     )

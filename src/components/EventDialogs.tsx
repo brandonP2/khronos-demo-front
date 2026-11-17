@@ -6,7 +6,7 @@ import { api } from '../api/endpoints'
 import type { Assignment, EventInput, KEvent, Shift, Zone } from '../api/types'
 import { useFmt, useT } from '../lib/i18n'
 import { useInvalidate, type StaffMember } from '../lib/queries'
-import { eventDate, eventTime, fromMinutes, minutes, shiftCovers, toDateTime, today } from '../lib/time'
+import { eventDate, eventTime, fromMinutes, minutes, shiftCovers, toDateTime, zonedToday } from '../lib/time'
 import { Avatar, Button, ConfirmDialog, Dialog, Drawer, ErrorNote, Field, ShiftTimes, errorMessage, useToast } from './ui'
 import type { ShiftDraft } from './ShiftDialogs'
 
@@ -20,6 +20,7 @@ export function EventDrawer({
   shifts,
   assignments,
   assignmentsLoading: isLoading,
+  timeZone,
   onClose,
   onEdit,
   onAddShift,
@@ -30,6 +31,8 @@ export function EventDrawer({
   /** Who is on this event, from the page's assignments for the venue */
   assignments: Assignment[]
   assignmentsLoading: boolean
+  /** The venue's, which says what today is */
+  timeZone: string
   onClose: () => void
   onEdit: () => void
   onAddShift: (draft: ShiftDraft) => void
@@ -45,7 +48,8 @@ export function EventDrawer({
   const assigned = assignments.map((a) => ({ a, person: staff.find((s) => s.userId === a.workerId) }))
   const available = staff.filter((s) => s.isActive && !assignedIds.has(s.userId) && coveringShift(s.userId))
   const notOnShift = staff.filter((s) => s.isActive && !assignedIds.has(s.userId) && !coveringShift(s.userId))
-  const isPast = eventDate(event.dateTime) < today()
+  const day = zonedToday(timeZone)
+  const isPast = eventDate(event.dateTime) < day
 
   const assign = useMutation({
     mutationFn: (workerIds: number[]) =>
@@ -97,7 +101,7 @@ export function EventDrawer({
   return (
     <Drawer
       title={event.title}
-      sub={`${fmt.relative(eventDate(event.dateTime))} · ${time} · ${event.zoneName}`}
+      sub={`${fmt.relative(eventDate(event.dateTime), day)} · ${time} · ${event.zoneName}`}
       onClose={onClose}
       busy={assign.isPending || unassign.isPending}
       footer={
@@ -270,11 +274,14 @@ export function EventFormDialog({
   zones,
   event,
   defaultDate,
+  timeZone,
   onClose,
 }: {
   zones: Zone[]
   event?: KEvent
   defaultDate: string
+  /** The venue's: a new event starts on its today at the earliest */
+  timeZone: string
   onClose: () => void
 }) {
   const t = useT()
@@ -292,7 +299,7 @@ export function EventFormDialog({
             description: event.description ?? '',
           },
         ]
-      : [emptyRow(defaultDate < today() ? today() : defaultDate, zones[0]?.id ?? '')],
+      : [emptyRow(defaultDate < zonedToday(timeZone) ? zonedToday(timeZone) : defaultDate, zones[0]?.id ?? '')],
   )
 
   const toInput = (r: EventRow): EventInput => ({
