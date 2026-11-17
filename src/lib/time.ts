@@ -343,10 +343,9 @@ export function makeFmt(locale: string, words: RelativeDayWords) {
     hours: (mins: number) => numberFmt.format(Math.round(mins / 6) / 10),
     /** "Today", "Tomorrow", "Yesterday", or the long date; `on` is today, the venue's where it matters */
     relative(iso: string, on: string = today()): string {
-      const t = on
-      if (iso === t) return words.today
-      if (iso === addDays(t, 1)) return words.tomorrow
-      if (iso === addDays(t, -1)) return words.yesterday
+      if (iso === on) return words.today
+      if (iso === addDays(on, 1)) return words.tomorrow
+      if (iso === addDays(on, -1)) return words.yesterday
       return fmt.long(iso)
     },
     /** Two lines for agenda headers: "Tomorrow" over "Wednesday 18 November", or "Thursday" over "19 November" */

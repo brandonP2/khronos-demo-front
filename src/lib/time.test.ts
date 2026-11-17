@@ -270,4 +270,10 @@ describe('makeFmt', () => {
     expect(en.relative(addDays(today(), -1))).toBe('Yesterday')
     expect(es.agenda(addDays(today(), 1)).title).toBe('Mañana')
   })
+
+  it("counts from the day it is given, such as the venue's today", () => {
+    expect(es.relative('2026-11-21', '2026-11-21')).toBe('Hoy')
+    expect(es.relative('2026-11-20', '2026-11-21')).toBe('Ayer')
+    expect(es.agenda('2026-11-22', '2026-11-21')).toEqual({ title: 'Mañana', sub: 'Domingo 22 de noviembre' })
+  })
 })
