@@ -21,7 +21,7 @@ import {
 import { useFmt, useT } from '../../lib/i18n'
 import { isValidPassword, passwordError } from '../../lib/password'
 import { useInvalidate, useShifts, useStaff, useZones, type StaffMember } from '../../lib/queries'
-import { minutes, today, weekDays } from '../../lib/time'
+import { shiftMinutes, today, weekDays } from '../../lib/time'
 import { useVenue } from '../../lib/VenueContext'
 
 type Modal =
@@ -46,7 +46,7 @@ export default function TeamPage() {
 
   const weekLoad = (id: number) => {
     const mine = (shifts.data ?? []).filter((s) => s.workerId === id && week.includes(s.date))
-    const mins = mine.reduce((n, s) => n + minutes(s.endTime) - minutes(s.startTime), 0)
+    const mins = mine.reduce((n, s) => n + shiftMinutes(s), 0)
     return { count: mine.length, hours: fmt.number(mins / 60) }
   }
 

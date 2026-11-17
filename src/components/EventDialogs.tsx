@@ -6,8 +6,8 @@ import { api } from '../api/endpoints'
 import type { Assignment, EventInput, KEvent, Shift, Zone } from '../api/types'
 import { useFmt, useT } from '../lib/i18n'
 import { useInvalidate, type StaffMember } from '../lib/queries'
-import { eventDate, eventTime, fromMinutes, hhmm, minutes, shiftCovers, toDateTime, today } from '../lib/time'
-import { Avatar, Button, ConfirmDialog, Dialog, Drawer, ErrorNote, Field, errorMessage, useToast } from './ui'
+import { endsNextDay, eventDate, eventTime, fromMinutes, hhmm, minutes, shiftCovers, toDateTime, today } from '../lib/time'
+import { Avatar, Button, ConfirmDialog, Dialog, Drawer, ErrorNote, Field, NextDay, errorMessage, useToast } from './ui'
 import type { ShiftDraft } from './ShiftDialogs'
 
 /**
@@ -91,8 +91,8 @@ export function EventDrawer({
   }
 
   const time = eventTime(event.dateTime)
-  // Four hours from the event, but always after it and before midnight, where shifts end
-  const suggestedEnd = fromMinutes(Math.min(minutes(time) + 4 * 60, 23 * 60 + 59))
+  // Four hours from the event; past midnight the shift simply ends the next day
+  const suggestedEnd = fromMinutes((minutes(time) + 4 * 60) % (24 * 60))
 
   return (
     <Drawer
@@ -139,7 +139,7 @@ export function EventDrawer({
                 <Avatar size="sm" initials={person?.initials ?? '?'} />
                 <span className="grow">
                   {person?.name ?? t.common.unknownPerson(a.workerId)}
-                  {s && <span className="sub">{t.eventDrawer.shift(hhmm(s.startTime), hhmm(s.endTime))}</span>}
+                  {s && <ShiftSub shift={s} />}
                 </span>
                 <Button
                   size="sm"
@@ -182,7 +182,7 @@ export function EventDrawer({
                 <Avatar size="sm" initials={s.initials} />
                 <span className="grow">
                   {s.name}
-                  <span className="sub">{t.eventDrawer.shift(hhmm(shift.startTime), hhmm(shift.endTime))}</span>
+                  <ShiftSub shift={shift} />
                 </span>
                 <Button
                   size="sm"
@@ -239,6 +239,17 @@ export function EventDrawer({
         </section>
       )}
     </Drawer>
+  )
+}
+
+/** "Turno 18:00–02:00+1" under a person's name */
+function ShiftSub({ shift }: { shift: Shift }) {
+  const t = useT()
+  return (
+    <span className="sub">
+      {t.eventDrawer.shift(hhmm(shift.startTime), hhmm(shift.endTime))}
+      {endsNextDay(shift.startTime, shift.endTime) && <NextDay />}
+    </span>
   )
 }
 

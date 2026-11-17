@@ -2,8 +2,8 @@ import { useMemo, useState } from 'react'
 import { Plus } from 'lucide-react'
 import type { Assignment, KEvent, Shift, Zone } from '../api/types'
 import { useT } from '../lib/i18n'
-import { eventTime, hhmm, minutes, shiftCovers } from '../lib/time'
-import { Avatar, Button } from './ui'
+import { endsNextDay, eventTime, hhmm, minutes, shiftCovers, spanMinutes } from '../lib/time'
+import { Avatar, Button, NextDay } from './ui'
 
 export interface BoardPerson {
   userId: number
@@ -14,8 +14,10 @@ export interface BoardPerson {
 interface BoardProps {
   zones: Zone[]
   people: BoardPerson[]
-  /** Shifts of the day shown */
+  /** Shifts of the day shown; a night shift runs past midnight to where it really ends */
   shifts: Shift[]
+  /** Night shifts of the day before, drawn from midnight to their end, so the small hours show who is on */
+  previousNight?: Shift[]
   /** Events of the day shown */
   events: KEvent[]
   assignments: Map<number, Assignment[]>
@@ -27,12 +29,20 @@ interface BoardProps {
   onAddShift?: (zoneId: number) => void
 }
 
-/** Visible hours: at least 09–18, widened to fit every shift and event of the day */
-function hourRange(shifts: Shift[], events: KEvent[]) {
+/**
+ * Visible hours: at least 09–18, widened to fit every shift and event of the day. A night
+ * shift widens it past 24:00, up to 48:00 at most; the previous night starts it at 00:00.
+ */
+function hourRange(shifts: Shift[], previousNight: Shift[], events: KEvent[]) {
   let lo = 9 * 60
   let hi = 18 * 60
   for (const s of shifts) {
-    lo = Math.min(lo, minutes(s.startTime))
+    const start = minutes(s.startTime)
+    lo = Math.min(lo, start)
+    hi = Math.max(hi, start + spanMinutes(s.startTime, s.endTime))
+  }
+  for (const s of previousNight) {
+    lo = 0
     hi = Math.max(hi, minutes(s.endTime))
   }
   for (const e of events) {
@@ -40,18 +50,31 @@ function hourRange(shifts: Shift[], events: KEvent[]) {
     lo = Math.min(lo, t - 30)
     hi = Math.max(hi, t + 60)
   }
-  return { lo: Math.max(0, Math.floor(lo / 60)), hi: Math.min(24, Math.ceil(hi / 60)) }
+  return { lo: Math.max(0, Math.floor(lo / 60)), hi: Math.min(48, Math.ceil(hi / 60)) }
+}
+
+/** A bar on the board: a shift of the day, or the part after midnight of last night's shift */
+interface Bar {
+  shift: Shift
+  start: number
+  end: number
+  carried: boolean
 }
 
 /**
  * The day board. Each worker's shift is a bar across the hours of its zone. Every event
  * drops a coverage line at its start time: the bars that line crosses are the people who
  * can work it, which is exactly the rule the API enforces on assignments.
+ *
+ * The day is a service day: a shift that ends after midnight is drawn whole, on an axis that
+ * runs on past 24:00 with "+1" on the hours of the next day. The night shifts of the day
+ * before are drawn from 00:00 to their end, so an event in the small hours shows its cover.
  */
 export function Board({
   zones,
   people,
   shifts,
+  previousNight = [],
   events,
   assignments,
   assignmentsLoading = false,
@@ -62,19 +85,28 @@ export function Board({
 }: BoardProps) {
   const t = useT()
   const [hoverEvent, setHoverEvent] = useState<number | null>(null)
-  const { lo, hi } = useMemo(() => hourRange(shifts, events), [shifts, events])
+  const { lo, hi } = useMemo(() => hourRange(shifts, previousNight, events), [shifts, previousNight, events])
   const span = (hi - lo) * 60
   const x = (mins: number) => `${((mins - lo * 60) / span) * 100}%`
   const hours = Array.from({ length: hi - lo + 1 }, (_, i) => lo + i)
   const step = hi - lo > 14 ? 2 : 1
+  const pastMidnight = hi > 24
   const personById = new Map(people.map((p) => [p.userId, p]))
   const focus = hoverEvent ?? selectedEventId ?? null
   const focusEvent = events.find((e) => e.id === focus) ?? null
 
+  const bars: Bar[] = [
+    ...previousNight.map((s) => ({ shift: s, start: 0, end: minutes(s.endTime), carried: true })),
+    ...shifts.map((s) => {
+      const start = minutes(s.startTime)
+      return { shift: s, start, end: start + spanMinutes(s.startTime, s.endTime), carried: false }
+    }),
+  ]
+
   const gridlines = (
     <div className="board-gridlines">
       {hours.map((h) => (
-        <div key={h} className="board-gridline" style={{ left: x(h * 60) }} />
+        <div key={h} className={h === 24 ? 'board-gridline midnight' : 'board-gridline'} style={{ left: x(h * 60) }} />
       ))}
     </div>
   )
@@ -83,22 +115,24 @@ export function Board({
     <div className="board">
       <div className="board-inner">
         <div className="board-axis">
-          <div />
+          <div className="board-axis-note">{pastMidnight ? t.board.nextDayLegend : null}</div>
           <div className="board-ticks">
+            {/* Every second hour on long days, on even hours so midnight always gets a label */}
             {hours
-              .filter((h) => (h - lo) % step === 0 && h > lo && h < hi)
+              .filter((h) => h % step === 0 && h > lo && h < hi)
               .map((h) => (
                 <span key={h} className="board-tick" style={{ left: x(h * 60) }}>
-                  {String(h).padStart(2, '0')}:00
+                  {String(h % 24).padStart(2, '0')}:00
+                  {h >= 24 && <NextDay />}
                 </span>
               ))}
           </div>
         </div>
 
         {zones.map((zone) => {
-          const zoneShifts = shifts.filter((s) => s.zoneId === zone.id)
+          const zoneBars = bars.filter((b) => b.shift.zoneId === zone.id)
           const zoneEvents = events.filter((e) => e.zoneId === zone.id)
-          const workerIds = [...new Set(zoneShifts.map((s) => s.workerId))].sort((a, b) =>
+          const workerIds = [...new Set(zoneBars.map((b) => b.shift.workerId))].sort((a, b) =>
             (personById.get(a)?.name ?? '').localeCompare(personById.get(b)?.name ?? ''),
           )
           return (
@@ -146,37 +180,51 @@ export function Board({
 
                 {workerIds.map((workerId) => {
                   const person = personById.get(workerId)
-                  const rowShifts = zoneShifts.filter((s) => s.workerId === workerId)
+                  const name = person?.name ?? t.common.unknownPerson(workerId)
+                  const rowBars = zoneBars.filter((b) => b.shift.workerId === workerId)
                   return (
                     <div key={workerId} className="board-row">
                       <div className="board-person">
                         <Avatar size="sm" initials={person?.initials ?? '?'} />
-                        <span>{person?.name ?? t.common.unknownPerson(workerId)}</span>
+                        <span>{name}</span>
                       </div>
                       <div className="board-lane">
                         {gridlines}
-                        {rowShifts.map((s) => {
-                          const start = minutes(s.startTime)
-                          const end = minutes(s.endTime)
+                        {rowBars.map(({ shift: s, start, end, carried }) => {
                           const covering = focusEvent ? shiftCovers(s, focusEvent) : false
+                          const from = hhmm(s.startTime)
+                          const to = hhmm(s.endTime)
+                          const overnight = endsNextDay(s.startTime, s.endTime)
                           // Coverage is also said in words, not only by the accent colour
-                          const label = t.board.shiftLabel(
-                            person?.name ?? t.common.unknownPerson(workerId),
-                            hhmm(s.startTime),
-                            hhmm(s.endTime),
-                          )
+                          const label = carried
+                            ? t.board.carryLabel(name, from, to)
+                            : overnight
+                              ? t.board.shiftLabelNextDay(name, from, to)
+                              : t.board.shiftLabel(name, from, to)
+                          const cls = ['shift-bar', carried && 'carried', overnight && !carried && 'overnight', covering && 'covering']
+                            .filter(Boolean)
+                            .join(' ')
                           return (
                             <button
-                              key={s.id}
-                              className={covering ? 'shift-bar covering' : 'shift-bar'}
+                              key={`${s.id}${carried ? '-carried' : ''}`}
+                              className={cls}
                               style={{ left: x(start), width: `${((end - start) / span) * 100}%` }}
                               onClick={() => onShiftClick?.(s)}
                               disabled={!onShiftClick}
                               aria-label={covering && focusEvent ? `${label}, ${t.board.covers(focusEvent.title)}` : label}
-                              title={`${hhmm(s.startTime)}–${hhmm(s.endTime)}`}
+                              title={`${from}–${to}${overnight ? ` (+1)` : ''}`}
                             >
-                              <span className="start">{hhmm(s.startTime)}</span>
-                              <span className="end">–{hhmm(s.endTime)}</span>
+                              {carried ? (
+                                <span className="start">{t.board.until(to)}</span>
+                              ) : (
+                                <>
+                                  <span className="start">{from}</span>
+                                  <span className="end">
+                                    –{to}
+                                    {overnight && <NextDay />}
+                                  </span>
+                                </>
+                              )}
                             </button>
                           )
                         })}

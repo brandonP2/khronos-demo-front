@@ -24,9 +24,11 @@ export default function EventsPage() {
   // Upcoming fetches from today on, past fetches up to yesterday
   const day = today()
   const range = when === 'upcoming' ? { from: day } : { to: addDays(day, -1) }
+  // A night shift of the day before can cover an event in today's small hours
+  const shiftRange = when === 'upcoming' ? { from: addDays(day, -1) } : range
   const zones = useZones(venue?.id)
   const staff = useStaff(venue?.id)
-  const shifts = useShifts(me.id, zones.data?.map((z) => z.id), range)
+  const shifts = useShifts(me.id, zones.data?.map((z) => z.id), shiftRange)
   const events = useEvents(venue?.id, range)
   const assignments = useAssignments(venue?.id, range)
   const byEvent = assignments.byEvent

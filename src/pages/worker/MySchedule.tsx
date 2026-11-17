@@ -4,10 +4,21 @@ import { CalendarRange } from 'lucide-react'
 import { api } from '../../api/endpoints'
 import type { DateRange, KEvent, Shift } from '../../api/types'
 import { useMe } from '../../auth/AuthContext'
-import { Empty, ErrorNote, Loading, PageHead } from '../../components/ui'
+import { Empty, ErrorNote, Loading, NextDay, PageHead } from '../../components/ui'
 import { useFmt, useT } from '../../lib/i18n'
 import { keys } from '../../lib/queries'
-import { addDays, durationLabel, eventDate, eventTime, hhmm, minutes, shiftCovers, today, weekDays } from '../../lib/time'
+import {
+  addDays,
+  endsNextDay,
+  eventDate,
+  eventTime,
+  hhmm,
+  minutesLabel,
+  shiftCovers,
+  shiftMinutes,
+  today,
+  weekDays,
+} from '../../lib/time'
 
 /** A worker's own view: their shifts by day, with the events they are on inside each shift */
 export default function MySchedule() {
@@ -71,7 +82,7 @@ export default function MySchedule() {
 
   const weekMins = (shiftsAhead.data ?? [])
     .filter((s) => week.includes(s.date))
-    .reduce((n, s) => n + minutes(s.endTime) - minutes(s.startTime), 0)
+    .reduce((n, s) => n + shiftMinutes(s), 0)
   const next = (shiftsAhead.data ?? [])
     .filter((s) => s.date >= now)
     .sort((a, b) => a.date.localeCompare(b.date) || a.startTime.localeCompare(b.startTime))[0]
@@ -109,7 +120,14 @@ export default function MySchedule() {
                 {next ? fmt.agenda(next.date).title : '—'}
               </span>
               <span className="meta mono">
-                {next ? `${hhmm(next.startTime)}–${hhmm(next.endTime)} · ${zoneName(next.zoneId)}` : t.mySchedule.nothingPlanned}
+                {next ? (
+                  <>
+                    {hhmm(next.startTime)}–{hhmm(next.endTime)}
+                    {endsNextDay(next.startTime, next.endTime) && <NextDay />} · {zoneName(next.zoneId)}
+                  </>
+                ) : (
+                  t.mySchedule.nothingPlanned
+                )}
               </span>
             </div>
             <div className="card stat">
@@ -160,10 +178,11 @@ function ShiftCard({ shift, zone, events }: { shift: Shift; zone: string; events
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 16 }}>
         <span className="mono" style={{ fontSize: 15 }}>
           {hhmm(shift.startTime)}–{hhmm(shift.endTime)}
+          {endsNextDay(shift.startTime, shift.endTime) && <NextDay />}
         </span>
         <span style={{ fontWeight: 500, flex: 1 }}>{zone}</span>
         <span className="muted mono" style={{ fontSize: 12 }}>
-          {durationLabel(shift.startTime, shift.endTime)}
+          {minutesLabel(shiftMinutes(shift))}
         </span>
       </div>
       {events.length > 0 && (

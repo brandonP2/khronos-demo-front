@@ -105,6 +105,17 @@ export function Field({
   )
 }
 
+/** "+1" after a time that falls on the next day; screen readers hear the words instead */
+export function NextDay() {
+  const t = useT()
+  return (
+    <span className="next-day" title={t.board.nextDay}>
+      <span aria-hidden>+1</span>
+      <span className="visually-hidden"> {t.board.nextDay}</span>
+    </span>
+  )
+}
+
 export function Avatar({ initials, size }: { initials: string; size?: 'sm' }) {
   return (
     <span className={size === 'sm' ? 'avatar sm' : 'avatar'} aria-hidden>

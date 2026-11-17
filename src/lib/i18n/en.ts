@@ -75,8 +75,14 @@ export const en: Messages = {
     addShift: 'Add shift',
     staffed: (n: number) => `${n} on`,
     shiftLabel: (name: string, start: string, end: string) => `${name} ${start} to ${end}`,
+    shiftLabelNextDay: (name: string, start: string, end: string) => `${name} ${start} to ${end} the next day`,
+    carryLabel: (name: string, start: string, end: string) =>
+      `${name}, shift from the day before, ${start} to ${end}, on until ${end}`,
+    until: (time: string) => `until ${time}`,
     assignedTo: (event: string) => `On ${event}`,
     covers: (event: string) => `covers ${event}`,
+    nextDay: 'the next day',
+    nextDayLegend: '+1: next day',
   },
   schedule: {
     title: 'Schedule',
@@ -115,8 +121,11 @@ export const en: Messages = {
     zone: 'Zone',
     starts: 'Starts',
     ends: 'Ends',
-    endsHint: 'Same day, before midnight',
-    endsBeforeStart: 'Ends before it starts',
+    lasts: (duration: string) => `Lasts ${duration}`,
+    nextDayHint: 'The next day',
+    overnight: (end: string, duration: string) => `Ends the next day at ${end}. Lasts ${duration}.`,
+    sameTime: 'Starts and ends at the same time',
+    tooLong: 'A shift can last 16 hours at most',
     preview: 'Preview',
   },
   shiftEdit: {

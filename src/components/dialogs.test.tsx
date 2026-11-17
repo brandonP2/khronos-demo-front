@@ -166,10 +166,29 @@ describe('EventDrawer', () => {
     expect(screen.getByRole('button', { name: 'Asignar al resto (1)' })).toBeTruthy()
   })
 
-  it('suggests a shift end after a late event, not equal to it', () => {
+  it('suggests four hours after a late event, ending the next day', () => {
     const onAddShift = renderDrawer()
     fireEvent.click(screen.getByRole('button', { name: 'Darle un turno' }))
-    expect(onAddShift).toHaveBeenCalledWith(expect.objectContaining({ workerIds: [3], startTime: '23:30', endTime: '23:59' }))
+    expect(onAddShift).toHaveBeenCalledWith(expect.objectContaining({ workerIds: [3], startTime: '23:30', endTime: '03:30' }))
+  })
+
+  it("counts last night's shift as cover for an event in the small hours", () => {
+    const night: Shift = { ...shift(3, 3), date: addDays(day, -1), startTime: '20:00:00', endTime: '02:00:00', endsNextDay: true, durationMinutes: 360 }
+    wrap(
+      <EventDrawer
+        event={{ ...event, dateTime: `${day}T01:00:00` }}
+        staff={[lucia, marco, tomas]}
+        shifts={[night]}
+        assignments={[]}
+        assignmentsLoading={false}
+        onClose={() => {}}
+        onEdit={() => {}}
+        onAddShift={() => {}}
+      />,
+    )
+    expect(screen.getByRole('button', { name: 'Asignar' })).toBeTruthy()
+    expect(screen.getByText('Tomás Vidal')).toBeTruthy()
+    expect(screen.getByText(/Turno 20:00–02:00/)).toBeTruthy()
   })
 })
 

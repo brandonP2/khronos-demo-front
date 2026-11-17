@@ -1,13 +1,52 @@
 import { useMemo, useState } from 'react'
 import { useMutation } from '@tanstack/react-query'
-import { ChevronLeft, ChevronRight, Trash2 } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Moon, Trash2 } from 'lucide-react'
 import { ApiError } from '../api/client'
 import { api } from '../api/endpoints'
 import type { Shift, ShiftInput, Zone } from '../api/types'
 import { useInvalidate, type StaffMember } from '../lib/queries'
-import { useFmt, useT } from '../lib/i18n'
-import { addDays, durationLabel, hhmm, minutes, today, weekDays } from '../lib/time'
-import { Avatar, Button, ConfirmDialog, Dialog, ErrorNote, Field, useToast } from './ui'
+import { useFmt, useT, type Messages } from '../lib/i18n'
+import { addDays, durationLabel, endsNextDay, hhmm, shiftTimeIssue, today, weekDays } from '../lib/time'
+import { Avatar, Button, ConfirmDialog, Dialog, ErrorNote, Field, NextDay, useToast } from './ui'
+
+/**
+ * What the times of a shift mean. An end at or before the start is on the next day
+ * (18:00–02:00 is 8 hours); the same time twice and more than 16 hours are refused.
+ */
+function shiftTimes(startTime: string, endTime: string, t: Messages) {
+  const issue = shiftTimeIssue(startTime, endTime)
+  const error = issue === 'same-time' ? t.shiftBatch.sameTime : issue === 'too-long' ? t.shiftBatch.tooLong : undefined
+  const complete = !!startTime && !!endTime
+  const duration = complete && !issue ? durationLabel(startTime, endTime) : ''
+  const overnight = complete && !issue && endsNextDay(startTime, endTime)
+  const hint = !duration ? undefined : overnight ? t.shiftBatch.nextDayHint : t.shiftBatch.lasts(duration)
+  return { error, duration, overnight, hint }
+}
+
+/** Said out loud when a shift runs past midnight; the region is always there so the change is announced */
+function OvernightNote({ overnight, endTime, duration }: { overnight: boolean; endTime: string; duration: string }) {
+  const t = useT()
+  return (
+    <div aria-live="polite">
+      {overnight && (
+        <div className="notice info">
+          <Moon size={16} strokeWidth={1.5} />
+          <span>{t.shiftBatch.overnight(endTime, duration)}</span>
+        </div>
+      )}
+    </div>
+  )
+}
+
+/** "18:00–02:00+1" */
+function ShiftTimes({ startTime, endTime }: { startTime: string; endTime: string }) {
+  return (
+    <>
+      {hhmm(startTime)}–{hhmm(endTime)}
+      {endsNextDay(startTime, endTime) && <NextDay />}
+    </>
+  )
+}
 
 export interface ShiftDraft {
   workerIds?: number[]
@@ -51,8 +90,8 @@ export function ShiftBatchDialog({
   const [endTime, setEndTime] = useState(draft?.endTime ?? '17:00')
   const [failedIndex, setFailedIndex] = useState<number | null>(null)
 
-  const timeError =
-    startTime && endTime && minutes(endTime) <= minutes(startTime) ? t.shiftBatch.endsBeforeStart : undefined
+  const times = shiftTimes(startTime, endTime, t)
+  const timeError = times.error
 
   const batch: ShiftInput[] = useMemo(() => {
     if (!zoneId) return []
@@ -91,7 +130,7 @@ export function ShiftBatchDialog({
       footer={
         <>
           <span className="spacer muted">
-            {batch.length > 0 ? t.shiftBatch.summary(batch.length, durationLabel(startTime, endTime)) : ''}
+            {batch.length > 0 && times.duration ? t.shiftBatch.summary(batch.length, times.duration) : ''}
           </span>
           <Button variant="ghost" onClick={onClose}>
             {t.common.cancel}
@@ -179,7 +218,7 @@ export function ShiftBatchDialog({
               <input id={id} type="time" className="input mono" value={startTime} onChange={(e) => setStartTime(e.target.value)} />
             )}
           </Field>
-          <Field label={t.shiftBatch.ends} error={timeError} hint={t.shiftBatch.endsHint}>
+          <Field label={t.shiftBatch.ends} error={timeError} hint={times.hint}>
             {(id) => (
               <input
                 id={id}
@@ -192,8 +231,9 @@ export function ShiftBatchDialog({
             )}
           </Field>
         </div>
+        <OvernightNote overnight={times.overnight} endTime={endTime} duration={times.duration} />
 
-        {batch.length > 0 && (
+        {batch.length > 0 && !timeError && (
           <div className="field">
             <span className="label">{t.shiftBatch.preview}</span>
             <div className="batch-preview">
@@ -202,7 +242,7 @@ export function ShiftBatchDialog({
                   <span style={{ flex: 1 }}>{nameOf(s.workerId)}</span>
                   <span className="muted">{zoneName}</span>
                   <span className="mono secondary when">
-                    {fmt.day(s.date)} · {s.startTime}–{s.endTime}
+                    {fmt.day(s.date)} · <ShiftTimes startTime={s.startTime} endTime={s.endTime} />
                   </span>
                 </div>
               ))}
@@ -239,7 +279,8 @@ export function ShiftEditDialog({
   })
   const [confirmDelete, setConfirmDelete] = useState(false)
   const set = <K extends keyof ShiftInput>(k: K, v: ShiftInput[K]) => setForm((f) => ({ ...f, [k]: v }))
-  const timeError = minutes(form.endTime) <= minutes(form.startTime) ? t.shiftBatch.endsBeforeStart : undefined
+  const times = shiftTimes(form.startTime, form.endTime, t)
+  const timeError = times.error
 
   const save = useMutation({
     mutationFn: () => api.shifts.update(shift.id, form),
@@ -324,7 +365,7 @@ export function ShiftEditDialog({
               <input id={id} type="time" className="input mono" value={form.startTime} onChange={(e) => set('startTime', e.target.value)} />
             )}
           </Field>
-          <Field label={t.shiftBatch.ends} error={timeError}>
+          <Field label={t.shiftBatch.ends} error={timeError} hint={times.hint}>
             {(id) => (
               <input
                 id={id}
@@ -337,13 +378,17 @@ export function ShiftEditDialog({
             )}
           </Field>
         </div>
+        <OvernightNote overnight={times.overnight} endTime={form.endTime} duration={times.duration} />
         <ErrorNote error={save.error} />
       </div>
     </Dialog>
   )
 }
 
-/** Repeats last week's rota on the week shown, skipping people who are no longer active */
+/**
+ * Repeats last week's rota on the week shown, skipping people who are no longer active.
+ * Night shifts keep their times, so they still end the next day.
+ */
 export function CopyWeekDialog({
   shifts,
   staff,
@@ -429,7 +474,7 @@ export function CopyWeekDialog({
                   <span style={{ flex: 1 }}>{nameOf(s.workerId)}</span>
                   <span className="muted">{zoneOf(s.zoneId)}</span>
                   <span className="mono secondary when">
-                    {fmt.day(s.date)} · {s.startTime}–{s.endTime}
+                    {fmt.day(s.date)} · <ShiftTimes startTime={s.startTime} endTime={s.endTime} />
                   </span>
                 </div>
               ))}

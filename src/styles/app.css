@@ -137,6 +137,29 @@ a {
   outline-offset: 2px;
 }
 
+/* Read by screen readers, not shown */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* "+1" after a time on the next day */
+.next-day {
+  margin-left: 2px;
+  font-family: var(--mono);
+  font-size: 10px;
+  line-height: 1;
+  vertical-align: 0.45em;
+  color: var(--text-3);
+}
+
 /* ---------- Shell ---------- */
 
 .shell {
@@ -921,6 +944,18 @@ a {
   transform: translateX(-50%);
 }
 
+/* Says what "+1" means when the day runs past midnight */
+.board-axis-note {
+  display: flex;
+  align-items: center;
+  padding: 0 16px;
+  font-family: var(--mono);
+  font-size: 11px;
+  line-height: 13px;
+  color: var(--text-3);
+  overflow: hidden;
+}
+
 .board-zone-head {
   display: flex;
   min-height: 40px;
@@ -1020,6 +1055,13 @@ a {
   background: var(--line);
 }
 
+/* Midnight: where the service day carries on into the next calendar day */
+.board-gridline.midnight {
+  width: 0;
+  background: none;
+  border-left: 1px dashed var(--line-strong);
+}
+
 .board-add-row {
   height: 40px;
   display: flex;
@@ -1073,6 +1115,17 @@ a {
 .shift-bar.covering {
   border-color: var(--accent-line);
   background: color-mix(in srgb, var(--accent) 12%, var(--bar));
+}
+
+/* Last night's shift, carried on from before midnight: square, dashed start */
+.shift-bar.carried {
+  border-radius: 0 6px 6px 0;
+  border-left: 1px dashed var(--text-3);
+}
+
+.shift-bar .next-day {
+  color: inherit;
+  opacity: 0.75;
 }
 
 /* The signature: a thin line at the event's start time, running through the zone's rows */
@@ -1771,7 +1824,8 @@ body:has(.session-warning) .toasts {
     min-width: 720px;
   }
 
-  .board-zone-name {
+  .board-zone-name,
+  .board-axis-note {
     padding: 0 10px;
   }
 

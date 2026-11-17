@@ -81,9 +81,18 @@ export const es = {
     /** Event pin: how many people are on it */
     staffed: (n: number) => (n === 0 ? 'sin nadie' : n === 1 ? '1 asignado' : `${n} asignados`),
     shiftLabel: (name: string, start: string, end: string) => `${name}, de ${start} a ${end}`,
+    shiftLabelNextDay: (name: string, start: string, end: string) => `${name}, de ${start} a ${end} del día siguiente`,
+    /** A night shift of the day before, drawn from midnight to its end */
+    carryLabel: (name: string, start: string, end: string) =>
+      `${name}, turno del día anterior de ${start} a ${end}, sigue hasta las ${end}`,
+    until: (time: string) => `hasta ${time}`,
     assignedTo: (event: string) => `Asignado a ${event}`,
     /** Added to a shift bar's label while an event is focused and the shift covers it */
     covers: (event: string) => `cubre ${event}`,
+    /** Read after a "+1" mark on a time */
+    nextDay: 'del día siguiente',
+    /** In the axis corner when the board runs past midnight */
+    nextDayLegend: '+1: día siguiente',
   },
   schedule: {
     title: 'Cuadrante',
@@ -122,8 +131,11 @@ export const es = {
     zone: 'Zona',
     starts: 'Empieza',
     ends: 'Termina',
-    endsHint: 'El mismo día, antes de medianoche',
-    endsBeforeStart: 'Termina antes de empezar',
+    lasts: (duration: string) => `Dura ${duration}`,
+    nextDayHint: 'Al día siguiente',
+    overnight: (end: string, duration: string) => `Termina al día siguiente, a las ${end}. Dura ${duration}.`,
+    sameTime: 'Empieza y termina a la misma hora',
+    tooLong: 'Un turno puede durar 16 horas como máximo',
     preview: 'Vista previa',
   },
   shiftEdit: {

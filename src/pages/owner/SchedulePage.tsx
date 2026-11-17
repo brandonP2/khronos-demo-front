@@ -9,7 +9,7 @@ import { CopyWeekDialog, ShiftBatchDialog, ShiftEditDialog, type ShiftDraft } fr
 import { Button, Empty, ErrorNote, Loading, PageHead } from '../../components/ui'
 import { useFmt, useT } from '../../lib/i18n'
 import { useAssignments, useEvents, useShifts, useStaff, useZones } from '../../lib/queries'
-import { addDays, eventDate, minutes, today, weekDays } from '../../lib/time'
+import { addDays, endsNextDay, eventDate, shiftMinutes, today, weekDays } from '../../lib/time'
 import { useVenue } from '../../lib/VenueContext'
 
 type Modal =
@@ -40,6 +40,11 @@ export default function SchedulePage() {
   const byEvent = assignments.byEvent
 
   const dayShifts = useMemo(() => (shifts.data ?? []).filter((s) => s.date === date), [shifts.data, date])
+  // Night shifts of the day before still run in the small hours of this one; the week before is fetched too
+  const previousNight = useMemo(() => {
+    const yesterday = addDays(date, -1)
+    return (shifts.data ?? []).filter((s) => s.date === yesterday && endsNextDay(s.startTime, s.endTime))
+  }, [shifts.data, date])
   const dayEvents = useMemo(() => (events.data ?? []).filter((e) => eventDate(e.dateTime) === date), [events.data, date])
 
   const selectedEvent = (events.data ?? []).find((e) => e.id === eventId) ?? null
@@ -55,7 +60,8 @@ export default function SchedulePage() {
   const error = zones.error ?? staff.error ?? shifts.error ?? events.error ?? assignments.error
 
   const people = new Set(dayShifts.map((s) => s.workerId)).size
-  const hours = dayShifts.reduce((sum, s) => sum + (minutes(s.endTime) - minutes(s.startTime)), 0) / 60
+  // Hours of the shifts that start this day, night shifts counted whole
+  const hours = dayShifts.reduce((sum, s) => sum + shiftMinutes(s), 0) / 60
   const unstaffed = dayEvents.filter((e) => (byEvent.get(e.id)?.length ?? 0) === 0).length
 
   const countOn = (d: string) => ({
@@ -202,6 +208,7 @@ export default function SchedulePage() {
           zones={zoneList}
           people={staffList}
           shifts={dayShifts}
+          previousNight={previousNight}
           events={dayEvents}
           assignments={byEvent}
           assignmentsLoading={assignments.loading}
