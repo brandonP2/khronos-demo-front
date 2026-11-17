@@ -13,6 +13,7 @@ import EventsPage from './pages/owner/EventsPage'
 import TeamPage from './pages/owner/TeamPage'
 import VenuePage from './pages/owner/VenuePage'
 import MySchedule from './pages/worker/MySchedule'
+import MyHours from './pages/worker/MyHours'
 import AdminPage from './pages/admin/AdminPage'
 
 export default function App() {
@@ -84,6 +85,7 @@ function SimpleApp() {
     <Routes>
       <Route element={<Layout />}>
         <Route index element={me.role === 'WORKER' ? <MySchedule /> : <AdminPage />} />
+        {me.role === 'WORKER' && <Route path="hours" element={<MyHours />} />}
         <Route path="account" element={<Account />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>

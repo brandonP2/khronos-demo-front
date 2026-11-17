@@ -4,11 +4,13 @@ import { CalendarRange } from 'lucide-react'
 import { api } from '../../api/endpoints'
 import type { DateRange, KEvent, Shift } from '../../api/types'
 import { useMe } from '../../auth/AuthContext'
+import { ClockCard } from '../../components/ClockCard'
 import { Empty, ErrorNote, Loading, NextDay, PageHead } from '../../components/ui'
 import { useFmt, useT } from '../../lib/i18n'
-import { keys } from '../../lib/queries'
+import { keys, useMyVenue } from '../../lib/queries'
 import {
   addDays,
+  venueTimeZone,
   endsNextDay,
   eventDate,
   eventTime,
@@ -33,13 +35,8 @@ export default function MySchedule() {
   const ahead: DateRange = { from: week[0] }
   const past: DateRange = { to: addDays(now, -1) }
 
-  const worker = useQuery({ queryKey: keys.worker(me.id), queryFn: () => api.workers.get(me.id) })
+  const { worker, venue } = useMyVenue(me.id)
   const venueId = worker.data?.establishmentId
-  const venue = useQuery({
-    queryKey: keys.venue(venueId ?? 0),
-    queryFn: () => api.establishments.get(venueId!),
-    enabled: !!venueId,
-  })
   const zones = useQuery({
     queryKey: keys.zones(venueId ?? 0),
     queryFn: () => api.zones.byEstablishment(venueId!),
@@ -106,6 +103,9 @@ export default function MySchedule() {
           </button>
         </div>
       </PageHead>
+
+      {/* Clocking in works on its own, so it is there even while the rest loads */}
+      {venueId && <ClockCard timeZone={venueTimeZone(venue.data)} zones={zones.data ?? []} />}
 
       {loading ? (
         <Loading rows={4} />

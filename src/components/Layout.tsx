@@ -4,6 +4,7 @@ import {
   Building2,
   CalendarClock,
   CalendarRange,
+  Clock,
   LogOut,
   Map as MapIcon,
   Menu,
@@ -31,7 +32,10 @@ const NAV: Record<string, NavItem[]> = {
     { to: '/team', label: 'team', icon: Users },
     { to: '/venue', label: 'venue', icon: MapIcon },
   ],
-  WORKER: [{ to: '/', label: 'mySchedule', icon: CalendarRange }],
+  WORKER: [
+    { to: '/', label: 'mySchedule', icon: CalendarRange },
+    { to: '/hours', label: 'myHours', icon: Clock },
+  ],
   PLATFORM_ADMIN: [{ to: '/', label: 'admin', icon: Building2 }],
 }
 

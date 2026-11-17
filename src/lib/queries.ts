@@ -2,7 +2,7 @@ import { useCallback, useMemo } from 'react'
 import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useT } from './i18n'
 import { api } from '../api/endpoints'
-import type { Assignment, DateRange, User, Worker } from '../api/types'
+import type { Assignment, DateRange, Period, TimeEntryQuery, User, Worker } from '../api/types'
 
 const rangeKey = (range: DateRange) => [range.from ?? null, range.to ?? null] as const
 
@@ -17,6 +17,14 @@ export const keys = {
   events: (venueId: number, range: DateRange) => ['events', venueId, ...rangeKey(range)] as const,
   assignments: (venueId: number, range: DateRange) => ['assignments', 'venue', venueId, ...rangeKey(range)] as const,
   workerAssignments: (workerId: number) => ['assignments', 'worker', workerId] as const,
+  myOpenEntry: () => ['time-entries', 'me', 'open'] as const,
+  openEntries: (venueId: number) => ['time-entries', 'open', venueId] as const,
+  workerEntries: (workerId: number, query: TimeEntryQuery) =>
+    ['time-entries', 'worker', workerId, ...rangeKey(query), !!query.includeVoided] as const,
+  entryHistory: (entryId: number) => ['time-entries', 'history', entryId] as const,
+  rates: (workerId: number) => ['rates', workerId] as const,
+  hoursReport: (venueId: number, period: Period) => ['reports', 'hours', venueId, period.from, period.to] as const,
+  workerDays: (workerId: number, period: Period) => ['reports', 'days', workerId, period.from, period.to] as const,
 }
 
 export interface StaffMember extends Worker {
@@ -135,6 +143,80 @@ export function useAssignments(venueId: number | undefined, range: DateRange) {
   return { byEvent, loading: query.isLoading || query.isPlaceholderData, error: query.error }
 }
 
+/** A worker has no venue picker: their venue is the one their worker record points to */
+export function useMyVenue(userId: number) {
+  const worker = useQuery({ queryKey: keys.worker(userId), queryFn: () => api.workers.get(userId) })
+  const venueId = worker.data?.establishmentId
+  const venue = useQuery({
+    queryKey: keys.venue(venueId ?? 0),
+    queryFn: () => api.establishments.get(venueId!),
+    enabled: !!venueId,
+  })
+  return { worker, venue }
+}
+
+/* ---------- Time entries, rates and reports ---------- */
+
+/** The signed-in worker's open entry, or null when they are not clocked in */
+export function useMyOpenEntry() {
+  return useQuery({ queryKey: keys.myOpenEntry(), queryFn: api.timeEntries.myOpen })
+}
+
+/** Who is clocked in now; checked every minute and whenever the tab comes back into view */
+export function useOpenEntries(venueId: number | undefined) {
+  return useQuery({
+    queryKey: keys.openEntries(venueId ?? 0),
+    queryFn: () => api.timeEntries.open(venueId!),
+    enabled: !!venueId,
+    refetchInterval: 60_000,
+    refetchOnWindowFocus: 'always',
+    select: (entries) => [...entries].sort((a, b) => a.clockIn.localeCompare(b.clockIn)),
+  })
+}
+
+export function useWorkerEntries(workerId: number, query: TimeEntryQuery, enabled = true) {
+  return useQuery({
+    queryKey: keys.workerEntries(workerId, query),
+    queryFn: () => api.timeEntries.byWorker(workerId, query),
+    enabled,
+    placeholderData: keepPreviousData,
+    select: (entries) => [...entries].sort((a, b) => b.clockIn.localeCompare(a.clockIn)),
+  })
+}
+
+export function useEntryHistory(entryId: number) {
+  return useQuery({ queryKey: keys.entryHistory(entryId), queryFn: () => api.timeEntries.history(entryId) })
+}
+
+/** Owner only. Newest first. */
+export function useRates(workerId: number) {
+  return useQuery({
+    queryKey: keys.rates(workerId),
+    queryFn: () => api.rates.byWorker(workerId),
+    select: (rates) => [...rates].sort((a, b) => b.effectiveFrom.localeCompare(a.effectiveFrom)),
+  })
+}
+
+/** Owner only. Nothing is fetched while the period is not valid. */
+export function useHoursReport(venueId: number | undefined, period: Period | null) {
+  return useQuery({
+    queryKey: keys.hoursReport(venueId ?? 0, period ?? { from: '', to: '' }),
+    queryFn: () => api.reports.hours(venueId!, period!),
+    enabled: !!venueId && !!period,
+    placeholderData: keepPreviousData,
+  })
+}
+
+/** The owner on anyone in the venue, or a worker on themselves (then without costs) */
+export function useWorkerDays(workerId: number, period: Period | null) {
+  return useQuery({
+    queryKey: keys.workerDays(workerId, period ?? { from: '', to: '' }),
+    queryFn: () => api.reports.workerDays(workerId, period!),
+    enabled: !!period,
+    placeholderData: keepPreviousData,
+  })
+}
+
 /** Shift and event edits can unassign workers on the server, so assignments are refetched with them */
 export function useInvalidate() {
   const qc = useQueryClient()
@@ -144,9 +226,15 @@ export function useInvalidate() {
         qc.invalidateQueries({ queryKey: ['shifts'] }),
         qc.invalidateQueries({ queryKey: ['events'] }),
         qc.invalidateQueries({ queryKey: ['assignments'] }),
+        // Planned hours in the reports come from the shifts
+        qc.invalidateQueries({ queryKey: ['reports'] }),
       ]),
     staff: () => qc.invalidateQueries({ queryKey: ['staff'] }),
     zones: () => qc.invalidateQueries({ queryKey: ['zones'] }),
     venues: () => qc.invalidateQueries({ queryKey: ['venues'] }),
+    /** Any clock-in, clock-out, correction or void also changes the reports */
+    timeEntries: () =>
+      Promise.all([qc.invalidateQueries({ queryKey: ['time-entries'] }), qc.invalidateQueries({ queryKey: ['reports'] })]),
+    rates: () => Promise.all([qc.invalidateQueries({ queryKey: ['rates'] }), qc.invalidateQueries({ queryKey: ['reports'] })]),
   }
 }

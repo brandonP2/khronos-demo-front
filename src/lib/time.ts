@@ -240,6 +240,18 @@ export function zonedInstant(date: string, time: string, timeZone: string): stri
   return new Date(epoch).toISOString().replace('.000Z', 'Z')
 }
 
+/** When a shift starts and ends on the venue's clock, as epoch milliseconds */
+export function shiftWindow(
+  shift: { date: string; startTime: string; endTime: string },
+  timeZone: string,
+): { start: number; end: number } {
+  const endDate = endsNextDay(shift.startTime, shift.endTime) ? addDays(shift.date, 1) : shift.date
+  return {
+    start: Date.parse(zonedInstant(shift.date, hhmm(shift.startTime), timeZone)),
+    end: Date.parse(zonedInstant(endDate, hhmm(shift.endTime), timeZone)),
+  }
+}
+
 /** Whole minutes from an instant to another (now by default) */
 export function minutesSince(instant: string, until: number = Date.now()): number {
   return Math.max(0, Math.floor((until - Date.parse(instant)) / 60_000))
@@ -279,6 +291,7 @@ export function makeFmt(locale: string, words: RelativeDayWords) {
   const monthFmt = df({ month: 'long', year: 'numeric' })
   const dayMonthFmt = df({ day: 'numeric', month: 'long' })
   const shortFmt = df({ day: 'numeric', month: 'short' })
+  const rangeEndFmt = df({ day: 'numeric', month: 'short', year: 'numeric' })
   const timeFmt = df({ hour: '2-digit', minute: '2-digit', hourCycle: 'h23' })
   const numberFmt = new Intl.NumberFormat(locale, { maximumFractionDigits: 1 })
   // Spanish leaves four-digit numbers ungrouped by default; amounts of money read better grouped: 1.234,50 €.
@@ -330,6 +343,13 @@ export function makeFmt(locale: string, words: RelativeDayWords) {
     week(iso: string): string {
       const days = weekDays(iso)
       return `${shortFmt.format(date(days[0]))} – ${shortFmt.format(date(days[6]))}`
+    },
+    /** "16 nov" */
+    short: (iso: string) => shortFmt.format(date(iso)),
+    /** "1 nov – 30 nov 2026", or one date when both are the same */
+    range(from: string, to: string): string {
+      const end = rangeEndFmt.format(date(to))
+      return from === to ? end : `${shortFmt.format(date(from))} – ${end}`
     },
   }
   return fmt
