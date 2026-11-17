@@ -173,6 +173,7 @@ function AddPersonDialog({ venueId, onClose }: { venueId: number; onClose: () =>
       } catch (e) {
         throw new Error(
           `The account "${user.username}" was created but could not be added to this venue: ${e instanceof Error ? e.message : ''}`,
+          { cause: e },
         )
       }
       return user

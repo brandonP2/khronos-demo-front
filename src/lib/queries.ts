@@ -62,8 +62,8 @@ export function useShifts(ownerId: number, zoneIds: number[] | undefined) {
   const query = useQuery({ queryKey: keys.shifts(ownerId), queryFn: () => api.shifts.byOwner(ownerId) })
   const zoneKey = zoneIds?.join(',')
   const data = useMemo(() => {
-    if (!query.data || !zoneIds) return undefined
-    const set = new Set(zoneIds)
+    if (!query.data || zoneKey === undefined) return undefined
+    const set = new Set(zoneKey ? zoneKey.split(',').map(Number) : [])
     return query.data
       .filter((s) => set.has(s.zoneId))
       .sort((a, b) => a.date.localeCompare(b.date) || a.startTime.localeCompare(b.startTime))
