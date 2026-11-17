@@ -102,7 +102,8 @@ export function EventDrawer({
       busy={assign.isPending || unassign.isPending}
       footer={
         <>
-          <Button variant="danger" icon={Trash2} className="spacer" onClick={() => setConfirmDelete(true)}>
+          {/* The confirmation says who will be told, so it waits for the assignments */}
+          <Button variant="danger" icon={Trash2} className="spacer" onClick={() => setConfirmDelete(true)} disabled={isLoading}>
             {t.eventDrawer.delete}
           </Button>
           <Button icon={Pencil} onClick={onEdit}>
@@ -124,7 +125,7 @@ export function EventDrawer({
 
       <section>
         <div className="group-label">
-          {t.eventDrawer.onEvent} <span className="mono">{assignments.length}</span>
+          {t.eventDrawer.onEvent} <span className="mono">{isLoading ? '…' : assignments.length}</span>
         </div>
         {isLoading ? null : assigned.length === 0 ? (
           <p className="unstaffed" style={{ margin: 0 }}>
@@ -158,13 +159,18 @@ export function EventDrawer({
       <section>
         <div className="group-label">
           <span>{t.eventDrawer.onShiftAt(time)}</span>
-          {available.length > 1 && (
+          {available.length > 1 && !isLoading && (
             <Button size="sm" variant="ghost" onClick={() => assign.mutate(available.map((s) => s.userId))} disabled={assign.isPending}>
               {t.eventDrawer.assignAll(available.length)}
             </Button>
           )}
         </div>
-        {available.length === 0 ? (
+        {/* Until the assignments are in, people already on the event would be listed here too */}
+        {isLoading ? (
+          <p className="muted" style={{ margin: 0 }} aria-busy="true">
+            {t.schedule.loadingAssignments}
+          </p>
+        ) : available.length === 0 ? (
           <p className="muted" style={{ margin: 0 }}>
             {t.eventDrawer.nobodyElse(event.zoneName, time)}
           </p>
@@ -200,7 +206,7 @@ export function EventDrawer({
         )}
       </section>
 
-      {notOnShift.length > 0 && !isPast && (
+      {notOnShift.length > 0 && !isPast && !isLoading && (
         <section>
           <div className="group-label">
             <span>{t.eventDrawer.notOnShift}</span>

@@ -108,6 +108,27 @@ describe('EventDrawer', () => {
     return onAddShift
   }
 
+  it('holds the lists and their actions until the assignments are in', () => {
+    wrap(
+      <EventDrawer
+        event={event}
+        staff={[lucia, marco, tomas]}
+        shifts={[shift(1, 1), shift(2, 2)]}
+        assignments={[]}
+        assignmentsLoading
+        onClose={() => {}}
+        onEdit={() => {}}
+        onAddShift={() => {}}
+      />,
+    )
+    expect(screen.getByText('Cargando asignaciones…')).toBeTruthy()
+    expect(screen.queryByText('Lucía Romero')).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Asignar' })).toBeNull()
+    expect(screen.queryByRole('button', { name: /^Asignar a los/ })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Darle un turno' })).toBeNull()
+    expect((screen.getByRole('button', { name: 'Eliminar' }) as HTMLButtonElement).disabled).toBe(true)
+  })
+
   it('names the person a failed "assign all" stopped at, and offers to assign the rest', async () => {
     vi.stubGlobal(
       'fetch',
