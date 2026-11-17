@@ -712,6 +712,7 @@ export const es = {
     over: 'Sobra dinero',
     short: 'Falta dinero',
     even: 'Cuadra',
+    uncounted: 'No contado',
     notCounted: 'Escribe el efectivo contado para ver el descuadre',
     reason: 'Motivo del descuadre',
     reasonHint: (limit: string) => `Obligatorio para cerrar con un descuadre de más de ${limit}. Hasta 255 caracteres.`,
@@ -746,6 +747,7 @@ export const es = {
     },
     historyValues: (sales: string, counted: string, difference: string) =>
       `Ventas ${sales} · Contado ${counted} · Descuadre ${difference}`,
+    historyUncounted: (sales: string) => `Ventas ${sales} · Efectivo no contado`,
     alreadyExists: 'Ya había un cierre para este día y se ha cargado. Revisa los importes antes de seguir.',
     closedMeanwhile: 'Este cierre ya estaba cerrado y se ha recargado.',
     notClosed: 'Este cierre ya no estaba cerrado y se ha recargado.',

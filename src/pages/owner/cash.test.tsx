@@ -46,7 +46,7 @@ function closingFrom(input: CashClosingInput, patch: Partial<CashClosing> = {}):
     cashExpenses: CASH_EXPENSES,
     totalSales: figures.totalSales,
     expectedCash: figures.expectedCash,
-    difference: figures.difference ?? 0,
+    difference: figures.difference,
     differenceReason: null,
     closedAt: null,
     closedByName: null,
@@ -57,7 +57,8 @@ function closingFrom(input: CashClosingInput, patch: Partial<CashClosing> = {}):
 }
 
 const history: CashClosingChange[] = [
-  { id: 1, action: 'CREATED', changedAt: '2026-11-16T22:00:00Z', changedByUserId: 2, changedByName: 'Ana Gil', reason: null, totalSales: 1435, countedCash: 1280.5, difference: -9 },
+  { id: 0, action: 'CREATED', changedAt: '2026-11-16T21:00:00Z', changedByUserId: 2, changedByName: 'Ana Gil', reason: null, totalSales: 1435, countedCash: null, difference: null },
+  { id: 1, action: 'UPDATED', changedAt: '2026-11-16T22:00:00Z', changedByUserId: 2, changedByName: 'Ana Gil', reason: null, totalSales: 1435, countedCash: 1280.5, difference: -9 },
   { id: 2, action: 'CLOSED', changedAt: '2026-11-16T22:30:00Z', changedByUserId: 2, changedByName: 'Ana Gil', reason: 'Billete roto', totalSales: 1435, countedCash: 1280.5, difference: -9 },
 ]
 
@@ -144,7 +145,7 @@ describe('cash closing form', () => {
     // Only the cash expense of the day counts, not the one paid by card
     expect(figure('Gastos en efectivo del día')).toBe('−45,00 €')
     expect(figure('Efectivo esperado')).toBe('1.289,50 €')
-    expect(figure('Descuadre')).toBe('Escribe el efectivo contado para ver el descuadre')
+    expect(figure('Descuadre')).toBe('No contado Escribe el efectivo contado para ver el descuadre')
 
     type('Efectivo contado', '1290')
     expect(figure('Descuadre')).toBe('+0,50 € Sobra dinero')
@@ -340,6 +341,43 @@ describe('cash closing form', () => {
     expect(writes(calls)).toHaveLength(0)
   })
 
+  it('saves a draft before the cash is counted as not counted, never as 0', async () => {
+    const calls = cashServer(null)
+    renderApp(`/cash?date=${DAY}`)
+    await screen.findByLabelText('Ventas en efectivo')
+    type('Ventas en efectivo', '300')
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar borrador' }))
+    expect(await screen.findByText('Borrador guardado')).toBeTruthy()
+    expect(writes(calls)[0]).toMatchObject({ method: 'POST', path: '/cash-closings', body: { cashSales: 300, countedCash: null } })
+    expect(figure('Descuadre')).toBe('No contado Escribe el efectivo contado para ver el descuadre')
+
+    // In the list, the draft has no difference yet
+    const row = (await screen.findAllByText('Borrador', { selector: '.cash-list .tag' }))[0].closest('li') as HTMLElement
+    await waitFor(() => expect(plain(row.textContent)).toContain('Descuadre: No contado'))
+    expect(plain(row.textContent)).not.toMatch(/Falta dinero|Sobra dinero|Cuadra/)
+  })
+
+  it('opens a draft saved without counting with the count empty, and clears a count that is removed', async () => {
+    const calls = cashServer(closingFrom({ ...baseInput, countedCash: null }))
+    renderApp(`/cash?date=${DAY}`)
+    await screen.findByLabelText('Ventas en efectivo')
+    expect(field('Efectivo contado').value).toBe('')
+    expect(figure('Descuadre')).toBe('No contado Escribe el efectivo contado para ver el descuadre')
+    // Nothing changed: an empty count is the stored one, so nothing is sent
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar borrador' }))
+    expect(await screen.findByText('Borrador guardado')).toBeTruthy()
+    expect(writes(calls)).toHaveLength(0)
+
+    type('Efectivo contado', '1280,5')
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar borrador' }))
+    await waitFor(() => expect(writes(calls)).toHaveLength(1))
+    expect(writes(calls)[0].body).toMatchObject({ countedCash: 1280.5 })
+    type('Efectivo contado', '')
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar borrador' }))
+    await waitFor(() => expect(writes(calls)).toHaveLength(2))
+    expect(writes(calls)[1].body).toMatchObject({ countedCash: null })
+  })
+
   it('needs the counted cash to close', async () => {
     const calls = cashServer(null)
     renderApp(`/cash?date=${DAY}`)
@@ -437,6 +475,8 @@ describe('a closed day', () => {
     expect(within(dialog).getByText('Cerrado')).toBeTruthy()
     expect(within(dialog).getByText('«Billete roto»')).toBeTruthy()
     expect(within(dialog).getAllByText(/Ventas 1\.435,00 € · Contado 1\.280,50 € · Descuadre −9,00 €/)).toHaveLength(2)
+    // Saved before the cash was counted
+    expect(within(dialog).getByText(/Ventas 1\.435,00 € · Efectivo no contado/)).toBeTruthy()
   })
 })
 

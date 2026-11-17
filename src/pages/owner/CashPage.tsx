@@ -200,7 +200,11 @@ function ClosingList({
                 {closing && (
                   <>
                     <span className="visually-hidden">{t.cash.columns.difference}: </span>
-                    <CashDifference value={closing.difference} />
+                    {closing.difference === null ? (
+                      <span className="muted">{t.cash.uncounted}</span>
+                    ) : (
+                      <CashDifference value={closing.difference} />
+                    )}
                   </>
                 )}
               </span>

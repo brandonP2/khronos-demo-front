@@ -327,7 +327,8 @@ export interface CashClosingInput {
   otherSales: number
   /** Cash taken out of the till during the day */
   cashWithdrawals: number
-  countedCash: number
+  /** null while the cash has not been counted: a draft can be saved without it, the day cannot be closed */
+  countedCash: number | null
   /** For information only; not part of sales */
   tips: number | null
   /** At most 500 characters */
@@ -345,7 +346,8 @@ export interface CashClosing {
   cardSales: number
   otherSales: number
   cashWithdrawals: number
-  countedCash: number
+  /** null while a draft's cash has not been counted; a closed closing always has it */
+  countedCash: number | null
   tips: number | null
   notes: string | null
   /** The day's expenses paid in cash */
@@ -354,8 +356,8 @@ export interface CashClosing {
   totalSales: number
   /** openingFloat + cashSales - cashExpenses - cashWithdrawals */
   expectedCash: number
-  /** countedCash - expectedCash; negative when cash is missing */
-  difference: number
+  /** countedCash - expectedCash; negative when cash is missing, null while the cash has not been counted */
+  difference: number | null
   differenceReason: string | null
   closedAt: string | null
   closedByName: string | null
@@ -365,7 +367,7 @@ export interface CashClosing {
 
 export type CashClosingAction = 'CREATED' | 'UPDATED' | 'CLOSED' | 'REOPENED'
 
-/** The values right after the change */
+/** The values right after the change; countedCash and difference are null before the cash was counted */
 export interface CashClosingChange {
   id: number
   action: CashClosingAction
@@ -374,8 +376,8 @@ export interface CashClosingChange {
   changedByName: string
   reason: string | null
   totalSales: number
-  countedCash: number
-  difference: number
+  countedCash: number | null
+  difference: number | null
 }
 
 export type ExpenseCategory = 'SUPPLIES' | 'RENT' | 'UTILITIES' | 'PAYROLL' | 'MAINTENANCE' | 'MARKETING' | 'TAXES' | 'OTHER'

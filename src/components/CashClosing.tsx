@@ -96,7 +96,10 @@ export function CashFiguresPanel({ figures, cashExpenses, day }: { figures: Cash
       <div className={`cash-figure cash-difference ${tone ?? ''}`} aria-live="polite">
         <dt>{t.cash.difference}</dt>
         {figures.difference === null || tone === null ? (
-          <dd className="cash-figure-hint">{t.cash.notCounted}</dd>
+          <dd>
+            <span className="cash-difference-words">{t.cash.uncounted}</span>{' '}
+            <span className="cash-figure-hint">{t.cash.notCounted}</span>
+          </dd>
         ) : (
           <dd>
             <span className="mono">{fmt.signedMoney(figures.difference)}</span>{' '}
@@ -121,14 +124,13 @@ function initialTexts(closing: CashClosing | null, fmt: Fmt): Record<AmountKey, 
   }
 }
 
+/** Two amounts, either of which may be left blank, compared in cents */
+const sameAmount = (a: number | null, b: number | null) => (a === null || b === null ? a === b : toCents(a) === toCents(b))
+
 /** Whether saving the form would change what is stored */
 function differs(input: CashClosingInput, closing: CashClosing): boolean {
-  const keys = ['openingFloat', 'cashSales', 'cardSales', 'otherSales', 'cashWithdrawals', 'countedCash'] as const
-  return (
-    keys.some((k) => toCents(input[k]) !== toCents(closing[k])) ||
-    (input.tips === null ? closing.tips !== null : closing.tips === null || toCents(input.tips) !== toCents(closing.tips)) ||
-    (input.notes ?? '') !== (closing.notes ?? '')
-  )
+  const keys = ['openingFloat', 'cashSales', 'cardSales', 'otherSales', 'cashWithdrawals', 'countedCash', 'tips'] as const
+  return keys.some((k) => !sameAmount(input[k], closing[k])) || (input.notes ?? '') !== (closing.notes ?? '')
 }
 
 /** The newer of two versions of the same closing */
@@ -202,7 +204,8 @@ export function CashClosingForm({
     cardSales: amount('cardSales'),
     otherSales: amount('otherSales'),
     cashWithdrawals: amount('cashWithdrawals'),
-    countedCash: amount('countedCash'),
+    // Not counted yet: saved as such, never as 0, which would show the whole till as missing
+    countedCash: isBlank(texts.countedCash) ? null : amount('countedCash'),
     tips: isBlank(texts.tips) ? null : amount('tips'),
     notes: notes.trim() || null,
   }
@@ -561,7 +564,9 @@ function ClosingChange({ change, timeZone }: { change: CashClosingChange; timeZo
         </p>
       )}
       <span className="muted mono" style={{ fontSize: 12 }}>
-        {t.cash.historyValues(fmt.money(change.totalSales), fmt.money(change.countedCash), fmt.signedMoney(change.difference))}
+        {change.countedCash === null || change.difference === null
+          ? t.cash.historyUncounted(fmt.money(change.totalSales))
+          : t.cash.historyValues(fmt.money(change.totalSales), fmt.money(change.countedCash), fmt.signedMoney(change.difference))}
       </span>
     </li>
   )

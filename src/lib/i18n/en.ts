@@ -687,6 +687,7 @@ export const en: Messages = {
     over: 'Cash over',
     short: 'Cash short',
     even: 'Balanced',
+    uncounted: 'Not counted',
     notCounted: 'Enter the counted cash to see the difference',
     reason: 'Reason for the difference',
     reasonHint: (limit: string) => `Required to close with a difference of more than ${limit}. Up to 255 characters.`,
@@ -721,6 +722,7 @@ export const en: Messages = {
     },
     historyValues: (sales: string, counted: string, difference: string) =>
       `Sales ${sales} · Counted ${counted} · Difference ${difference}`,
+    historyUncounted: (sales: string) => `Sales ${sales} · Cash not counted`,
     alreadyExists: 'This day already had a closing and it has been loaded. Check the amounts before going on.',
     closedMeanwhile: 'This closing was already closed and has been reloaded.',
     notClosed: 'This closing was no longer closed and has been reloaded.',
