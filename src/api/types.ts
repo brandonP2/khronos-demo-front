@@ -190,9 +190,17 @@ export interface ClockInInput {
 }
 
 export interface ClockOutInput {
-  /** 0 to 600, 0 when left out */
+  /** 0 to 600; when left out the entry keeps its break, 0 by default */
   breakMinutes?: number
   note?: string
+}
+
+/** The owner clocks someone out now; the server sets the time, as when the worker does it */
+export interface ClockOutForInput {
+  /** 0 to 600; when left out the entry keeps its break */
+  breakMinutes?: number
+  /** Required, 3 to 255 characters; kept in the entry's history */
+  reason: string
 }
 
 /** An owner records an entry for someone: "clock them in now" (no clockOut) or a past day */

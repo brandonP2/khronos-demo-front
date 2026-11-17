@@ -6,14 +6,19 @@ import { useT } from '../lib/i18n'
 import { initials, useOpenEntries, type StaffMember } from '../lib/queries'
 import { minutesLabel, minutesSince, zonedTime } from '../lib/time'
 import { useNow } from '../lib/useNow'
-import { ClockInForDialog, ClockOutForDialog } from './EntryDialogs'
+import { ClockInForDialog, ClockOutForDialog, EntryFormDialog } from './EntryDialogs'
 import { Avatar, Button, ErrorNote } from './ui'
 
-type Modal = { kind: 'in' } | { kind: 'out'; entry: TimeEntry; name: string } | null
+type Modal =
+  | { kind: 'in' }
+  | { kind: 'out'; entry: TimeEntry; name: string }
+  | { kind: 'correct'; entry: TimeEntry; name: string }
+  | null
 
 /**
  * Who is clocked in right now, since when, and quick actions for the owner: clock someone in,
- * or clock out someone who is in. Refreshed every minute and when the tab comes back into view.
+ * or clock out someone who is in (or, past 24 hours, correct the entry with the real time).
+ * Refreshed every minute and when the tab comes back into view.
  */
 export function NowCard({ venueId, staff, timeZone }: { venueId: number; staff: StaffMember[]; timeZone: string }) {
   const t = useT()
@@ -88,7 +93,23 @@ export function NowCard({ venueId, staff, timeZone }: { venueId: number; staff: 
 
       {modal?.kind === 'in' && <ClockInForDialog people={canClockIn} timeZone={timeZone} onClose={() => setModal(null)} />}
       {modal?.kind === 'out' && (
-        <ClockOutForDialog entry={modal.entry} name={modal.name} timeZone={timeZone} onClose={() => setModal(null)} />
+        <ClockOutForDialog
+          entry={modal.entry}
+          name={modal.name}
+          timeZone={timeZone}
+          onClose={() => setModal(null)}
+          onCorrect={() => setModal({ ...modal, kind: 'correct' })}
+        />
+      )}
+      {modal?.kind === 'correct' && (
+        <EntryFormDialog
+          workerId={modal.entry.workerId}
+          workerName={modal.name}
+          timeZone={timeZone}
+          entry={modal.entry}
+          askClockOut
+          onClose={() => setModal(null)}
+        />
       )}
     </section>
   )

@@ -448,6 +448,9 @@ export const en: Messages = {
     defaultReason: 'Clocked by the manager',
     clockedIn: (name: string, time: string) => `${name}: in at ${time}`,
     clockedOut: (name: string, time: string) => `${name}: out at ${time}`,
+    openTooLong: (day: string, time: string) =>
+      `In since ${day} at ${time}, more than 24 hours ago, so the clock-out can no longer be recorded. Correct the entry with the real time they left.`,
+    correctInstead: 'Correct with the real time',
   },
   period: {
     label: 'Period',

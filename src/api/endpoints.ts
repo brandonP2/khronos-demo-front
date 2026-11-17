@@ -2,6 +2,7 @@ import { download, request } from './client'
 import type {
   Assignment,
   ClockInInput,
+  ClockOutForInput,
   ClockOutInput,
   DateRange,
   Establishment,
@@ -122,6 +123,11 @@ export const api = {
     clockOut: (input: ClockOutInput = {}) => request<TimeEntry>('POST', '/time-entries/clock-out', input),
     /** Owner: records an entry for someone, open (clock them in now) or a whole past day */
     create: (input: TimeEntryCreate) => request<TimeEntry>('POST', '/time-entries', input),
+    /**
+     * Owner: clocks someone out now, kept in the history as CLOCKED_OUT. 409 when the entry has
+     * been open for more than 24 hours: then it has to be corrected with the real time.
+     */
+    clockOutFor: (id: number, input: ClockOutForInput) => request<TimeEntry>('POST', `/time-entries/${id}/clock-out`, input),
     /** Owner: a correction; the reason is kept in the entry's history */
     update: (id: number, input: TimeEntryUpdate) => request<TimeEntry>('PUT', `/time-entries/${id}`, input),
     /** Owner: entries are voided, never deleted */

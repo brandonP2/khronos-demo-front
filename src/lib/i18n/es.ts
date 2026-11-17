@@ -467,6 +467,9 @@ export const es = {
     defaultReason: 'Fichado por el encargado',
     clockedIn: (name: string, time: string) => `${name}: entrada a las ${time}`,
     clockedOut: (name: string, time: string) => `${name}: salida a las ${time}`,
+    openTooLong: (day: string, time: string) =>
+      `Está dentro desde el ${day} a las ${time}, hace más de 24 horas, así que la salida ya no se puede fichar. Corrige el fichaje con la hora real a la que salió.`,
+    correctInstead: 'Corregir con la hora real',
   },
   period: {
     label: 'Periodo',

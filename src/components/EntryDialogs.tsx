@@ -2,9 +2,11 @@
 // corrected or voided, and each of those asks for a reason that stays in the entry's history.
 import { useState } from 'react'
 import { useMutation } from '@tanstack/react-query'
-import { Ban, LogIn, LogOut, Moon } from 'lucide-react'
+import { Ban, LogIn, LogOut, Moon, Pencil, TriangleAlert } from 'lucide-react'
+import { ApiError } from '../api/client'
 import { api } from '../api/endpoints'
 import type { TimeEntry } from '../api/types'
+import { isOpenTooLong } from '../lib/apiMessages'
 import { useFmt, useT } from '../lib/i18n'
 import { useInvalidate, type StaffMember } from '../lib/queries'
 import { addDays, minutes, minutesLabel, minutesSince, nowInstant, zonedDate, zonedInstant, zonedTime, zonedToday } from '../lib/time'
@@ -58,6 +60,7 @@ export function EntryFormDialog({
   workerName,
   timeZone,
   entry,
+  askClockOut = false,
   onClose,
 }: {
   workerId: number
@@ -65,6 +68,8 @@ export function EntryFormDialog({
   timeZone: string
   /** Corrects this entry; without it a new one is added */
   entry?: TimeEntry
+  /** An open entry is corrected with the clock-out to fill in, instead of left open */
+  askClockOut?: boolean
   onClose: () => void
 }) {
   const t = useT()
@@ -74,7 +79,7 @@ export function EntryFormDialog({
   const [date, setDate] = useState(entry ? zonedDate(entry.clockIn, timeZone) : zonedToday(timeZone))
   const [clockIn, setClockIn] = useState(entry ? zonedTime(entry.clockIn, timeZone) : '')
   const [clockOut, setClockOut] = useState(entry?.clockOut ? zonedTime(entry.clockOut, timeZone) : '')
-  const [stillIn, setStillIn] = useState(entry ? entry.clockOut === null : false)
+  const [stillIn, setStillIn] = useState(entry ? entry.clockOut === null && !askClockOut : false)
   const [breakText, setBreakText] = useState(String(entry?.breakMinutes ?? 0))
   const [reason, setReason] = useState('')
   const [reasonTouched, setReasonTouched] = useState(false)
@@ -354,22 +359,30 @@ export function ClockInForDialog({
   )
 }
 
+/** The API's limit: an entry open for longer cannot be clocked out, only corrected */
+const MAX_OPEN_MINUTES = 24 * 60
+
 /**
- * The owner clocks someone out at the current time. The API has no clock-out on someone else's
- * behalf, so this is a correction that sets the clock-out, and it shows as one in the history.
+ * The owner clocks someone out at the current time; the server sets the time and the history
+ * keeps it as a clock-out, with the reason. An entry open for more than 24 hours cannot be
+ * clocked out: the dialog says so and offers to correct it with the real time instead.
  */
 export function ClockOutForDialog({
   entry,
   name,
   timeZone,
   onClose,
+  onCorrect,
 }: {
   entry: TimeEntry
   name: string
   timeZone: string
   onClose: () => void
+  /** Opens the correction of this entry, for one open too long to clock out */
+  onCorrect: () => void
 }) {
   const t = useT()
+  const fmt = useFmt()
   const toast = useToast()
   const invalidate = useInvalidate()
   const now = useNow(10_000)
@@ -381,70 +394,85 @@ export function ClockOutForDialog({
   const breakInvalid = !Number.isInteger(breakMinutes) || breakMinutes > 600 || breakMinutes > elapsed
 
   const mutation = useMutation({
-    mutationFn: () =>
-      api.timeEntries.update(entry.id, {
-        clockIn: entry.clockIn,
-        clockOut: new Date().toISOString(),
-        breakMinutes,
-        reason: reason.trim(),
-      }),
+    mutationFn: () => api.timeEntries.clockOutFor(entry.id, { breakMinutes, reason: reason.trim() }),
     onSuccess: async (closed) => {
       await invalidate.timeEntries()
       toast(t.now.clockedOut(name, closed.clockOut ? zonedTime(closed.clockOut, timeZone) : zonedTime(Date.now(), timeZone)))
       onClose()
     },
   })
+  // Known before sending from the clock-in, or learnt from the API's 409 right at the limit
+  const refused = mutation.error instanceof ApiError && mutation.error.status === 409 && isOpenTooLong(mutation.error.message)
+  const tooLong = elapsed > MAX_OPEN_MINUTES || refused
   const valid = !breakInvalid && !isReasonInvalid(reason)
   const submit = () => {
     setTouched(true)
-    if (valid) mutation.mutate()
+    if (valid && !tooLong) mutation.mutate()
   }
 
   return (
     <Dialog
       title={t.now.outTitle(name)}
-      sub={t.now.outSub(zonedTime(entry.clockIn, timeZone), zonedTime(now, timeZone))}
+      sub={tooLong ? undefined : t.now.outSub(zonedTime(entry.clockIn, timeZone), zonedTime(now, timeZone))}
       onClose={onClose}
       busy={mutation.isPending}
       footer={
-        <>
-          <span className="spacer muted">{!breakInvalid ? t.entryForm.worked(minutesLabel(elapsed - breakMinutes)) : ''}</span>
-          <Button variant="ghost" onClick={onClose}>
-            {t.common.cancel}
-          </Button>
-          <Button variant="primary" icon={LogOut} disabled={!valid} loading={mutation.isPending} onClick={submit}>
-            {t.now.clockOut}
-          </Button>
-        </>
+        tooLong ? (
+          <>
+            <Button variant="ghost" onClick={onClose}>
+              {t.common.cancel}
+            </Button>
+            <Button variant="primary" icon={Pencil} onClick={onCorrect} data-autofocus>
+              {t.now.correctInstead}
+            </Button>
+          </>
+        ) : (
+          <>
+            <span className="spacer muted">{!breakInvalid ? t.entryForm.worked(minutesLabel(elapsed - breakMinutes)) : ''}</span>
+            <Button variant="ghost" onClick={onClose}>
+              {t.common.cancel}
+            </Button>
+            <Button variant="primary" icon={LogOut} disabled={!valid} loading={mutation.isPending} onClick={submit}>
+              {t.now.clockOut}
+            </Button>
+          </>
+        )
       }
     >
-      <form
-        className="form"
-        onSubmit={(e) => {
-          e.preventDefault()
-          submit()
-        }}
-      >
-        <div className="row-2">
-          <Field label={t.entryForm.breakMinutes} error={breakInvalid ? t.entryForm.breakError : undefined}>
-            {(id) => (
-              <input
-                id={id}
-                type="number"
-                inputMode="numeric"
-                min={0}
-                max={600}
-                className="input mono"
-                value={breakText}
-                onChange={(e) => setBreakText(e.target.value)}
-              />
-            )}
-          </Field>
+      {tooLong ? (
+        <div className="notice info" role="status">
+          <TriangleAlert size={16} strokeWidth={1.5} />
+          <span>{t.now.openTooLong(fmt.short(zonedDate(entry.clockIn, timeZone)), zonedTime(entry.clockIn, timeZone))}</span>
         </div>
-        <ReasonField value={reason} onChange={setReason} touched={touched} onBlur={() => setTouched(true)} />
-        <ErrorNote error={mutation.error} />
-        <button type="submit" hidden />
-      </form>
+      ) : (
+        <form
+          className="form"
+          onSubmit={(e) => {
+            e.preventDefault()
+            submit()
+          }}
+        >
+          <div className="row-2">
+            <Field label={t.entryForm.breakMinutes} error={breakInvalid ? t.entryForm.breakError : undefined}>
+              {(id) => (
+                <input
+                  id={id}
+                  type="number"
+                  inputMode="numeric"
+                  min={0}
+                  max={600}
+                  className="input mono"
+                  value={breakText}
+                  onChange={(e) => setBreakText(e.target.value)}
+                />
+              )}
+            </Field>
+          </div>
+          <ReasonField value={reason} onChange={setReason} touched={touched} onBlur={() => setTouched(true)} />
+          <ErrorNote error={mutation.error} />
+          <button type="submit" hidden />
+        </form>
+      )}
     </Dialog>
   )
 }
