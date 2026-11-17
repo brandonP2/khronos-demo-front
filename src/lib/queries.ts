@@ -2,7 +2,20 @@ import { useCallback, useMemo } from 'react'
 import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useT } from './i18n'
 import { api } from '../api/endpoints'
-import type { Assignment, DateRange, ExpenseQuery, Period, TimeEntryQuery, User, Worker } from '../api/types'
+import type {
+  Assignment,
+  DateRange,
+  ExpenseQuery,
+  Period,
+  Product,
+  PurchaseOrderQuery,
+  StockMovement,
+  StockMovementQuery,
+  TimeEntryQuery,
+  User,
+  Worker,
+} from '../api/types'
+import { applyMovements } from './stock'
 
 const rangeKey = (range: DateRange) => [range.from ?? null, range.to ?? null] as const
 
@@ -29,6 +42,14 @@ export const keys = {
   cashClosings: (venueId: number, range: DateRange) => ['cash-closings', venueId, ...rangeKey(range)] as const,
   cashClosingHistory: (closingId: number) => ['cash-closings', 'history', closingId] as const,
   expenses: (venueId: number, query: ExpenseQuery) => ['expenses', venueId, ...rangeKey(query), query.category ?? null] as const,
+  suppliers: (venueId: number) => ['suppliers', venueId] as const,
+  products: (venueId: number, includeInactive: boolean) => ['products', venueId, includeInactive] as const,
+  stockMovements: (venueId: number, query: StockMovementQuery) =>
+    ['stock-movements', venueId, ...rangeKey(query), query.productId ?? null, query.type ?? null] as const,
+  purchaseOrders: (venueId: number, query: PurchaseOrderQuery) =>
+    ['purchase-orders', venueId, ...rangeKey(query), query.status ?? null] as const,
+  purchaseOrder: (orderId: number) => ['purchase-orders', 'one', orderId] as const,
+  inventoryReport: (venueId: number, period: Period) => ['reports', 'inventory', venueId, period.from, period.to] as const,
 }
 
 export interface StaffMember extends Worker {
@@ -258,6 +279,84 @@ export function useExpenses(venueId: number | undefined, query: ExpenseQuery | n
   })
 }
 
+/* ---------- Inventory ---------- */
+
+/** Owner only. By name. */
+export function useSuppliers(venueId: number | undefined) {
+  return useQuery({
+    queryKey: keys.suppliers(venueId ?? 0),
+    queryFn: () => api.suppliers.byEstablishment(venueId!),
+    enabled: !!venueId,
+    select: (suppliers) => [...suppliers].sort((a, b) => a.name.localeCompare(b.name)),
+  })
+}
+
+/**
+ * Owner only. The active products, or all of them; the stock list, the count, orders and the
+ * summary's low stock alert share the active list, so it is fetched once.
+ */
+export function useProducts(venueId: number | undefined, includeInactive = false) {
+  return useQuery({
+    queryKey: keys.products(venueId ?? 0, includeInactive),
+    queryFn: () => api.products.byEstablishment(venueId!, includeInactive),
+    enabled: !!venueId,
+    placeholderData: keepPreviousData,
+  })
+}
+
+/** Owner only. Newest first. Nothing is fetched while the period is not valid. */
+export function useStockMovements(venueId: number | undefined, query: StockMovementQuery | null) {
+  return useQuery({
+    queryKey: keys.stockMovements(venueId ?? 0, query ?? {}),
+    queryFn: () => api.stockMovements.byEstablishment(venueId!, query!),
+    enabled: !!venueId && !!query,
+    placeholderData: keepPreviousData,
+  })
+}
+
+/** Owner only. Newest first. */
+export function usePurchaseOrders(venueId: number | undefined, query: PurchaseOrderQuery) {
+  return useQuery({
+    queryKey: keys.purchaseOrders(venueId ?? 0, query),
+    queryFn: () => api.purchaseOrders.byEstablishment(venueId!, query),
+    enabled: !!venueId,
+    placeholderData: keepPreviousData,
+  })
+}
+
+export function usePurchaseOrder(orderId: number | null) {
+  return useQuery({
+    queryKey: keys.purchaseOrder(orderId ?? 0),
+    queryFn: () => api.purchaseOrders.get(orderId!),
+    enabled: orderId !== null,
+  })
+}
+
+/** Owner only. The stock figures are today's whatever the period; the rest is the period's. */
+export function useInventoryReport(venueId: number | undefined, period: Period | null) {
+  return useQuery({
+    queryKey: keys.inventoryReport(venueId ?? 0, period ?? { from: '', to: '' }),
+    queryFn: () => api.reports.inventory(venueId!, period!),
+    enabled: !!venueId && !!period,
+    placeholderData: keepPreviousData,
+  })
+}
+
+/**
+ * Puts the stock the API reported after some movements straight into the cached product lists,
+ * so the screen shows it at once; the lists are refetched afterwards anyway.
+ */
+export function useApplyMovements() {
+  const qc = useQueryClient()
+  return useCallback(
+    (venueId: number, movements: StockMovement[]) =>
+      qc.setQueriesData<Product[]>({ queryKey: ['products', venueId] }, (products) =>
+        products ? applyMovements(products, movements) : products,
+      ),
+    [qc],
+  )
+}
+
 /** Shift and event edits can unassign workers on the server, so assignments are refetched with them */
 export function useInvalidate() {
   const qc = useQueryClient()
@@ -286,6 +385,39 @@ export function useInvalidate() {
         qc.invalidateQueries({ queryKey: ['expenses'] }),
         qc.invalidateQueries({ queryKey: ['cash-closings'] }),
         qc.invalidateQueries({ queryKey: ['reports'] }),
+      ]),
+    /** A movement or a count changes the stock, the history and the inventory report */
+    stock: () =>
+      Promise.all([
+        qc.invalidateQueries({ queryKey: ['products'] }),
+        qc.invalidateQueries({ queryKey: ['stock-movements'] }),
+        qc.invalidateQueries({ queryKey: ['reports'] }),
+      ]),
+    /** Product names show in the history and on orders */
+    products: () =>
+      Promise.all([
+        qc.invalidateQueries({ queryKey: ['products'] }),
+        qc.invalidateQueries({ queryKey: ['stock-movements'] }),
+        qc.invalidateQueries({ queryKey: ['purchase-orders'] }),
+        qc.invalidateQueries({ queryKey: ['reports'] }),
+      ]),
+    /** Supplier names show on products and orders */
+    suppliers: () =>
+      Promise.all([
+        qc.invalidateQueries({ queryKey: ['suppliers'] }),
+        qc.invalidateQueries({ queryKey: ['products'] }),
+        qc.invalidateQueries({ queryKey: ['purchase-orders'] }),
+        qc.invalidateQueries({ queryKey: ['reports'] }),
+      ]),
+    /** Receiving adds stock and can create an expense, which counts in that day's till */
+    orders: () =>
+      Promise.all([
+        qc.invalidateQueries({ queryKey: ['purchase-orders'] }),
+        qc.invalidateQueries({ queryKey: ['products'] }),
+        qc.invalidateQueries({ queryKey: ['stock-movements'] }),
+        qc.invalidateQueries({ queryKey: ['reports'] }),
+        qc.invalidateQueries({ queryKey: ['expenses'] }),
+        qc.invalidateQueries({ queryKey: ['cash-closings'] }),
       ]),
   }
 }

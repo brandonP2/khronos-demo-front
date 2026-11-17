@@ -53,6 +53,7 @@ describe('where each role starts', () => {
       ['Horas', '/hours'],
       ['Caja', '/cash'],
       ['Gastos', '/expenses'],
+      ['Inventario', '/inventory'],
       ['Eventos', '/events'],
       ['Equipo', '/team'],
       ['Local y zonas', '/venue'],
@@ -87,13 +88,27 @@ describe('where each role starts', () => {
 })
 
 describe('a worker and the business pages', () => {
-  it.each(['/cash', '/expenses', '/cash?date=2026-11-16', '/schedule'])('cannot open %s, and nothing of it is asked for', async (path) => {
+  it.each([
+    '/cash',
+    '/expenses',
+    '/cash?date=2026-11-16',
+    '/schedule',
+    '/inventory',
+    '/inventory?low=1',
+    '/inventory/count',
+    '/inventory/movements',
+    '/inventory/orders/3/receive',
+    '/inventory/suppliers',
+  ])('cannot open %s, and nothing of it is asked for', async (path) => {
     const calls = workerApi()
     renderApp(path)
     expect(await screen.findByRole('heading', { name: 'Mi horario' })).toBeTruthy()
     expect(screen.queryByRole('link', { name: 'Caja' })).toBeNull()
     expect(screen.queryByRole('link', { name: 'Gastos' })).toBeNull()
     expect(screen.queryByRole('link', { name: 'Resumen' })).toBeNull()
-    expect(calls.some((c) => /^\/(cash-closings|expenses|reports\/establishment)/.test(c.path))).toBe(false)
+    expect(screen.queryByRole('link', { name: 'Inventario' })).toBeNull()
+    expect(
+      calls.some((c) => /^\/(cash-closings|expenses|reports\/establishment|products|suppliers|stock-movements|stock-counts|purchase-orders)/.test(c.path)),
+    ).toBe(false)
   })
 })

@@ -979,7 +979,8 @@ export const es = {
       add: 'Sumar al stock',
       remove: 'Restar del stock',
       unitCost: 'Coste por unidad',
-      unitCostHint: 'Opcional. Pasa a ser el coste por unidad del producto',
+      unitCostHint: (current: string | null) =>
+        current ? `Opcional. Ahora es ${current}; si pones otro, pasa a ser el del producto` : 'Opcional. Pasa a ser el coste por unidad del producto',
       unitCostError: 'Escribe un importe, como 12,50',
       reason: 'Motivo',
       reasonHint: 'Obligatorio, de 3 a 255 caracteres. Queda registrado.',

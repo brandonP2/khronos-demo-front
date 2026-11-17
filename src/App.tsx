@@ -12,6 +12,7 @@ import SummaryPage from './pages/owner/SummaryPage'
 import SchedulePage from './pages/owner/SchedulePage'
 import CashPage from './pages/owner/CashPage'
 import ExpensesPage from './pages/owner/ExpensesPage'
+import InventoryPage from './pages/owner/inventory/InventoryPage'
 import HoursPage from './pages/owner/HoursPage'
 import EventsPage from './pages/owner/EventsPage'
 import TeamPage from './pages/owner/TeamPage'
@@ -63,6 +64,7 @@ function OwnerApp() {
                 <Route path="hours" element={<HoursPage />} />
                 <Route path="cash" element={<CashPage />} />
                 <Route path="expenses" element={<ExpensesPage />} />
+                <Route path="inventory/*" element={<InventoryPage />} />
                 <Route path="events" element={<EventsPage />} />
                 <Route path="team" element={<TeamPage />} />
                 <Route path="team/:workerId" element={<PersonPage />} />

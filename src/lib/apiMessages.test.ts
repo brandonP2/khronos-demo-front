@@ -6,9 +6,11 @@ import {
   closedCashDay,
   isAlreadyClockedOut,
   isClosingTaken,
+  isNameTaken,
   isNoOpenEntry,
   isOpenTooLong,
   isReasonRequired,
+  isUnitLocked,
   knownApiMessage,
   refusalDay,
 } from './apiMessages'
@@ -106,5 +108,17 @@ describe('API messages', () => {
     // The message the app knows stays first; any other code is shown as the API wrote it
     expect(errorMessage(new ApiError({ status: 409, message: 'The expense date cannot be in the future', code: 'FUTURE_DATE' }), es)).toBe(es.apiErrors.futureDay)
     expect(errorMessage(coded('SOMETHING_NEW'), es)).toBe('Reworded by a newer API')
+  })
+
+  it('tells the inventory refusals apart', () => {
+    expect(isNameTaken('A product with that name already exists in this establishment')).toBe(true)
+    expect(isNameTaken('A supplier with that name already exists in this establishment')).toBe(true)
+    expect(isNameTaken('The unit of a product with stock movements cannot be changed')).toBe(false)
+    expect(isUnitLocked('The unit of a product with stock movements cannot be changed')).toBe(true)
+    expect(isUnitLocked('A product with that name already exists in this establishment')).toBe(false)
+    // Receiving an order with a cash expense on a closed day uses the expenses' own refusal
+    expect(closedCashDay('The cash closing of 2026-11-17 is closed; reopen it to add, change or delete cash expenses of that day')).toEqual({
+      day: '2026-11-17',
+    })
   })
 })

@@ -952,7 +952,8 @@ export const en: Messages = {
       add: 'Add to stock',
       remove: 'Take from stock',
       unitCost: 'Cost per unit',
-      unitCostHint: 'Optional. Becomes the product’s cost per unit',
+      unitCostHint: (current: string | null) =>
+        current ? `Optional. It is ${current} now; another one becomes the product’s` : 'Optional. Becomes the product’s cost per unit',
       unitCostError: 'Enter an amount, like 12.50',
       reason: 'Reason',
       reasonHint: 'Required, 3 to 255 characters. It is kept.',

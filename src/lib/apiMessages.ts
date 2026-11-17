@@ -127,6 +127,16 @@ export function closedCashDay(message: string): { day: string | null } | null {
   return { day: /\d{4}-\d{2}-\d{2}/.exec(message)?.[0] ?? null }
 }
 
+/** A product's or a supplier's 409 because the venue already has one with that name */
+export function isNameTaken(message: string): boolean {
+  return /already exists|duplicate|name.*(taken|in use)/i.test(message)
+}
+
+/** A product's 409 on saving it with another unit once it has movements */
+export function isUnitLocked(message: string): boolean {
+  return /\bunit\b/i.test(message)
+}
+
 /** The worker had nothing open to clock out */
 export function isNoOpenEntry(message: string): boolean {
   return /no open time entry/i.test(message)
