@@ -22,7 +22,7 @@ const venue = {
 
 describe('Deleting a venue', () => {
   it('explains that a venue with time entries is kept, and to deactivate instead', async () => {
-    mockApi((call) => {
+    const calls = mockApi((call) => {
       if (call.path === '/users/me') return json(200, admin)
       if (call.path === '/users') return json(200, [admin, user(2, 'OWNER', 'Ana', 'Gil')])
       if (call.path === '/establishments') return json(200, [venue])
@@ -39,5 +39,7 @@ describe('Deleting a venue', () => {
         'Casa Lucía tiene fichajes registrados y no se puede eliminar sin perder su registro de jornada. Desactiva a las personas de su equipo en lugar de eliminar el local.',
       ),
     ).toBeTruthy()
+    // Clocking oneself in and out is for workers; an admin's session would get 403
+    expect(calls.some((c) => c.path.startsWith('/time-entries/me') || c.path.startsWith('/time-entries/clock'))).toBe(false)
   })
 })

@@ -194,6 +194,8 @@ describe('Hours page', () => {
       expect(csv.every((c) => c.headers.Authorization === 'Bearer test-token')).toBe(true)
       expect(saved[0]).toMatch(/^horas_\d{4}-\d\d-\d\d_\d{4}-\d\d-\d\d\.csv$/)
       expect(saved[1]).toMatch(/^registro-de-jornada_/)
+      // An owner's session never asks for the worker's own clock endpoints, which answer 403 to it
+      expect(calls.some((c) => c.path.startsWith('/time-entries/me') || c.path.startsWith('/time-entries/clock'))).toBe(false)
     } finally {
       URL.createObjectURL = original.create
       URL.revokeObjectURL = original.revoke
