@@ -1020,8 +1020,10 @@ export const en: Messages = {
       category: 'Category',
       unit: 'Unit',
       unitHint: 'How it is counted. There are no conversions between units.',
-      unitLocked: 'It already has movements, so its unit can’t change.',
-      unitConflict: 'This product already has movements, so its unit can’t change. It has been set back to what it was.',
+      unitHintSaved:
+        'It can only change while the product has no movements and is on no order, even with a stock of 0. If it has them, saving says so and keeps the unit it had.',
+      unitLocked: 'It has movements or is on an order, so its unit can’t change.',
+      unitConflict: 'This product already has movements or is on an order, so its unit can’t change. It has been set back to what it was.',
       minStock: 'Minimum stock',
       minStockHint: 'Optional. At or under it, the product shows as low stock',
       minStockError: 'Enter 0 or more, with 9 digits before the decimal mark and 3 after at most',

@@ -1049,9 +1049,11 @@ export const es = {
       category: 'Categoría',
       unit: 'Unidad',
       unitHint: 'Cómo se cuenta. No hay conversiones entre unidades.',
-      unitLocked: 'Ya tiene movimientos, así que la unidad no se puede cambiar.',
+      unitHintSaved:
+        'Solo se puede cambiar mientras no tenga movimientos ni esté en ningún pedido, aunque su stock sea 0. Si los tiene, al guardar se te dirá y se quedará la que tenía.',
+      unitLocked: 'Tiene movimientos o está en algún pedido, así que la unidad no se puede cambiar.',
       unitConflict:
-        'Este producto ya tiene movimientos, así que su unidad no se puede cambiar. Se ha vuelto a poner la que tenía.',
+        'Este producto ya tiene movimientos o está en algún pedido, así que su unidad no se puede cambiar. Se ha vuelto a poner la que tenía.',
       minStock: 'Stock mínimo',
       minStockHint: 'Opcional. En el mínimo o por debajo sale como stock bajo',
       minStockError: 'Escribe 0 o más, con 9 cifras enteras y 3 decimales como mucho',

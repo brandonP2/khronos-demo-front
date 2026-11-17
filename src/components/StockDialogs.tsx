@@ -218,7 +218,7 @@ export function MovementDialog({
   )
 }
 
-/** Adding and editing a product. The unit cannot change once it has movements: the API answers 409. */
+/** Adding and editing a product. The unit cannot change once it has movements or order lines: the API answers 409. */
 export function ProductFormDialog({
   venueId,
   product,
@@ -243,10 +243,12 @@ export function ProductFormDialog({
   const [costText, setCostText] = useState(product?.unitCost == null ? '' : fmt.amount(product.unitCost))
   const [supplierId, setSupplierId] = useState(product?.supplierId ? String(product.supplierId) : '')
   const [submitted, setSubmitted] = useState(false)
-  // The API said this product has movements, so the unit went back to what it was
+  // The API said the unit is locked (PRODUCT_UNIT_LOCKED), so it went back to what it was
   const [unitRefused, setUnitRefused] = useState(false)
 
-  // Some stock means some movements, so the unit is locked; with 0 the API still has the last word
+  // The API locks the unit once the product has movements or order lines, and the app cannot see
+  // either: a stock of 0 may still have them. Only some stock is sure to mean movements; otherwise
+  // the unit can be picked, the hint says when it is locked, and the API's 409 has the last word.
   const unitLocked = !!product && (toMilli(product.currentStock) !== 0 || unitRefused)
   const minStock = isBlank(minText) ? null : parseQuantity(minText)
   const unitCost = isBlank(costText) ? null : parseCost(costText)
@@ -339,7 +341,7 @@ export function ProductFormDialog({
               </select>
             )}
           </Field>
-          <Field label={p.unit} hint={unitLocked ? p.unitLocked : p.unitHint}>
+          <Field label={p.unit} hint={unitLocked ? p.unitLocked : product ? p.unitHintSaved : p.unitHint}>
             {(id) => (
               <select id={id} className="select" value={unit} disabled={unitLocked} onChange={(e) => setUnit(e.target.value as StockUnit)}>
                 {STOCK_UNITS.map((u) => (

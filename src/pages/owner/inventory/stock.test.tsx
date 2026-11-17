@@ -399,18 +399,20 @@ describe('products', () => {
     fireEvent.click(within(drawer).getByRole('button', { name: 'Editar' }))
     let dialog = screen.getByRole('dialog', { name: 'Editar producto' })
     expect((within(dialog).getByLabelText('Unidad') as HTMLSelectElement).disabled).toBe(true)
-    expect(within(dialog).getByText('Ya tiene movimientos, así que la unidad no se puede cambiar.')).toBeTruthy()
+    expect(within(dialog).getByText('Tiene movimientos o está en algún pedido, así que la unidad no se puede cambiar.')).toBeTruthy()
     fireEvent.click(within(dialog).getByRole('button', { name: 'Cancelar' }))
 
-    // With 0 it may still have some: the API has the last word
+    // With 0 it may still have movements or be on an order: the hint says so, and the API has the last word
     fireEvent.click(within(row(4)).getByRole('button', { name: 'Limas' }))
     fireEvent.click(within(screen.getByRole('dialog', { name: 'Limas' })).getByRole('button', { name: 'Editar' }))
     dialog = screen.getByRole('dialog', { name: 'Editar producto' })
     const unit = within(dialog).getByLabelText('Unidad') as HTMLSelectElement
     expect(unit.disabled).toBe(false)
+    expect(within(dialog).getByText(/Solo se puede cambiar mientras no tenga movimientos ni esté en ningún pedido, aunque su stock sea 0/)).toBeTruthy()
     fireEvent.change(unit, { target: { value: 'KG' } })
     fireEvent.click(within(dialog).getByRole('button', { name: 'Guardar' }))
-    expect(await within(dialog).findByText(/ya tiene movimientos, así que su unidad no se puede cambiar/)).toBeTruthy()
+    expect(await within(dialog).findByText(/ya tiene movimientos o está en algún pedido, así que su unidad no se puede cambiar/)).toBeTruthy()
+    expect(within(dialog).getByText('Tiene movimientos o está en algún pedido, así que la unidad no se puede cambiar.')).toBeTruthy()
     expect(unit.value).toBe('UNIT')
     expect(unit.disabled).toBe(true)
     expect(calls.find((c) => c.method === 'PUT')!.body).toMatchObject({ name: 'Limas', unit: 'KG' })
