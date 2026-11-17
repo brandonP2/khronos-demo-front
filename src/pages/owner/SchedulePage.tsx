@@ -49,6 +49,9 @@ export default function SchedulePage() {
     setEventId(null)
   }
   const loading = zones.isLoading || staff.isLoading || shifts.isLoading || events.isLoading
+  // While another week loads, shifts.data and events.data still hold the previous range, so
+  // nothing is counted or drawn from them and what is built on them waits
+  const stale = shifts.isPlaceholderData || events.isPlaceholderData
   const error = zones.error ?? staff.error ?? shifts.error ?? events.error ?? assignments.error
 
   const people = new Set(dayShifts.map((s) => s.workerId)).size
@@ -80,6 +83,12 @@ export default function SchedulePage() {
 
   const zoneList = zones.data ?? []
   const staffList = staff.data ?? []
+  // A figure of the week that is still loading
+  const pending = (
+    <span className="figure muted" aria-busy="true">
+      —
+    </span>
+  )
 
   if (zoneList.length === 0) {
     return (
@@ -105,7 +114,7 @@ export default function SchedulePage() {
   return (
     <div className="page">
       <PageHead title={fmt.relative(date)} sub={date === today() ? fmt.long(date) : fmt.month(date)}>
-        <Button icon={Copy} onClick={() => setModal({ kind: 'copy-week' })}>
+        <Button icon={Copy} onClick={() => setModal({ kind: 'copy-week' })} disabled={stale}>
           {t.schedule.copyLastWeek}
         </Button>
         <Button icon={CalendarPlus} onClick={() => setModal({ kind: 'new-event' })}>
@@ -130,10 +139,10 @@ export default function SchedulePage() {
               >
                 <span className="wd">
                   {fmt.weekday(d)}
-                  {c.events > 0 && <span className="dot accent" title={t.schedule.dayEvents(c.events)} />}
+                  {!stale && c.events > 0 && <span className="dot accent" title={t.schedule.dayEvents(c.events)} />}
                 </span>
                 <span className="dn">{fmt.dayNumber(d)}</span>
-                <span className="counts">{t.schedule.dayShifts(c.shifts)}</span>
+                <span className="counts">{stale ? '…' : t.schedule.dayShifts(c.shifts)}</span>
               </button>
             )
           })}
@@ -149,22 +158,24 @@ export default function SchedulePage() {
       <div className="stats">
         <div className="card stat">
           <span className="label">{t.schedule.peopleOnShift}</span>
-          <span className="figure">{people}</span>
+          {stale ? pending : <span className="figure">{people}</span>}
           <span className="meta">{t.schedule.ofActive(staffList.filter((s) => s.isActive).length)}</span>
         </div>
         <div className="card stat">
           <span className="label">{t.schedule.hoursScheduled}</span>
-          <span className="figure">{fmt.number(hours)}</span>
-          <span className="meta">{t.schedule.acrossShifts(dayShifts.length)}</span>
+          {stale ? pending : <span className="figure">{fmt.number(hours)}</span>}
+          <span className="meta">{stale ? t.schedule.loadingWeek : t.schedule.acrossShifts(dayShifts.length)}</span>
         </div>
         <div className="card stat">
           <span className="label">{t.schedule.events}</span>
-          <span className="figure">{dayEvents.length}</span>
-          <span className="meta">{t.schedule.guestsExpected(dayEvents.reduce((n, e) => n + e.peopleNumber, 0))}</span>
+          {stale ? pending : <span className="figure">{dayEvents.length}</span>}
+          <span className="meta">
+            {stale ? t.schedule.loadingWeek : t.schedule.guestsExpected(dayEvents.reduce((n, e) => n + e.peopleNumber, 0))}
+          </span>
         </div>
         <div className="card stat">
           <span className="label">{t.schedule.unstaffed}</span>
-          {assignments.loading ? (
+          {assignments.loading || stale ? (
             <>
               <span className="figure muted" aria-busy="true">
                 —
@@ -180,7 +191,13 @@ export default function SchedulePage() {
         </div>
       </div>
 
-      <div className="card">
+      {stale && (
+        <div className="card card-body">
+          <Loading rows={3} />
+        </div>
+      )}
+      {/* Kept mounted while hidden, so it comes back as it was once the week has loaded */}
+      <div className="card" hidden={stale}>
         <Board
           zones={zoneList}
           people={staffList}

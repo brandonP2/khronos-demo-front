@@ -99,6 +99,7 @@ export const en: Messages = {
     unstaffedHint: 'Pick one on the board to assign people',
     allStaffed: 'Every event has someone',
     loadingAssignments: 'Loading assignments…',
+    loadingWeek: 'Loading the week…',
   },
   shiftBatch: {
     title: 'Add shifts',

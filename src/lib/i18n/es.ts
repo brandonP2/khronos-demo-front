@@ -104,6 +104,7 @@ export const es = {
     unstaffedHint: 'Elige uno en el tablero para asignar personal',
     allStaffed: 'Todos los eventos tienen a alguien',
     loadingAssignments: 'Cargando asignaciones…',
+    loadingWeek: 'Cargando la semana…',
   },
   shiftBatch: {
     title: 'Añadir turnos',
