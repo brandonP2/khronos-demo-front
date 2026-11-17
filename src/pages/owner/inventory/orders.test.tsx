@@ -3,7 +3,7 @@ import { cleanup, fireEvent, screen, waitFor, within } from '@testing-library/re
 import type { PurchaseOrder } from '../../../api/types'
 import { order, orderLine, product, supplier } from '../../../test/inventory'
 import { json, noContent, ownerApi, plain, renderApp, type Route } from '../../../test/helpers'
-import { zonedToday } from '../../../lib/time'
+import { addDays, zonedToday } from '../../../lib/time'
 
 const today = zonedToday('Europe/Madrid')
 
@@ -74,6 +74,32 @@ describe('purchase orders', () => {
     fireEvent.change(screen.getByLabelText('Estado'), { target: { value: 'DRAFT' } })
     await waitFor(() => expect(document.querySelectorAll('.order-row')).toHaveLength(1))
     expect(calls.some((c) => c.path === '/purchase-orders/establishment/1?status=DRAFT')).toBe(true)
+  })
+
+  it('lists the last year’s orders, says so, and asks for another period of up to 366 days', async () => {
+    const calls = ordersApi((call) => (call.path.startsWith('/purchase-orders/establishment/1') ? json(200, [ordered]) : undefined))
+    renderApp('/inventory/orders')
+    await screen.findByRole('link', { name: 'Abrir el pedido #12 a Distribuciones Sur' })
+    // Without dates the API lists the last 366 days, counting today
+    const since = addDays(today, -365)
+    expect(plain(screen.getByText(/^Pedidos creados en el último año/).textContent)).toMatch(new RegExp(`desde el ${Number(since.slice(8))} \\S+ ${since.slice(0, 4)}\\.$`))
+    expect(calls.filter((c) => c.path.startsWith('/purchase-orders/establishment/1')).map((c) => c.path)).toEqual(['/purchase-orders/establishment/1'])
+
+    // Another period starts with the year before that one
+    fireEvent.click(screen.getByRole('button', { name: 'Ver otro periodo' }))
+    expect((screen.getByLabelText('Desde') as HTMLInputElement).value).toBe(addDays(today, -730))
+    expect((screen.getByLabelText('Hasta') as HTMLInputElement).value).toBe(addDays(today, -366))
+    await waitFor(() =>
+      expect(calls.some((c) => c.path === `/purchase-orders/establishment/1?from=${addDays(today, -730)}&to=${addDays(today, -366)}`)).toBe(true),
+    )
+    // More than 366 days is not asked for
+    fireEvent.change(screen.getByLabelText('Desde'), { target: { value: addDays(today, -800) } })
+    expect(screen.getByText(/366/, { selector: '.error' })).toBeTruthy()
+    expect(calls.some((c) => c.path.includes(`from=${addDays(today, -800)}`))).toBe(false)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Volver al último año' }))
+    expect(screen.queryByLabelText('Desde')).toBeNull()
+    expect(screen.getByText(/^Pedidos creados en el último año/)).toBeTruthy()
   })
 
   it('proposes the supplier’s low stock, with the quantity back to the minimum, and works out the total', async () => {

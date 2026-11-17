@@ -1139,6 +1139,11 @@ export const en: Messages = {
       emptyBody:
         'Prepare your orders to suppliers: Khronos suggests what is under its minimum and, when they arrive, adds the stock and can create the expense.',
       emptyFiltered: 'No orders with this status',
+      emptyPeriod: 'No orders created in this period',
+      lastYear: (since: string) => `Orders created in the last year, since ${since}.`,
+      periodNote: 'Orders created in the period picked, of up to 366 days.',
+      otherPeriod: 'See another period',
+      backToLastYear: 'Back to the last year',
     },
     order: {
       back: 'Orders',

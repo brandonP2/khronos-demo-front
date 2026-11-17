@@ -314,12 +314,15 @@ export function useStockMovements(venueId: number | undefined, query: StockMovem
   })
 }
 
-/** Owner only. Newest first. */
-export function usePurchaseOrders(venueId: number | undefined, query: PurchaseOrderQuery) {
+/**
+ * Owner only. Newest first. Without dates the API lists the orders created in the last 366 days; a
+ * range is at most 366 days. Nothing is fetched while the query is null (a range being typed).
+ */
+export function usePurchaseOrders(venueId: number | undefined, query: PurchaseOrderQuery | null) {
   return useQuery({
-    queryKey: keys.purchaseOrders(venueId ?? 0, query),
-    queryFn: () => api.purchaseOrders.byEstablishment(venueId!, query),
-    enabled: !!venueId,
+    queryKey: keys.purchaseOrders(venueId ?? 0, query ?? {}),
+    queryFn: () => api.purchaseOrders.byEstablishment(venueId!, query!),
+    enabled: !!venueId && !!query,
     placeholderData: keepPreviousData,
   })
 }

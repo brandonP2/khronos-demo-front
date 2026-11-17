@@ -1169,6 +1169,11 @@ export const es = {
       emptyBody:
         'Prepara los pedidos a tus proveedores: Khronos propone lo que está bajo mínimo y, al recibirlos, suma el stock y puede crear el gasto.',
       emptyFiltered: 'No hay pedidos en este estado',
+      emptyPeriod: 'No hay pedidos creados en este periodo',
+      lastYear: (since: string) => `Pedidos creados en el último año, desde el ${since}.`,
+      periodNote: 'Pedidos creados en el periodo elegido, de hasta 366 días.',
+      otherPeriod: 'Ver otro periodo',
+      backToLastYear: 'Volver al último año',
     },
     order: {
       back: 'Pedidos',

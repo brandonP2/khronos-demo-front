@@ -388,6 +388,8 @@ export function makeFmt(locale: string, words: RelativeDayWords) {
     },
     /** "16 nov" */
     short: (iso: string) => shortFmt.format(date(iso)),
+    /** "16 nov 2026" */
+    shortWithYear: (iso: string) => rangeEndFmt.format(date(iso)),
     /** "1 nov – 30 nov 2026", or one date when both are the same */
     range(from: string, to: string): string {
       const end = rangeEndFmt.format(date(to))
