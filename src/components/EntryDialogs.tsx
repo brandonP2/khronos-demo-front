@@ -7,6 +7,7 @@ import { ApiError } from '../api/client'
 import { api } from '../api/endpoints'
 import type { TimeEntry } from '../api/types'
 import { isOpenTooLong } from '../lib/apiMessages'
+import { parseBreakMinutes } from '../lib/hours'
 import { useFmt, useT } from '../lib/i18n'
 import { useInvalidate, type StaffMember } from '../lib/queries'
 import { addDays, minutes, minutesLabel, minutesSince, nowInstant, zonedDate, zonedInstant, zonedTime, zonedToday } from '../lib/time'
@@ -100,7 +101,7 @@ export function EntryFormDialog({
       ? entry.clockOut
       : zonedInstant(outDate, clockOut, timeZone)
   const span = inInstant && outInstant ? Math.round((Date.parse(outInstant) - Date.parse(inInstant)) / 60_000) : null
-  const breakMinutes = /^\d+$/.test(breakText.trim()) ? Number(breakText.trim()) : NaN
+  const breakMinutes = parseBreakMinutes(breakText)
 
   const inError = inInstant && Date.parse(inInstant) > now ? t.entryForm.future : undefined
   const outError = sameTime
@@ -108,13 +109,13 @@ export function EntryFormDialog({
     : outInstant && Date.parse(outInstant) > now
       ? t.entryForm.future
       : undefined
-  const breakInvalid = !Number.isInteger(breakMinutes) || breakMinutes > 600 || (span !== null && breakMinutes > span)
+  const breakInvalid = breakMinutes === null || (span !== null && breakMinutes > span)
   const valid =
     !!inInstant && (stillIn || !!outInstant) && !inError && !outError && !breakInvalid && !isReasonInvalid(reason)
 
   const mutation = useMutation({
     mutationFn: () => {
-      const input = { clockIn: inInstant!, clockOut: stillIn ? null : outInstant, breakMinutes, reason: reason.trim() }
+      const input = { clockIn: inInstant!, clockOut: stillIn ? null : outInstant, breakMinutes: breakMinutes!, reason: reason.trim() }
       return entry ? api.timeEntries.update(entry.id, input) : api.timeEntries.create({ workerId, ...input })
     },
     onSuccess: async () => {
@@ -389,12 +390,12 @@ export function ClockOutForDialog({
   const [breakText, setBreakText] = useState(String(entry.breakMinutes))
   const [reason, setReason] = useState(t.now.defaultReason)
   const [touched, setTouched] = useState(false)
-  const breakMinutes = /^\d+$/.test(breakText.trim()) ? Number(breakText.trim()) : NaN
+  const breakMinutes = parseBreakMinutes(breakText)
   const elapsed = minutesSince(entry.clockIn, now)
-  const breakInvalid = !Number.isInteger(breakMinutes) || breakMinutes > 600 || breakMinutes > elapsed
+  const breakInvalid = breakMinutes === null || breakMinutes > elapsed
 
   const mutation = useMutation({
-    mutationFn: () => api.timeEntries.clockOutFor(entry.id, { breakMinutes, reason: reason.trim() }),
+    mutationFn: () => api.timeEntries.clockOutFor(entry.id, { breakMinutes: breakMinutes!, reason: reason.trim() }),
     onSuccess: async (closed) => {
       await invalidate.timeEntries()
       toast(t.now.clockedOut(name, closed.clockOut ? zonedTime(closed.clockOut, timeZone) : zonedTime(Date.now(), timeZone)))

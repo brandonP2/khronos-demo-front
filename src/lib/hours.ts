@@ -41,6 +41,17 @@ export function parseRate(text: string): number | null {
   return value > 0 ? value : null
 }
 
+/** The API takes a break of 0 to 600 minutes */
+export const MAX_BREAK_MINUTES = 600
+
+/** The minutes of break typed in a field: a whole number from 0 to 600, else null */
+export function parseBreakMinutes(text: string): number | null {
+  const plain = text.trim()
+  if (!/^\d+$/.test(plain)) return null
+  const value = Number(plain)
+  return value <= MAX_BREAK_MINUTES ? value : null
+}
+
 export const rowName = (row: Pick<HoursReportRow, 'firstName' | 'lastName'>) =>
   [row.firstName, row.lastName].filter(Boolean).join(' ').trim()
 

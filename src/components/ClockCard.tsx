@@ -6,6 +6,7 @@ import { api } from '../api/endpoints'
 import type { Shift, TimeEntry, Zone } from '../api/types'
 import { useMe } from '../auth/AuthContext'
 import { isNoOpenEntry } from '../lib/apiMessages'
+import { parseBreakMinutes } from '../lib/hours'
 import { useT } from '../lib/i18n'
 import { keys, useInvalidate, useMyOpenEntry } from '../lib/queries'
 import { addDays, minutesLabel, minutesSince, shiftWindow, zonedTime, zonedToday } from '../lib/time'
@@ -184,16 +185,16 @@ function ClockOutDialog({
   const [note, setNote] = useState('')
 
   const elapsed = minutesSince(entry.clockIn, now)
-  const breakMinutes = /^\d+$/.test(breakText.trim()) ? Number(breakText.trim()) : NaN
+  const breakMinutes = parseBreakMinutes(breakText)
   const breakError =
-    !Number.isInteger(breakMinutes) || breakMinutes > 600
+    breakMinutes === null
       ? t.clock.breakError
       : breakMinutes > elapsed
         ? t.clock.breakTooLong
         : undefined
 
   const mutation = useMutation({
-    mutationFn: () => api.timeEntries.clockOut({ breakMinutes, note: note.trim() || undefined }),
+    mutationFn: () => api.timeEntries.clockOut({ breakMinutes: breakMinutes!, note: note.trim() || undefined }),
     onSuccess: onDone,
     onError: (e) => {
       if (isNothingOpen(e)) onNothingOpen()
@@ -245,7 +246,9 @@ function ClockOutDialog({
         <Field label={t.clock.noteLabel} hint={t.clock.noteHint}>
           {(id) => <input id={id} className="input" maxLength={255} value={note} onChange={(e) => setNote(e.target.value)} />}
         </Field>
-        {!breakError && <p className="secondary" style={{ margin: 0 }}>{t.clock.willCount(minutesLabel(elapsed - breakMinutes))}</p>}
+        {breakMinutes !== null && !breakError && (
+          <p className="secondary" style={{ margin: 0 }}>{t.clock.willCount(minutesLabel(elapsed - breakMinutes))}</p>
+        )}
         <ErrorNote error={error} />
         <button type="submit" hidden />
       </form>
