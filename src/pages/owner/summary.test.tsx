@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react'
 import type { BusinessSummary, SummaryDay } from '../../api/types'
 import { json, ownerApi, plain, renderApp } from '../../test/helpers'
+import { inventoryReport, product } from '../../test/inventory'
 
 const day = (date: string, patch: Partial<SummaryDay> = {}): SummaryDay => ({
   date,
@@ -433,5 +434,54 @@ describe('summary export', () => {
       URL.createObjectURL = original.create
       URL.revokeObjectURL = original.revoke
     }
+  })
+})
+
+describe('summary and the inventory', () => {
+  const products = [
+    product(1, { name: 'Ginebra Puerto', isLowStock: true, currentStock: 2, minStock: 6 }),
+    product(2, { name: 'Ron Brugal', isLowStock: true, currentStock: -1, minStock: 2 }),
+    product(3, { name: 'Café en grano', category: 'COFFEE', unit: 'KG', currentStock: 3, minStock: 1 }),
+  ]
+
+  it('warns of the products low on stock and opens the stock filtered to them', async () => {
+    const calls = ownerApi((call) => {
+      if (call.path.startsWith('/reports/establishment/1/summary?')) return json(200, summary({}, { missingClosingDays: 0, draftDays: 0, cashDifference: 0 }))
+      if (call.path.startsWith('/products/establishment/1?')) return json(200, products)
+      if (call.path === '/suppliers/establishment/1') return json(200, [])
+      if (call.path.startsWith('/reports/establishment/1/inventory?')) return json(200, inventoryReport())
+    })
+    renderApp('/')
+    const alert = (await screen.findByText('2 productos con stock bajo')).closest('.alert-item') as HTMLElement
+    expect(screen.queryByText(/Todo al día/)).toBeNull()
+    const link = within(alert).getByRole('link', { name: 'Ver en Inventario' })
+    expect(link.getAttribute('href')).toBe('/inventory?low=1')
+    // The same list the stock screen uses, so it comes from the cache when there is one
+    expect(calls.filter((c) => c.path.startsWith('/products/')).map((c) => c.path)).toEqual(['/products/establishment/1?includeInactive=false'])
+
+    fireEvent.click(link)
+    expect(await screen.findByTestId('product-1')).toBeTruthy()
+    expect((screen.getByLabelText('Stock bajo') as HTMLInputElement).checked).toBe(true)
+    expect(screen.queryByTestId('product-3')).toBeNull()
+  })
+
+  it('says nothing of the stock when nothing is low, or when the inventory cannot be read', async () => {
+    ownerApi((call) => {
+      if (call.path.startsWith('/reports/establishment/1/summary?')) return json(200, summary({}, { missingClosingDays: 0, draftDays: 0, cashDifference: 0 }))
+      if (call.path.startsWith('/products/establishment/1?')) return json(200, [products[2]])
+    })
+    renderApp('/')
+    expect(await screen.findByText('Todo al día: no falta ningún cierre de caja ni hay borradores.')).toBeTruthy()
+    expect(screen.queryByText(/con stock bajo/)).toBeNull()
+    cleanup()
+
+    ownerApi((call) => {
+      if (call.path.startsWith('/reports/establishment/1/summary?')) return json(200, summary())
+      if (call.path.startsWith('/products/establishment/1?')) return json(403, { status: 403, message: 'Forbidden' })
+    })
+    renderApp('/')
+    expect(await screen.findByText('2 días con actividad y sin cierre de caja')).toBeTruthy()
+    expect(screen.queryByText(/con stock bajo/)).toBeNull()
+    expect(screen.queryByText('Forbidden')).toBeNull()
   })
 })

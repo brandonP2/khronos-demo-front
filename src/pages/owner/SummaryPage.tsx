@@ -1,9 +1,9 @@
 // The owner's home: how the business is doing for a period, at a glance. Sales, expenses, staff
 // cost, margin and staff cost over sales against the period before; a chart by day; expenses by
-// category; what needs doing (days with no cash closing, drafts, the cash difference); and who
-// is clocked in now.
+// category; what needs doing (days with no cash closing, drafts, the cash difference, products
+// low on stock); and who is clocked in now.
 import { Link } from 'react-router-dom'
-import { Coins, Download, FileClock, ReceiptText, TriangleAlert, Wallet } from 'lucide-react'
+import { Coins, Download, FileClock, Package, ReceiptText, TriangleAlert, Wallet } from 'lucide-react'
 import { api } from '../../api/endpoints'
 import type { BusinessSummary, ClosingDayStatus } from '../../api/types'
 import { CashDifference } from '../../components/CashClosing'
@@ -15,7 +15,7 @@ import { Button, Empty, ErrorNote, Loading, PageHead } from '../../components/ui
 import { useDownload } from '../../lib/download'
 import { useFmt, useT } from '../../lib/i18n'
 import { toCents } from '../../lib/money'
-import { useStaff, useSummary } from '../../lib/queries'
+import { useProducts, useStaff, useSummary } from '../../lib/queries'
 import { isEmptyPrevious, percentOf, trend } from '../../lib/summary'
 import { venueTimeZone, zonedToday } from '../../lib/time'
 import { useVenue } from '../../lib/VenueContext'
@@ -31,6 +31,9 @@ export default function SummaryPage() {
   const { value, setValue, period } = usePeriod(undefined, on)
   const summary = useSummary(venue?.id, period)
   const staff = useStaff(venue?.id)
+  // The same list as the inventory's stock, so a visit there and back asks for nothing new
+  const products = useProducts(venue?.id)
+  const lowStock = (products.data ?? []).filter((p) => p.isActive && p.isLowStock).length
   const file = useDownload()
 
   return (
@@ -66,7 +69,7 @@ export default function SummaryPage() {
           </div>
         </div>
       ) : (
-        summary.data && <SummaryBody data={summary.data} refreshing={summary.isPlaceholderData} today={on} />
+        summary.data && <SummaryBody data={summary.data} refreshing={summary.isPlaceholderData} today={on} lowStock={lowStock} />
       )}
 
       {venue && <NowCard venueId={venue.id} staff={staff.data ?? []} timeZone={timeZone} />}
@@ -74,7 +77,17 @@ export default function SummaryPage() {
   )
 }
 
-function SummaryBody({ data, refreshing, today }: { data: BusinessSummary; refreshing: boolean; today: string }) {
+function SummaryBody({
+  data,
+  refreshing,
+  today,
+  lowStock,
+}: {
+  data: BusinessSummary
+  refreshing: boolean
+  today: string
+  lowStock: number
+}) {
   const t = useT()
   const fmt = useFmt()
   const { totals, previous } = data
@@ -190,7 +203,7 @@ function SummaryBody({ data, refreshing, today }: { data: BusinessSummary; refre
         </div>
       )}
 
-      <Alerts data={data} />
+      <Alerts data={data} lowStock={lowStock} />
 
       {!empty && (
         <>
@@ -219,8 +232,8 @@ function SummaryBody({ data, refreshing, today }: { data: BusinessSummary; refre
   )
 }
 
-/** What needs doing: days with no cash closing, drafts left open and the cash difference */
-function Alerts({ data }: { data: BusinessSummary }) {
+/** What needs doing: days with no cash closing, drafts left open, the cash difference and low stock */
+function Alerts({ data, lowStock }: { data: BusinessSummary; lowStock: number }) {
   const t = useT()
   const fmt = useFmt()
   const { totals } = data
@@ -295,7 +308,18 @@ function Alerts({ data }: { data: BusinessSummary }) {
             </div>
           </li>
         )}
-        {totals.missingClosingDays === 0 && totals.draftDays === 0 && difference === 0 && (
+        {lowStock > 0 && (
+          <li className="alert-item">
+            <Package size={16} strokeWidth={1.5} className="alert-icon warn" aria-hidden />
+            <div className="grow">
+              <span className="alert-title">{t.summary.lowStock(lowStock)}</span>
+            </div>
+            <Link to="/inventory?low=1" className="btn btn-sm btn-ghost">
+              {t.summary.seeLowStock}
+            </Link>
+          </li>
+        )}
+        {totals.missingClosingDays === 0 && totals.draftDays === 0 && difference === 0 && lowStock === 0 && (
           <li className="alert-item muted">{t.summary.allClear}</li>
         )}
       </ul>
