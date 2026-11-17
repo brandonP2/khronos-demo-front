@@ -83,6 +83,47 @@ describe('Now on the schedule', () => {
     expect(await screen.findByText('Lucía Romero: salida a las 02:10')).toBeTruthy()
   })
 
+  it('closes the clock-out and says so when someone else clocked the person out first', async () => {
+    const recent = { ...open, clockIn: new Date(Date.now() - 3 * 60 * 60_000).toISOString(), isStale: false }
+    let entries = [recent]
+    mockApi((call) => {
+      if (call.path === '/time-entries/establishment/1/open') return json(200, entries)
+      if (call.method === 'POST' && call.path === '/time-entries/40/clock-out') {
+        entries = []
+        return json(409, { status: 409, message: 'The time entry is already clocked out' })
+      }
+    })
+    renderCard()
+    fireEvent.click(await screen.findByRole('button', { name: 'Fichar la salida de Lucía Romero' }))
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Fichar salida' }))
+
+    expect(await screen.findByText('Ya se había fichado la salida de Lucía Romero.')).toBeTruthy()
+    expect(screen.queryByRole('dialog')).toBeNull()
+    expect(screen.queryByText(/already clocked out/)).toBeNull()
+    // The list is asked again, so the person is no longer shown as in
+    expect(await screen.findByText('Nadie ha fichado la entrada ahora mismo.')).toBeTruthy()
+  })
+
+  it('asks again who is in when a clock-out fails for another reason, and keeps the dialog', async () => {
+    const recent = { ...open, clockIn: new Date(Date.now() - 3 * 60 * 60_000).toISOString(), isStale: false }
+    const calls = mockApi((call) => {
+      if (call.path === '/time-entries/establishment/1/open') return json(200, [recent])
+      if (call.method === 'POST' && call.path === '/time-entries/40/clock-out') {
+        return json(409, { status: 409, message: 'A voided time entry cannot be clocked out' })
+      }
+    })
+    const asked = () => calls.filter((c) => c.path === '/time-entries/establishment/1/open').length
+    renderCard()
+    fireEvent.click(await screen.findByRole('button', { name: 'Fichar la salida de Lucía Romero' }))
+    const dialog = screen.getByRole('dialog')
+    const before = asked()
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Fichar salida' }))
+
+    expect(await within(dialog).findByText('A voided time entry cannot be clocked out')).toBeTruthy()
+    await waitFor(() => expect(asked()).toBeGreaterThan(before))
+    expect(screen.getByRole('dialog')).toBe(dialog)
+  })
+
   it('sends an entry open for more than 24 hours to a correction with the real time', async () => {
     const clockIn = new Date(Date.now() - 30 * 60 * 60_000).toISOString()
     const forgotten = { ...open, clockIn }

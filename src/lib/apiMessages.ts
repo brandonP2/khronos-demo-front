@@ -35,3 +35,8 @@ export function isOpenTooLong(message: string): boolean {
 export function isNoOpenEntry(message: string): boolean {
   return /no open time entry/i.test(message)
 }
+
+/** The entry the owner was clocking out had been clocked out already, by someone else */
+export function isAlreadyClockedOut(message: string): boolean {
+  return /already clocked out/i.test(message)
+}

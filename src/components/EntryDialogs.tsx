@@ -6,7 +6,7 @@ import { Ban, LogIn, LogOut, Moon, Pencil, TriangleAlert } from 'lucide-react'
 import { ApiError } from '../api/client'
 import { api } from '../api/endpoints'
 import type { TimeEntry } from '../api/types'
-import { isOpenTooLong } from '../lib/apiMessages'
+import { isAlreadyClockedOut, isOpenTooLong } from '../lib/apiMessages'
 import { parseBreakMinutes } from '../lib/hours'
 import { useFmt, useT } from '../lib/i18n'
 import { useInvalidate, type StaffMember } from '../lib/queries'
@@ -370,7 +370,8 @@ const MAX_OPEN_MINUTES = 24 * 60
 /**
  * The owner clocks someone out at the current time; the server sets the time and the history
  * keeps it as a clock-out, with the reason. An entry open for more than 24 hours cannot be
- * clocked out: the dialog says so and offers to correct it with the real time instead.
+ * clocked out: the dialog says so and offers to correct it with the real time instead. One
+ * someone else clocked out meanwhile closes the dialog with a note.
  */
 export function ClockOutForDialog({
   entry,
@@ -404,6 +405,15 @@ export function ClockOutForDialog({
       await invalidate.timeEntries()
       toast(t.now.clockedOut(name, closed.clockOut ? zonedTime(closed.clockOut, timeZone) : zonedTime(Date.now(), timeZone)))
       onClose()
+    },
+    onError: (e) => {
+      // Whatever went wrong, the entry may have changed elsewhere, so who is in is asked again
+      void invalidate.timeEntries()
+      // Someone else clocked the person out first: what the owner wanted is done, so say so and close
+      if (e instanceof ApiError && e.status === 409 && isAlreadyClockedOut(e.message)) {
+        toast(t.now.alreadyOut(name))
+        onClose()
+      }
     },
   })
   // Known before sending from the clock-in, or learnt from the API's 409 right at the limit

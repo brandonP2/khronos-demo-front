@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { ApiError } from '../api/client'
 import { errorMessage } from '../components/ui'
-import { isNoOpenEntry, isOpenTooLong, knownApiMessage } from './apiMessages'
+import { isAlreadyClockedOut, isNoOpenEntry, isOpenTooLong, knownApiMessage } from './apiMessages'
 import { dictionaries } from './i18n'
 
 const { es, en } = dictionaries
@@ -37,10 +37,12 @@ describe('API messages', () => {
     )
   })
 
-  it('recognises the two clock-out refusals screens act on', () => {
+  it('recognises the clock-out refusals screens act on', () => {
     expect(isOpenTooLong('This time entry has been open for more than 24 hours; ask a manager to correct it')).toBe(true)
     expect(isOpenTooLong('A time entry cannot last more than 24 hours')).toBe(false)
     expect(isNoOpenEntry('You have no open time entry')).toBe(true)
     expect(isNoOpenEntry('You already have an open time entry')).toBe(false)
+    expect(isAlreadyClockedOut('The time entry is already clocked out')).toBe(true)
+    expect(isAlreadyClockedOut('A voided time entry cannot be clocked out')).toBe(false)
   })
 })
