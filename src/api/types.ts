@@ -561,7 +561,7 @@ export interface Product {
   isActive: boolean
   /** Up to three decimals; can be negative when a purchase was not recorded */
   currentStock: number
-  /** currentStock × unitCost; null with no cost, 0 when the stock is 0 or less */
+  /** currentStock × the cost per unit now; null with no cost, 0 when the stock is 0 or less */
   stockValue: number | null
   /** minStock != null && currentStock <= minStock */
   isLowStock: boolean
@@ -604,7 +604,10 @@ export interface StockMovement {
   createdAt: string
   createdByName: string
   purchaseOrderId: number | null
-  /** The product's stock right after this movement */
+  /**
+   * The product's stock right after this movement, when it was recorded: a movement recorded later
+   * with an earlier day does not change it
+   */
   stockAfter: number
 }
 
@@ -704,7 +707,7 @@ export interface InventoryReport {
   from: string
   to: string
   currency: 'EUR'
-  /** Active products with a cost and stock above 0 */
+  /** Active products with a cost and stock above 0, each at its cost per unit now */
   stockValue: number
   /** Active products */
   productsCount: number

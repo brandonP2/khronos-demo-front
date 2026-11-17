@@ -95,6 +95,8 @@ describe('stock', () => {
     expect(screen.getByRole('link', { name: 'Inventario' }).className).toContain('active')
 
     expect(plain(stat('Valor del stock').textContent)).toContain('90,00 €')
+    // The API values the stock at each product's cost now
+    expect(plain(stat('Valor del stock').textContent)).toContain('al coste por unidad actual de cada producto')
     expect(plain(stat('Productos').textContent)).toContain('4')
     expect(plain(stat('Con stock bajo').textContent)).toContain('2')
     expect(plain(stat('Con stock negativo').textContent)).toContain('1')

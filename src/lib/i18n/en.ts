@@ -920,7 +920,7 @@ export const en: Messages = {
     noPos: 'Khronos does not take sales off the stock, as no till system is connected: record usage by hand or do a count, and the difference is recorded.',
     stock: {
       value: 'Stock value',
-      valueMeta: 'What there is, at its cost per unit',
+      valueMeta: 'What there is now, at each product’s current cost per unit',
       products: 'Products',
       productsMeta: 'Active',
       low: 'Low on stock',
@@ -1098,6 +1098,8 @@ export const en: Messages = {
     },
     movements: {
       note: 'Movements are never edited or deleted. If one is wrong, correct it with an adjustment on Stock.',
+      afterNote:
+        '“Stock after” is the stock left when each movement was recorded: one recorded with an earlier day does not change it for those recorded before it.',
       product: 'Product',
       allProducts: 'All products',
       type: 'Type',

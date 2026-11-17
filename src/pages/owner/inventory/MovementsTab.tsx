@@ -1,6 +1,7 @@
 // Movements: the stock's history, filtered by period, product and type, newest first. Each
 // movement shows its signed quantity, value, reason, who recorded it and when, the stock it left
-// and the order it came from. Movements are never edited or deleted: a mistake is corrected with
+// when it was recorded (a back-dated one does not change the ones recorded before it) and the
+// order it came from. Movements are never edited or deleted: a mistake is corrected with
 // an adjustment. ?productId= opens it on one product (from a product's card).
 import { useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
@@ -93,7 +94,9 @@ export default function MovementsTab() {
           )}
         </Field>
       </div>
-      <p className="muted inventory-note">{mv.note}</p>
+      <p className="muted inventory-note">
+        {mv.note} {mv.afterNote}
+      </p>
       <ErrorNote error={file.error} />
 
       {!period ? null : movements.isLoading ? (

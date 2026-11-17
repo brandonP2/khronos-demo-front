@@ -949,7 +949,7 @@ export const es = {
     noPos: 'Khronos no descuenta el stock con las ventas, porque no hay TPV conectado: anota el consumo a mano o haz un recuento y la diferencia queda registrada.',
     stock: {
       value: 'Valor del stock',
-      valueMeta: 'Lo que hay, a su coste por unidad',
+      valueMeta: 'Lo que hay ahora, al coste por unidad actual de cada producto',
       products: 'Productos',
       productsMeta: 'Activos',
       low: 'Con stock bajo',
@@ -1129,6 +1129,8 @@ export const es = {
     },
     movements: {
       note: 'Los movimientos no se editan ni se borran. Si hay un error, corrígelo con un ajuste desde Stock.',
+      afterNote:
+        '«Stock después» es el stock que quedó al anotar cada movimiento: uno anotado con un día atrasado no cambia el de los que se anotaron antes que él.',
       product: 'Producto',
       allProducts: 'Todos los productos',
       type: 'Tipo',

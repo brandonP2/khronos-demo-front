@@ -58,6 +58,8 @@ describe('stock movements', () => {
     renderApp('/inventory/movements')
     expect(await screen.findByText('Rotura')).toBeTruthy()
     expect(screen.getByRole('link', { name: 'Movimientos' }).getAttribute('aria-current')).toBe('page')
+    // The stock left is the one when each movement was recorded, as the API keeps it
+    expect(screen.getByText(/«Stock después» es el stock que quedó al anotar cada movimiento/)).toBeTruthy()
     const rows = screen.getAllByRole('row').slice(1)
     expect(rows).toHaveLength(3)
     const waste = plain(rows[0].textContent)
