@@ -195,7 +195,7 @@ export function ShiftBatchDialog({
                 <div key={`${s.workerId}-${s.date}`} className={i === failedIndex ? 'list-row failed' : 'list-row'}>
                   <span style={{ flex: 1 }}>{nameOf(s.workerId)}</span>
                   <span className="muted">{zoneName}</span>
-                  <span className="mono secondary" style={{ minWidth: 200, textAlign: 'right' }}>
+                  <span className="mono secondary when">
                     {fmt.day(s.date)} · {s.startTime}–{s.endTime}
                   </span>
                 </div>
@@ -422,7 +422,7 @@ export function CopyWeekDialog({
                 <div key={i} className={i === failedIndex ? 'list-row failed' : 'list-row'}>
                   <span style={{ flex: 1 }}>{nameOf(s.workerId)}</span>
                   <span className="muted">{zoneOf(s.zoneId)}</span>
-                  <span className="mono secondary" style={{ minWidth: 200, textAlign: 'right' }}>
+                  <span className="mono secondary when">
                     {fmt.day(s.date)} · {s.startTime}–{s.endTime}
                   </span>
                 </div>

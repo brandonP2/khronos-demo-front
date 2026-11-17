@@ -781,6 +781,10 @@ a {
   gap: 12px;
 }
 
+.stats.stats-3 {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
 .stat {
   padding: 16px 20px;
   display: flex;
@@ -932,6 +936,27 @@ a {
   font-weight: 500;
 }
 
+/* The name column stays put while the hours scroll sideways */
+.board-axis > :first-child,
+.board-zone-name,
+.board-person,
+.board-empty-zone > span,
+.board-add-row > :first-child {
+  position: sticky;
+  left: 0;
+  z-index: 4;
+}
+
+.board-axis > :first-child,
+.board-person,
+.board-empty-zone > span {
+  background: var(--card);
+}
+
+.board-zone-name {
+  background: var(--raised);
+}
+
 .board-zone-name .count {
   font-family: var(--mono);
   font-size: 12px;
@@ -1001,8 +1026,8 @@ a {
   bottom: 8px;
   display: flex;
   align-items: center;
-  gap: 8px;
   padding: 0 10px;
+  container-type: inline-size;
   border-radius: 6px;
   border: 1px solid transparent;
   background: var(--bar);
@@ -1018,6 +1043,19 @@ a {
 
 .shift-bar:hover {
   background: var(--bar-hover);
+}
+
+/* Short shifts drop the end time, then all text; the label and tooltip keep the full times */
+@container (max-width: 100px) {
+  .shift-bar .end {
+    display: none;
+  }
+}
+
+@container (max-width: 58px) {
+  .shift-bar .start {
+    display: none;
+  }
 }
 
 .shift-bar.covering {
@@ -1280,6 +1318,7 @@ a {
   display: flex;
   align-items: center;
   justify-content: flex-end;
+  flex-wrap: wrap;
   gap: 8px;
   padding: 16px 24px;
   border-top: 1px solid var(--line);
@@ -1393,6 +1432,12 @@ a {
   background: var(--negative-soft);
 }
 
+.batch-preview .when {
+  min-width: 200px;
+  text-align: right;
+  white-space: nowrap;
+}
+
 .batch-rows {
   display: flex;
   flex-direction: column;
@@ -1427,6 +1472,8 @@ a {
   bottom: 16px;
   left: 50%;
   transform: translateX(-50%);
+  width: max-content;
+  max-width: calc(100vw - 32px);
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -1542,17 +1589,21 @@ a {
     grid-template-columns: 1fr;
   }
 
+  /* Hidden off-canvas, and out of the tab order until the menu opens */
   .sidebar {
     position: fixed;
     z-index: 40;
     width: 272px;
     transform: translateX(-100%);
-    transition: transform 300ms var(--ease);
+    visibility: hidden;
+    transition: transform 300ms var(--ease), visibility 0s linear 300ms;
   }
 
   .shell.nav-open .sidebar {
     transform: none;
+    visibility: visible;
     box-shadow: var(--shadow-float);
+    transition: transform 300ms var(--ease);
   }
 
   .mobile-bar {
@@ -1615,6 +1666,13 @@ a {
     --name-col: 128px;
   }
 
+  .board-axis > :first-child,
+  .board-zone-name,
+  .board-person,
+  .board-empty-zone > span {
+    box-shadow: 1px 0 0 var(--line);
+  }
+
   .week-day .counts {
     display: none;
   }
@@ -1639,6 +1697,103 @@ a {
 
   .hide-sm {
     display: none;
+  }
+}
+
+/* Phones */
+@media (max-width: 560px) {
+  .main {
+    padding: 12px 12px 48px;
+  }
+
+  .row-2 {
+    grid-template-columns: 1fr;
+  }
+
+  .stats.stats-3 {
+    grid-template-columns: 1fr;
+  }
+
+  .stat {
+    padding: 14px 16px;
+  }
+
+  .board {
+    --name-col: 104px;
+  }
+
+  .board-inner {
+    min-width: 720px;
+  }
+
+  .board-zone-name {
+    padding: 0 10px;
+  }
+
+  .board-person {
+    padding: 0 10px;
+  }
+
+  .board-person .avatar {
+    display: none;
+  }
+
+  .dialog {
+    top: 4vh;
+    max-height: 92vh;
+  }
+
+  .dialog-head {
+    padding: 16px 16px 0;
+  }
+
+  .dialog-body {
+    padding: 16px;
+  }
+
+  .dialog-foot {
+    padding: 12px 16px;
+  }
+
+  .batch-preview .list-row {
+    flex-wrap: wrap;
+    row-gap: 2px;
+  }
+
+  .batch-preview .when {
+    min-width: 0;
+    flex-basis: 100%;
+    text-align: left;
+  }
+
+  .table th,
+  .table td {
+    padding: 0 12px;
+  }
+
+  .card-head,
+  .card-body {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+
+  .list-row {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+
+  .hide-xs {
+    display: none;
+  }
+
+  /* Row actions keep their icon and accessible name, and drop the visible label */
+  .btn-compact .btn-label {
+    display: none;
+  }
+
+  .btn-compact.btn-sm {
+    width: 30px;
+    padding: 0;
   }
 }
 

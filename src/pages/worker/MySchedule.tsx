@@ -102,7 +102,7 @@ export default function MySchedule() {
         <ErrorNote error={error} />
       ) : (
         <>
-          <div className="stats" style={{ gridTemplateColumns: 'repeat(3, minmax(0, 1fr))' }}>
+          <div className="stats stats-3">
             <div className="card stat">
               <span className="label">{t.mySchedule.nextShift}</span>
               <span className="figure" style={{ fontSize: 22 }}>
@@ -172,7 +172,7 @@ function ShiftCard({ shift, zone, events }: { shift: Shift; zone: string; events
             {t.mySchedule.eventsDuring(events.length)}
           </span>
           {events.map((e) => (
-            <div key={e.id} style={{ display: 'flex', alignItems: 'baseline', gap: 12 }}>
+            <div key={e.id} style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'baseline', columnGap: 12 }}>
               <span className="dot accent" style={{ transform: 'translateY(-2px)' }} />
               <span className="mono" style={{ fontSize: 13, color: 'var(--accent-ink)' }}>
                 {eventTime(e.dateTime)}

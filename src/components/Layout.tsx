@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react'
+import { useEffect, useId, useRef, useState, type ReactNode } from 'react'
 import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import {
   Building2,
@@ -40,12 +40,28 @@ export function Layout({ venuePicker }: { venuePicker?: ReactNode }) {
   const { logout } = useAuth()
   const [open, setOpen] = useState(false)
   const location = useLocation()
+  const sidebarId = useId()
+  const sidebarRef = useRef<HTMLElement>(null)
+  const menuButtonRef = useRef<HTMLButtonElement>(null)
 
   useEffect(() => setOpen(false), [location.pathname])
 
+  // On small screens the menu slides over the page: focus goes into it, and Escape closes it
+  useEffect(() => {
+    if (!open) return
+    sidebarRef.current?.querySelector<HTMLElement>('.nav a')?.focus()
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return
+      setOpen(false)
+      menuButtonRef.current?.focus()
+    }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [open])
+
   return (
     <div className={open ? 'shell nav-open' : 'shell'}>
-      <aside className="sidebar">
+      <aside className="sidebar" id={sidebarId} ref={sidebarRef}>
         <div className="brand">
           <Logo />
           Khronos
@@ -85,7 +101,14 @@ export function Layout({ venuePicker }: { venuePicker?: ReactNode }) {
 
       <div>
         <div className="mobile-bar">
-          <button className="btn btn-ghost btn-icon" onClick={() => setOpen(true)} aria-label={t.nav.openMenu}>
+          <button
+            ref={menuButtonRef}
+            className="btn btn-ghost btn-icon"
+            onClick={() => setOpen(true)}
+            aria-label={t.nav.openMenu}
+            aria-expanded={open}
+            aria-controls={sidebarId}
+          >
             <Menu size={18} strokeWidth={1.5} />
           </button>
           <div className="brand" style={{ padding: 0 }}>

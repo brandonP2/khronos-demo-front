@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useMutation } from '@tanstack/react-query'
-import { Pencil, UserPlus, Users } from 'lucide-react'
+import { Pencil, UserCheck, UserPlus, UserX, Users } from 'lucide-react'
 import { ApiError } from '../../api/client'
 import { api } from '../../api/endpoints'
 import type { UserCreate } from '../../api/types'
@@ -83,7 +83,7 @@ export default function TeamPage() {
                 <th>{t.team.name}</th>
                 <th className="hide-sm">{t.team.contact}</th>
                 <th>{t.team.status}</th>
-                <th className="right">{t.team.thisWeek}</th>
+                <th className="right hide-xs">{t.team.thisWeek}</th>
                 <th className="right" aria-label={t.common.actions} />
               </tr>
             </thead>
@@ -115,16 +115,32 @@ export default function TeamPage() {
                         {m.isActive ? t.team.active : t.team.inactive}
                       </span>
                     </td>
-                    <td className="right mono">
+                    <td className="right mono hide-xs">
                       {load.count ? t.team.load(load.hours, load.count) : <span className="muted">—</span>}
                     </td>
                     <td className="right">
                       <div className="actions" style={{ justifyContent: 'flex-end', flexWrap: 'nowrap' }}>
-                        <Button size="sm" variant="ghost" icon={Pencil} onClick={() => setModal({ kind: 'edit', member: m })}>
-                          {t.common.edit}
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          icon={Pencil}
+                          className="btn-compact"
+                          aria-label={`${t.common.edit}: ${m.name}`}
+                          title={t.common.edit}
+                          onClick={() => setModal({ kind: 'edit', member: m })}
+                        >
+                          <span className="btn-label">{t.common.edit}</span>
                         </Button>
-                        <Button size="sm" variant="ghost" onClick={() => setModal({ kind: 'toggle', member: m })}>
-                          {m.isActive ? t.team.deactivate : t.team.reactivate}
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          icon={m.isActive ? UserX : UserCheck}
+                          className="btn-compact"
+                          aria-label={`${m.isActive ? t.team.deactivate : t.team.reactivate}: ${m.name}`}
+                          title={m.isActive ? t.team.deactivate : t.team.reactivate}
+                          onClick={() => setModal({ kind: 'toggle', member: m })}
+                        >
+                          <span className="btn-label">{m.isActive ? t.team.deactivate : t.team.reactivate}</span>
                         </Button>
                       </div>
                     </td>

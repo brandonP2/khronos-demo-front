@@ -172,7 +172,8 @@ export function Board({
                               aria-label={covering && focusEvent ? `${label}, ${t.board.covers(focusEvent.title)}` : label}
                               title={`${hhmm(s.startTime)}–${hhmm(s.endTime)}`}
                             >
-                              {hhmm(s.startTime)}–{hhmm(s.endTime)}
+                              <span className="start">{hhmm(s.startTime)}</span>
+                              <span className="end">–{hhmm(s.endTime)}</span>
                             </button>
                           )
                         })}
