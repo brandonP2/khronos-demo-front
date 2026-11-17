@@ -49,15 +49,18 @@ export function lockedDay(
   return before?.paymentMethod === 'CASH' ? before.date : null
 }
 
-/** The explanation for a 409 on a cash expense, with a link to that day's till */
-export function DayClosedNote({ day }: { day: string }) {
+/**
+ * The explanation for a 409 on a cash expense, with a link to that day's till. `message` words it
+ * for another screen, such as receiving an order with its expense.
+ */
+export function DayClosedNote({ day, message }: { day: string; message?: string }) {
   const t = useT()
   const fmt = useFmt()
   return (
     <div className="notice" role="alert">
       <AlertCircle size={16} strokeWidth={1.5} />
       <span>
-        {t.expenses.dayClosed(fmt.longInSentence(day))}{' '}
+        {message ?? t.expenses.dayClosed(fmt.longInSentence(day))}{' '}
         <Link to={`/cash?date=${day}`}>{t.expenses.goToCash(fmt.short(day))}</Link>
       </span>
     </div>
