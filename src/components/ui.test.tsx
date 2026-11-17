@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { LocaleProvider } from '../lib/i18n'
-import { Button, Dialog, Field } from './ui'
+import { Button, Dialog, Field, ShiftTimes } from './ui'
 
 afterEach(cleanup)
 
@@ -103,5 +103,23 @@ describe('Field', () => {
     const input = screen.getByLabelText('Teléfono')
     expect(input.getAttribute('aria-invalid')).toBeNull()
     expect(document.getElementById(input.getAttribute('aria-describedby')!)?.textContent).toBe('Opcional')
+  })
+})
+
+describe('ShiftTimes', () => {
+  it('marks a shift that ends the next day with +1, read out as words', () => {
+    const { container } = render(
+      <LocaleProvider initialLocale="es">
+        <span data-testid="night">
+          <ShiftTimes startTime="18:00:00" endTime="02:00:00" />
+        </span>
+        <span data-testid="day">
+          <ShiftTimes startTime="09:00" endTime="17:30" />
+        </span>
+      </LocaleProvider>,
+    )
+    expect(screen.getByTestId('night').textContent).toBe('18:00–02:00+1 del día siguiente')
+    expect(container.querySelector('[data-testid="night"] [aria-hidden]')?.textContent).toBe('+1')
+    expect(screen.getByTestId('day').textContent).toBe('09:00–17:30')
   })
 })

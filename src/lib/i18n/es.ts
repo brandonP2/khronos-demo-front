@@ -196,7 +196,8 @@ export const es = {
     notes: 'Notas',
     onEvent: 'En este evento',
     nobodyYet: 'Nadie todavía',
-    shift: (start: string, end: string) => `Turno ${start}–${end}`,
+    /** Before the shift's times: "Turno 18:00–02:00" */
+    shift: 'Turno',
     takeOff: 'Quitar',
     onShiftAt: (time: string) => `De turno a las ${time}`,
     assignAll: (n: number) => `Asignar a los ${n}`,

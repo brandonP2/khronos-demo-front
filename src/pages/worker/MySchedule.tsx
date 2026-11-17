@@ -5,16 +5,14 @@ import { api } from '../../api/endpoints'
 import type { DateRange, KEvent, Shift } from '../../api/types'
 import { useMe } from '../../auth/AuthContext'
 import { ClockCard } from '../../components/ClockCard'
-import { Empty, ErrorNote, Loading, NextDay, PageHead } from '../../components/ui'
+import { Empty, ErrorNote, Loading, PageHead, ShiftTimes } from '../../components/ui'
 import { useFmt, useT } from '../../lib/i18n'
 import { keys, useMyVenue } from '../../lib/queries'
 import {
   addDays,
   venueTimeZone,
-  endsNextDay,
   eventDate,
   eventTime,
-  hhmm,
   minutesLabel,
   shiftCovers,
   shiftMinutes,
@@ -122,8 +120,7 @@ export default function MySchedule() {
               <span className="meta mono">
                 {next ? (
                   <>
-                    {hhmm(next.startTime)}–{hhmm(next.endTime)}
-                    {endsNextDay(next.startTime, next.endTime) && <NextDay />} · {zoneName(next.zoneId)}
+                    <ShiftTimes startTime={next.startTime} endTime={next.endTime} /> · {zoneName(next.zoneId)}
                   </>
                 ) : (
                   t.mySchedule.nothingPlanned
@@ -177,8 +174,7 @@ function ShiftCard({ shift, zone, events }: { shift: Shift; zone: string; events
     <div className="card" style={{ padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 8 }}>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 16 }}>
         <span className="mono" style={{ fontSize: 15 }}>
-          {hhmm(shift.startTime)}–{hhmm(shift.endTime)}
-          {endsNextDay(shift.startTime, shift.endTime) && <NextDay />}
+          <ShiftTimes startTime={shift.startTime} endTime={shift.endTime} />
         </span>
         <span style={{ fontWeight: 500, flex: 1 }}>{zone}</span>
         <span className="muted mono" style={{ fontSize: 12 }}>

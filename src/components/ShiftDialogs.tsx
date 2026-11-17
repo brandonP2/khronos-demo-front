@@ -7,7 +7,7 @@ import type { Shift, ShiftInput, Zone } from '../api/types'
 import { useInvalidate, type StaffMember } from '../lib/queries'
 import { useFmt, useT, type Messages } from '../lib/i18n'
 import { addDays, durationLabel, endsNextDay, hhmm, shiftTimeIssue, today, weekDays } from '../lib/time'
-import { Avatar, Button, ConfirmDialog, Dialog, ErrorNote, Field, NextDay, useToast } from './ui'
+import { Avatar, Button, ConfirmDialog, Dialog, ErrorNote, Field, ShiftTimes, useToast } from './ui'
 
 /**
  * What the times of a shift mean. An end at or before the start is on the next day
@@ -35,16 +35,6 @@ function OvernightNote({ overnight, endTime, duration }: { overnight: boolean; e
         </div>
       )}
     </div>
-  )
-}
-
-/** "18:00–02:00+1" */
-function ShiftTimes({ startTime, endTime }: { startTime: string; endTime: string }) {
-  return (
-    <>
-      {hhmm(startTime)}–{hhmm(endTime)}
-      {endsNextDay(startTime, endTime) && <NextDay />}
-    </>
   )
 }
 

@@ -16,6 +16,7 @@ import { AlertCircle, Check, Loader2, X, type LucideIcon } from 'lucide-react'
 import { ApiError } from '../api/client'
 import { knownApiMessage } from '../lib/apiMessages'
 import { useT, type Messages } from '../lib/i18n'
+import { endsNextDay, hhmm } from '../lib/time'
 
 type ButtonVariant = 'default' | 'primary' | 'ghost' | 'danger'
 
@@ -114,6 +115,16 @@ export function NextDay() {
       <span aria-hidden>+1</span>
       <span className="visually-hidden"> {t.board.nextDay}</span>
     </span>
+  )
+}
+
+/** A shift's times, "18:00–02:00+1", with the mark when it ends the next day */
+export function ShiftTimes({ startTime, endTime }: { startTime: string; endTime: string }) {
+  return (
+    <>
+      {hhmm(startTime)}–{hhmm(endTime)}
+      {endsNextDay(startTime, endTime) && <NextDay />}
+    </>
   )
 }
 

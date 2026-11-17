@@ -6,8 +6,8 @@ import { api } from '../api/endpoints'
 import type { Assignment, EventInput, KEvent, Shift, Zone } from '../api/types'
 import { useFmt, useT } from '../lib/i18n'
 import { useInvalidate, type StaffMember } from '../lib/queries'
-import { endsNextDay, eventDate, eventTime, fromMinutes, hhmm, minutes, shiftCovers, toDateTime, today } from '../lib/time'
-import { Avatar, Button, ConfirmDialog, Dialog, Drawer, ErrorNote, Field, NextDay, errorMessage, useToast } from './ui'
+import { eventDate, eventTime, fromMinutes, minutes, shiftCovers, toDateTime, today } from '../lib/time'
+import { Avatar, Button, ConfirmDialog, Dialog, Drawer, ErrorNote, Field, ShiftTimes, errorMessage, useToast } from './ui'
 import type { ShiftDraft } from './ShiftDialogs'
 
 /**
@@ -247,8 +247,7 @@ function ShiftSub({ shift }: { shift: Shift }) {
   const t = useT()
   return (
     <span className="sub">
-      {t.eventDrawer.shift(hhmm(shift.startTime), hhmm(shift.endTime))}
-      {endsNextDay(shift.startTime, shift.endTime) && <NextDay />}
+      {t.eventDrawer.shift} <ShiftTimes startTime={shift.startTime} endTime={shift.endTime} />
     </span>
   )
 }

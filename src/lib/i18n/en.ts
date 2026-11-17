@@ -182,7 +182,7 @@ export const en: Messages = {
     notes: 'Notes',
     onEvent: 'On this event',
     nobodyYet: 'Nobody yet',
-    shift: (start: string, end: string) => `Shift ${start}–${end}`,
+    shift: 'Shift',
     takeOff: 'Take off',
     onShiftAt: (time: string) => `On shift at ${time}`,
     assignAll: (n: number) => `Assign all ${n}`,

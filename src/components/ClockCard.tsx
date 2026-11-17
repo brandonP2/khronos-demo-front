@@ -8,9 +8,9 @@ import { useMe } from '../auth/AuthContext'
 import { isNoOpenEntry } from '../lib/apiMessages'
 import { useT } from '../lib/i18n'
 import { keys, useInvalidate, useMyOpenEntry } from '../lib/queries'
-import { addDays, endsNextDay, hhmm, minutesLabel, minutesSince, shiftWindow, zonedTime, zonedToday } from '../lib/time'
+import { addDays, minutesLabel, minutesSince, shiftWindow, zonedTime, zonedToday } from '../lib/time'
 import { useNow } from '../lib/useNow'
-import { Button, Dialog, ErrorNote, Field, NextDay, useToast } from './ui'
+import { Button, Dialog, ErrorNote, Field, ShiftTimes, useToast } from './ui'
 
 const isConflict = (e: unknown) => e instanceof ApiError && e.status === 409
 const isNothingOpen = (e: unknown) => isConflict(e) && isNoOpenEntry((e as ApiError).message)
@@ -131,8 +131,7 @@ export function ClockCard({ timeZone, zones }: { timeZone: string; zones: Zone[]
             <>
               {planned.running ? t.clock.currentShift : t.clock.todayShift}:{' '}
               <span className="mono">
-                {hhmm(planned.shift.startTime)}–{hhmm(planned.shift.endTime)}
-                {endsNextDay(planned.shift.startTime, planned.shift.endTime) && <NextDay />}
+                <ShiftTimes startTime={planned.shift.startTime} endTime={planned.shift.endTime} />
               </span>
               {zoneName(planned.shift.zoneId) && ` · ${zoneName(planned.shift.zoneId)}`}
             </>
