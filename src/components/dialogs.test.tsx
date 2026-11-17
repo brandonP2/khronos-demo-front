@@ -129,6 +129,26 @@ describe('EventDrawer', () => {
     expect((screen.getByRole('button', { name: 'Eliminar' }) as HTMLButtonElement).disabled).toBe(true)
   })
 
+  it('never suggests a shift that ends when it starts', () => {
+    const onAddShift = vi.fn()
+    wrap(
+      <EventDrawer
+        event={{ ...event, dateTime: `${day}T23:59:00` }}
+        staff={[lucia, marco, tomas]}
+        shifts={[shift(1, 1), shift(2, 2)]}
+        assignments={[]}
+        assignmentsLoading={false}
+        onClose={() => {}}
+        onEdit={() => {}}
+        onAddShift={onAddShift}
+      />,
+    )
+    // Still listed, so the owner sees who is not on shift
+    expect(screen.getByText('Tomás Vidal')).toBeTruthy()
+    for (const button of screen.queryAllByRole('button', { name: 'Darle un turno' })) fireEvent.click(button)
+    for (const [draft] of onAddShift.mock.calls) expect(draft.endTime).not.toBe(draft.startTime)
+  })
+
   it('names the person a failed "assign all" stopped at, and offers to assign the rest', async () => {
     vi.stubGlobal(
       'fetch',

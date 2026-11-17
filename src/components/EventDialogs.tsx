@@ -216,21 +216,24 @@ export function EventDrawer({
             <div key={s.userId} className="pick-row">
               <Avatar size="sm" initials={s.initials} />
               <span className="grow secondary">{s.name}</span>
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={() =>
-                  onAddShift({
-                    workerIds: [s.userId],
-                    zoneId: event.zoneId,
-                    dates: [eventDate(event.dateTime)],
-                    startTime: time,
-                    endTime: suggestedEnd,
-                  })
-                }
-              >
-                {t.eventDrawer.addShift}
-              </Button>
+              {/* At 23:59 no same-day shift can run past the event, so an empty one is not suggested */}
+              {suggestedEnd !== time && (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() =>
+                    onAddShift({
+                      workerIds: [s.userId],
+                      zoneId: event.zoneId,
+                      dates: [eventDate(event.dateTime)],
+                      startTime: time,
+                      endTime: suggestedEnd,
+                    })
+                  }
+                >
+                  {t.eventDrawer.addShift}
+                </Button>
+              )}
             </div>
           ))}
         </section>
