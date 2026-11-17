@@ -1,11 +1,24 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Clock } from 'lucide-react'
+import { ApiError } from '../api/client'
 import type { Assignment, KEvent, Shift, Zone } from '../api/types'
-import { useAuth } from '../auth/AuthContext'
+import { isDisabledAccount, useAuth } from '../auth/AuthContext'
 import { Board } from '../components/Board'
-import { Button, ErrorNote, Field, Logo } from '../components/ui'
-import { useFmt, useT } from '../lib/i18n'
+import { Button, ErrorNote, Field, Logo, errorMessage } from '../components/ui'
+import { useFmt, useT, type Messages } from '../lib/i18n'
 import { today } from '../lib/time'
+
+/** The login endpoint's own errors are worded here; anything else falls back to the shared wording */
+function loginErrorText(error: unknown, t: Messages): string | null {
+  if (!error) return null
+  if (error instanceof ApiError && error.status === 401) {
+    return isDisabledAccount(error) ? t.login.accountDisabled : t.login.invalidCredentials
+  }
+  if (error instanceof ApiError && error.kind === 'rate-limited') {
+    return t.login.tooManyAttempts(error.retryAfter ? t.common.wait(error.retryAfter) : null)
+  }
+  return errorMessage(error, t)
+}
 
 export default function Login() {
   const t = useT()
@@ -14,15 +27,35 @@ export default function Login() {
   const [password, setPassword] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<unknown>(null)
+  // After a 429 the button stays locked for as long as Retry-After says
+  const [lockedUntil, setLockedUntil] = useState<number | null>(null)
+  const [now, setNow] = useState(() => Date.now())
+
+  useEffect(() => {
+    if (!lockedUntil) return
+    const id = setInterval(() => {
+      const current = Date.now()
+      setNow(current)
+      if (current >= lockedUntil) setLockedUntil(null)
+    }, 1000)
+    return () => clearInterval(id)
+  }, [lockedUntil])
+
+  const secondsLeft = lockedUntil ? Math.max(0, Math.ceil((lockedUntil - now) / 1000)) : 0
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (secondsLeft > 0) return
     setBusy(true)
     setError(null)
     try {
       await login(username.trim(), password)
     } catch (err) {
       setError(err)
+      if (err instanceof ApiError && err.kind === 'rate-limited' && err.retryAfter) {
+        setNow(Date.now())
+        setLockedUntil(Date.now() + err.retryAfter * 1000)
+      }
       setBusy(false)
     }
   }
@@ -63,15 +96,15 @@ export default function Login() {
               />
             )}
           </Field>
-          {signOutReason === 'expired' && !error && (
+          {signOutReason && !error && (
             <div className="notice info" role="status">
               <Clock size={16} strokeWidth={1.5} />
-              <span>{t.login.sessionEnded}</span>
+              <span>{signOutReason === 'disabled' ? t.login.sessionDisabled : t.login.sessionEnded}</span>
             </div>
           )}
-          <ErrorNote error={error} />
-          <Button type="submit" variant="primary" loading={busy} disabled={!username || !password}>
-            {t.login.signIn}
+          <ErrorNote error={loginErrorText(error, t)} />
+          <Button type="submit" variant="primary" loading={busy} disabled={!username || !password || secondsLeft > 0}>
+            {secondsLeft > 0 ? t.login.waitButton(secondsLeft) : t.login.signIn}
           </Button>
         </form>
       </div>

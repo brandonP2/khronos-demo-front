@@ -151,6 +151,7 @@ export function Empty({
  * itself detects, like a lost connection, are worded in the current language.
  */
 export function errorMessage(error: unknown, t: Messages): string {
+  if (typeof error === 'string') return error
   if (error instanceof ApiError) {
     if (error.kind === 'network') return t.errors.network
     if (error.kind === 'server') return t.errors.server

@@ -318,11 +318,31 @@ export const es = {
     languageLabel: 'Idioma de la aplicación',
     languageHint: 'Se recuerda en este navegador.',
   },
+  session: {
+    expiresAt: (time: string) => `Tu sesión caduca a las ${time}.`,
+    stay: 'Seguir conectado',
+    reauthTitle: 'Seguir conectado',
+    reauthSub: (time: string) =>
+      `Tu sesión caduca a las ${time}. Escribe tu contraseña para seguir otra hora sin perder lo que tienes en pantalla.`,
+    signedInAs: (username: string) => `Usuario: ${username}`,
+    renew: 'Seguir',
+    renewed: (time: string) => `Sesión renovada hasta las ${time}`,
+    wrongPassword: 'Contraseña incorrecta.',
+    lostTitle: 'No se puede conectar con Khronos',
+    lostBody: 'Tu sesión sigue abierta.',
+  },
   login: {
     headline: 'Turnos y eventos para tu local, revisados antes de publicarlos',
     lede: 'Planifica quién trabaja dónde y cuándo, cubre cada evento con el personal de turno y deja que tu equipo vea su semana.',
     signIn: 'Entrar',
     sessionEnded: 'Tu sesión ha terminado. Por seguridad, las sesiones duran una hora. Vuelve a entrar para continuar.',
+    invalidCredentials: 'Usuario o contraseña incorrectos.',
+    accountDisabled: 'Tu cuenta está desactivada. Habla con el responsable de tu local.',
+    sessionDisabled: 'Se ha cerrado tu sesión porque tu cuenta está desactivada. Habla con el responsable de tu local.',
+    tooManyAttempts: (wait: string | null) =>
+      wait ? `Demasiados intentos. Espera ${wait} y vuelve a probar.` : 'Demasiados intentos. Espera un poco y vuelve a probar.',
+    /** Sign-in button while it is locked after too many attempts */
+    waitButton: (seconds: number) => `Espera ${seconds} s`,
     previewTitle: (weekday: string) => `Servicio del ${weekday}`,
     previewMeta: '5 de turno · 2 eventos',
     previewZones: ['Sala', 'Terraza'],

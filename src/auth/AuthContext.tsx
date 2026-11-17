@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
-import { setAccessToken, setUnauthorizedHandler } from '../api/client'
+import { ApiError, setAccessToken, setUnauthorizedHandler } from '../api/client'
 import { api } from '../api/endpoints'
 import type { User } from '../api/types'
 
@@ -14,7 +14,7 @@ interface Session {
   expiresAt: number
 }
 
-export type SignOutReason = 'expired' | null
+export type SignOutReason = 'expired' | 'disabled' | null
 
 interface AuthState {
   user: User | null
@@ -22,7 +22,12 @@ interface AuthState {
   expiresAt: number | null
   /** Why the last session ended, so the login screen can say so */
   signOutReason: SignOutReason
+  /** The stored session could not be checked (no connection, server error); it is kept for a retry */
+  bootError: unknown
+  retryBoot: () => Promise<void>
   login: (username: string, password: string) => Promise<void>
+  /** Gets a fresh token for the signed-in user without leaving the current screen; resolves to the new expiry */
+  renewSession: (password: string) => Promise<number>
   logout: () => void
   setUser: (user: User) => void
 }
@@ -49,12 +54,18 @@ function writeSession(session: Session | null) {
   }
 }
 
+/** The API answers 401 "This account is disabled" when a worker is deactivated */
+export function isDisabledAccount(error: unknown): boolean {
+  return error instanceof ApiError && error.status === 401 && /disabled|deactivated/i.test(error.message)
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient()
   const [user, setUser] = useState<User | null>(null)
   const [ready, setReady] = useState(false)
   const [expiresAt, setExpiresAt] = useState<number | null>(null)
   const [signOutReason, setSignOutReason] = useState<SignOutReason>(null)
+  const [bootError, setBootError] = useState<unknown>(null)
   const expiryTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const endSession = useCallback(
@@ -65,6 +76,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setAccessToken(null)
       setExpiresAt(null)
       setUser(null)
+      setBootError(null)
       setSignOutReason(reason)
       queryClient.clear()
     },
@@ -84,9 +96,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = useCallback(() => endSession(null), [endSession])
 
+  // A 401 has already ended the session through the handler. Anything else, like a lost
+  // connection or a 5xx, keeps the session so the person can retry instead of being signed out.
+  const loadUser = useCallback(async () => {
+    try {
+      setUser(await api.users.me())
+      setBootError(null)
+    } catch (e) {
+      if (!(e instanceof ApiError && e.status === 401)) setBootError(e)
+    }
+  }, [])
+
   useEffect(() => {
     // Any 401 on an authenticated call means the server no longer accepts the token
-    setUnauthorizedHandler(() => endSession('expired'))
+    setUnauthorizedHandler((error) => endSession(isDisabledAccount(error) ? 'disabled' : 'expired'))
     const session = readSession()
     if (!session || session.expiresAt <= Date.now()) {
       if (session) endSession('expired')
@@ -94,16 +117,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return () => setUnauthorizedHandler(null)
     }
     startSession(session)
-    api.users
-      .me()
-      .then(setUser)
-      .catch(() => endSession('expired'))
-      .finally(() => setReady(true))
+    loadUser().finally(() => setReady(true))
     return () => {
       setUnauthorizedHandler(null)
       if (expiryTimer.current) clearTimeout(expiryTimer.current)
     }
-  }, [endSession, startSession])
+  }, [endSession, startSession, loadUser])
+
+  // Coming back online is a good moment to try the stored session again
+  useEffect(() => {
+    if (!bootError) return
+    const retry = () => void loadUser()
+    window.addEventListener('online', retry)
+    return () => window.removeEventListener('online', retry)
+  }, [bootError, loadUser])
 
   const login = useCallback(
     async (username: string, password: string) => {
@@ -112,6 +139,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       try {
         setUser(await api.users.me())
         setSignOutReason(null)
+        setBootError(null)
       } catch (e) {
         endSession(null)
         throw e
@@ -120,9 +148,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [startSession, endSession],
   )
 
+  const renewSession = useCallback(
+    async (password: string) => {
+      if (!user) throw new Error('renewSession needs a signed-in user')
+      const token = await api.auth.login(user.username, password)
+      const session = { token: token.accessToken, expiresAt: Date.parse(token.expiresAt) }
+      startSession(session)
+      return session.expiresAt
+    },
+    [user, startSession],
+  )
+
   const value = useMemo(
-    () => ({ user, ready, expiresAt, signOutReason, login, logout, setUser }),
-    [user, ready, expiresAt, signOutReason, login, logout],
+    () => ({
+      user,
+      ready,
+      expiresAt,
+      signOutReason,
+      bootError,
+      retryBoot: loadUser,
+      login,
+      renewSession,
+      logout,
+      setUser,
+    }),
+    [user, ready, expiresAt, signOutReason, bootError, loadUser, login, renewSession, logout],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

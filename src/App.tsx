@@ -2,6 +2,7 @@ import { Navigate, Route, Routes } from 'react-router-dom'
 import { Building2 } from 'lucide-react'
 import { useAuth, useMe } from './auth/AuthContext'
 import { Layout, VenuePicker } from './components/Layout'
+import { ConnectionLost, SessionWarning } from './components/Session'
 import { Empty, ErrorNote, Loading } from './components/ui'
 import { useT } from './lib/i18n'
 import { VenueProvider, useVenue } from './lib/VenueContext'
@@ -15,17 +16,22 @@ import MySchedule from './pages/worker/MySchedule'
 import AdminPage from './pages/admin/AdminPage'
 
 export default function App() {
-  const { user, ready } = useAuth()
+  const { user, ready, bootError } = useAuth()
   if (!ready) return null
-  if (!user) return <Login />
-  if (user.role === 'OWNER') {
-    return (
-      <VenueProvider>
-        <OwnerApp />
-      </VenueProvider>
-    )
-  }
-  return <SimpleApp />
+  // A stored session that could not be checked is kept, so the person can retry
+  if (!user) return bootError ? <ConnectionLost /> : <Login />
+  return (
+    <>
+      {user.role === 'OWNER' ? (
+        <VenueProvider>
+          <OwnerApp />
+        </VenueProvider>
+      ) : (
+        <SimpleApp />
+      )}
+      <SessionWarning />
+    </>
+  )
 }
 
 function OwnerApp() {

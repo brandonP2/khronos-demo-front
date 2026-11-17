@@ -1500,6 +1500,39 @@ a {
   }
 }
 
+/* ---------- Session warning ---------- */
+
+.session-warning {
+  position: fixed;
+  z-index: 60;
+  bottom: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: max-content;
+  max-width: calc(100vw - 32px);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  padding: 8px 8px 8px 14px;
+  border-radius: 12px;
+  border: 1px solid var(--accent-line);
+  background: var(--card);
+  box-shadow: var(--shadow-float);
+  font-weight: 500;
+  animation: rise 260ms var(--ease) both;
+}
+
+.session-warning svg {
+  flex: none;
+  color: var(--accent);
+}
+
+/* Toasts move up while the warning sits at the bottom */
+body:has(.session-warning) .toasts {
+  bottom: 80px;
+}
+
 /* ---------- Login ---------- */
 
 .login {
