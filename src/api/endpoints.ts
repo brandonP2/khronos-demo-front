@@ -1,28 +1,41 @@
-import { request } from './client'
+import { download, request } from './client'
 import type {
   Assignment,
+  ClockInInput,
+  ClockOutInput,
   DateRange,
   Establishment,
   EstablishmentInput,
   EventInput,
+  HoursReport,
   KEvent,
+  Period,
   Role,
   Shift,
   ShiftInput,
+  TimeEntry,
+  TimeEntryChange,
+  TimeEntryCreate,
+  TimeEntryQuery,
+  TimeEntryUpdate,
   TokenResponse,
   User,
   UserCreate,
   UserUpdate,
   Worker,
+  WorkerDaysReport,
+  WorkerRate,
+  WorkerRateInput,
   WorkerWithUser,
   Zone,
 } from './types'
 
 /** "?from=2026-11-16&to=2026-11-22", or nothing when the range is open on both sides */
-function rangeQuery(range: DateRange = {}): string {
+function rangeQuery(range: TimeEntryQuery = {}): string {
   const params = new URLSearchParams()
   if (range.from) params.set('from', range.from)
   if (range.to) params.set('to', range.to)
+  if (range.includeVoided) params.set('includeVoided', 'true')
   const query = params.toString()
   return query ? `?${query}` : ''
 }
@@ -93,5 +106,49 @@ export const api = {
     byWorker: (workerId: number) => request<Assignment[]>('GET', `/worker-events/worker/${workerId}`),
     create: (pairs: { workerId: number; eventId: number }[]) => request<Assignment[]>('POST', '/worker-events', pairs),
     remove: (id: number) => request<void>('DELETE', `/worker-events/${id}`),
+  },
+  /** Owner and admin only: a worker never sees rates or costs, not even their own */
+  rates: {
+    /** Newest first */
+    byWorker: (workerId: number) => request<WorkerRate[]>('GET', `/workers/${workerId}/rates`),
+    create: (workerId: number, input: WorkerRateInput) => request<WorkerRate>('POST', `/workers/${workerId}/rates`, input),
+    remove: (workerId: number, rateId: number) => request<void>('DELETE', `/workers/${workerId}/rates/${rateId}`),
+  },
+  timeEntries: {
+    /** The signed-in worker's open entry; the API answers 204 when they are not clocked in */
+    myOpen: async () => (await request<TimeEntry | undefined>('GET', '/time-entries/me/open')) ?? null,
+    /** A worker clocks themselves in; the server sets the time */
+    clockIn: (input: ClockInInput = {}) => request<TimeEntry>('POST', '/time-entries/clock-in', input),
+    clockOut: (input: ClockOutInput = {}) => request<TimeEntry>('POST', '/time-entries/clock-out', input),
+    /** Owner: records an entry for someone, open (clock them in now) or a whole past day */
+    create: (input: TimeEntryCreate) => request<TimeEntry>('POST', '/time-entries', input),
+    /** Owner: a correction; the reason is kept in the entry's history */
+    update: (id: number, input: TimeEntryUpdate) => request<TimeEntry>('PUT', `/time-entries/${id}`, input),
+    /** Owner: entries are voided, never deleted */
+    voidEntry: (id: number, reason: string) => request<TimeEntry>('PUT', `/time-entries/${id}/void`, { reason }),
+    /** Oldest change first */
+    history: (id: number) => request<TimeEntryChange[]>('GET', `/time-entries/${id}/history`),
+    /** Ordered by clockIn. The owner, or the worker on their own. */
+    byWorker: (workerId: number, query?: TimeEntryQuery) =>
+      request<TimeEntry[]>('GET', `/time-entries/worker/${workerId}${rangeQuery(query)}`),
+    byEstablishment: (establishmentId: number, query?: TimeEntryQuery) =>
+      request<TimeEntry[]>('GET', `/time-entries/establishment/${establishmentId}${rangeQuery(query)}`),
+    /** Who is clocked in right now */
+    open: (establishmentId: number) => request<TimeEntry[]>('GET', `/time-entries/establishment/${establishmentId}/open`),
+  },
+  reports: {
+    /** Owner only: planned and worked hours and cost per person */
+    hours: (establishmentId: number, period: Period) =>
+      request<HoursReport>('GET', `/reports/establishment/${establishmentId}/hours${rangeQuery(period)}`),
+    /** Day by day for one person. Costs are null when a worker asks for their own. */
+    workerDays: (workerId: number, period: Period) =>
+      request<WorkerDaysReport>('GET', `/reports/worker/${workerId}/days${rangeQuery(period)}`),
+    hoursCsv: (establishmentId: number, period: Period) =>
+      download(`/reports/establishment/${establishmentId}/hours.csv${rangeQuery(period)}`),
+    /** The venue's record of working time: one row per entry */
+    timeEntriesCsv: (establishmentId: number, period: Period) =>
+      download(`/reports/establishment/${establishmentId}/time-entries.csv${rangeQuery(period)}`),
+    workerTimeEntriesCsv: (workerId: number, period: Period) =>
+      download(`/reports/worker/${workerId}/time-entries.csv${rangeQuery(period)}`),
   },
 }

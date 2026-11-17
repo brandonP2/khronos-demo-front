@@ -80,6 +80,8 @@ describe('EventDrawer', () => {
     date: day,
     startTime: '18:00:00',
     endTime: '23:59:00',
+    endsNextDay: false,
+    durationMinutes: 359,
   })
   const event: KEvent = {
     id: 9,

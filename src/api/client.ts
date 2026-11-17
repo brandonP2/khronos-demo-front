@@ -63,8 +63,9 @@ interface RequestOptions {
   anonymous?: boolean
 }
 
-export async function request<T>(method: string, path: string, body?: unknown, options: RequestOptions = {}): Promise<T> {
-  const headers: Record<string, string> = { Accept: 'application/json' }
+/** Sends the call with the bearer token and turns any non-2xx answer into an ApiError */
+async function send(method: string, path: string, body: unknown, options: RequestOptions, accept: string): Promise<Response> {
+  const headers: Record<string, string> = { Accept: accept }
   const auth = options.anonymous ? null : accessToken
   if (auth) headers.Authorization = `Bearer ${auth}`
   if (body !== undefined) headers['Content-Type'] = 'application/json'
@@ -80,12 +81,9 @@ export async function request<T>(method: string, path: string, body?: unknown, o
     throw new ApiError({ status: 0, message: 'Cannot reach the Khronos server. Check that the API is running.' })
   }
 
-  if (res.status === 204) return undefined as T
-
-  const text = await res.text()
-  const data = text ? safeJson(text) : null
-
   if (!res.ok) {
+    const text = await res.text()
+    const data = text ? safeJson(text) : null
     const fromApi = data !== null && typeof data === 'object' && 'message' in data
     const errorBody: ApiErrorBody = fromApi
       ? { ...(data as ApiErrorBody), status: res.status }
@@ -98,7 +96,45 @@ export async function request<T>(method: string, path: string, body?: unknown, o
     if (res.status === 401 && auth) onUnauthorized?.(error)
     throw error
   }
-  return data as T
+  return res
+}
+
+export async function request<T>(method: string, path: string, body?: unknown, options: RequestOptions = {}): Promise<T> {
+  const res = await send(method, path, body, options, 'application/json')
+  if (res.status === 204) return undefined as T
+  const text = await res.text()
+  return (text ? safeJson(text) : null) as T
+}
+
+export interface DownloadedFile {
+  blob: Blob
+  /** From Content-Disposition, or null when the header is missing or not exposed to the page */
+  filename: string | null
+}
+
+/**
+ * Fetches a file with the bearer token. A plain link cannot send the token, so exports are
+ * downloaded this way and then handed to the browser as a blob (see lib/download.ts).
+ */
+export async function download(path: string, accept = 'text/csv'): Promise<DownloadedFile> {
+  const res = await send('GET', path, undefined, {}, accept)
+  return { blob: await res.blob(), filename: filenameFrom(res.headers.get('Content-Disposition')) }
+}
+
+/** `attachment; filename="horas.csv"` or the RFC 5987 form `filename*=UTF-8''horas%20nov.csv` */
+export function filenameFrom(disposition: string | null): string | null {
+  if (!disposition) return null
+  const extended = /filename\*\s*=\s*(?:UTF-8|utf-8)''([^;]+)/.exec(disposition)
+  if (extended) {
+    try {
+      return decodeURIComponent(extended[1].trim().replace(/^"|"$/g, ''))
+    } catch {
+      // Badly encoded: fall back to the plain parameter
+    }
+  }
+  const plain = /filename\s*=\s*("([^"]*)"|[^;]+)/.exec(disposition)
+  const name = plain ? (plain[2] ?? plain[1]).trim() : ''
+  return name || null
 }
 
 function safeJson(text: string): unknown {
