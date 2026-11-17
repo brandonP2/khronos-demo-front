@@ -314,6 +314,13 @@ export function makeFmt(locale: string, words: RelativeDayWords) {
   // useGrouping: 'always' is ES2023 Intl, which the ES2022 lib types only know as a boolean.
   const moneyOptions = { style: 'currency', currency: 'EUR', useGrouping: 'always' }
   const moneyFmt = new Intl.NumberFormat(locale, moneyOptions as unknown as Intl.NumberFormatOptions)
+  const wholeMoneyFmt = new Intl.NumberFormat(locale, { ...moneyOptions, maximumFractionDigits: 0 } as unknown as Intl.NumberFormatOptions)
+  const compactMoneyFmt = new Intl.NumberFormat(locale, { style: 'currency', currency: 'EUR', notation: 'compact', maximumFractionDigits: 1 })
+  // An amount as it is typed in a field, without the currency: "1.234,50" / "1,234.50"
+  const amountOptions = { minimumFractionDigits: 2, maximumFractionDigits: 2, useGrouping: 'always' }
+  const amountFmt = new Intl.NumberFormat(locale, amountOptions as unknown as Intl.NumberFormatOptions)
+  const percentFmt = new Intl.NumberFormat(locale, { style: 'percent', minimumFractionDigits: 1, maximumFractionDigits: 1 })
+  const pointsFmt = new Intl.NumberFormat(locale, { minimumFractionDigits: 1, maximumFractionDigits: 1 })
   // Spanish writes weekdays and months in lower case; lines that stand on their own start with a capital
   const cap = (text: string) => text.charAt(0).toLocaleUpperCase(locale) + text.slice(1)
   const date = parseISODate
@@ -339,6 +346,16 @@ export function makeFmt(locale: string, words: RelativeDayWords) {
     number: (n: number) => numberFmt.format(n),
     /** "1.234,50 €" / "€1,234.50" */
     money: (n: number) => moneyFmt.format(n),
+    /** Always signed, so a change reads without colour: "+120,00 €", "−45,00 €", "0,00 €" */
+    signedMoney: (n: number) => (n > 0 ? '+' : n < 0 ? '−' : '') + moneyFmt.format(Math.abs(n)),
+    /** For an axis: "2.000 €" in full under 10.000, then "12 mil €" / "€12K" */
+    moneyShort: (n: number) => (Math.abs(n) < 10_000 ? wholeMoneyFmt.format(n) : compactMoneyFmt.format(n)),
+    /** "1.234,50", to fill an amount field */
+    amount: (n: number) => amountFmt.format(n),
+    /** From a value in percent: 32.5 to "32,5 %" / "32.5%" */
+    percent: (n: number) => percentFmt.format(n / 100),
+    /** "1,5" / "1.5", for a change in percentage points */
+    points: (n: number) => pointsFmt.format(n),
     /** Hours with one decimal from minutes: 450 to "7,5" */
     hours: (mins: number) => numberFmt.format(Math.round(mins / 6) / 10),
     /** "Today", "Tomorrow", "Yesterday", or the long date; `on` is today, the venue's where it matters */
