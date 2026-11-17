@@ -1,6 +1,6 @@
 # Khronos frontend
 
-React app for the [Khronos API](../khronos-demo). Owners of small venues use it to set up zones, schedule staff shifts, create events and put people on them, and to see the work actually done: who clocked in and out, planned against worked hours, punctuality and staff cost. Staff use it to see their own week, clock in and out from their phone and check their hours.
+React app for the [Khronos API](../khronos-demo). Owners of small venues use it to set up zones, schedule staff shifts, create events and put people on them, and to see the work actually done: who clocked in and out, planned against worked hours, punctuality and staff cost. They also close the till at the end of each day, record expenses and see the business at a glance: sales, expenses, staff cost and margin against the period before. Staff use it to see their own week, clock in and out from their phone and check their hours.
 
 The interface is in **Spanish (Spain) by default**, with English as an option.
 
@@ -34,11 +34,13 @@ The API has no CORS config, so in development Vite proxies every `/api` call to 
 
 | Role | Screens |
 |---|---|
-| Owner | **Schedule** (`/`): a **Now** card with who is clocked in, since when, and quick actions to clock someone in or out; a day board per zone with the week strip, add shifts in batches, copy last week, and an event panel to assign people. **Hours** (`/hours`): planned against worked hours, punctuality and staff cost per person for a period, with CSV exports. **Events**: upcoming and past events with who is on them. **Team**: add people (creates the login and links it to the venue in one step), edit, reset a password, deactivate; each name opens the person's page. **Person** (`/team/:workerId`): details, hourly rate and its history, day by day for a period, and every time entry with add, correct, void and history. **Venue and zones**, including the venue's time zone. |
+| Owner | **Summary** (`/`, the owner's home): for a period (this week, last week, this month, last month or a range), sales, expenses, staff cost, estimated margin and staff cost over sales, each against the period before; a chart of sales and total cost by day; expenses by category; what needs doing (days with activity and no cash closing, drafts, the cash difference) and who is clocked in now; CSV export. **Cash** (`/cash`, `?date=YYYY-MM-DD` for a day): the day's cash closing, made for the phone, with the figures worked out as amounts are typed, save as draft, close, reopen with a reason and the history; below, the closings of a period with the days that had activity and no closing; CSV export. **Expenses** (`/expenses`): by period and category with the filter's total, added and edited in a dialog, deleted after confirming; CSV export; cards on phones. **Schedule** (`/schedule`): a **Now** card with who is clocked in, since when, and quick actions to clock someone in or out; a day board per zone with the week strip, add shifts in batches, copy last week, and an event panel to assign people. **Hours** (`/hours`): planned against worked hours, punctuality and staff cost per person for a period, with CSV exports. **Events**: upcoming and past events with who is on them. **Team**: add people (creates the login and links it to the venue in one step), edit, reset a password, deactivate; each name opens the person's page. **Person** (`/team/:workerId`): details, hourly rate and its history, day by day for a period, and every time entry with add, correct, void and history. **Venue and zones**, including the venue's time zone. |
 | Worker | **My schedule** (`/`): a **Clock in** card first (out, or in since HH:MM with the time ticking, today's shift, one big button), then upcoming shifts by day, with the events they are on during each shift. **My hours** (`/hours`): their entries by period, planned against worked, the status of each day, each entry's corrections, and their own record as CSV. |
 | Platform admin | **Owners and venues**: create owner accounts and their venues (with the venue's time zone), reset an owner's password. |
 
-Workers never see hourly rates or costs, theirs included, and the app never asks the API for them with a worker's session.
+Workers never see hourly rates or costs, theirs included, and the app never asks the API for them with a worker's session. Summary, Cash and Expenses are for owners only: a worker gets neither the menu entries nor the routes (an address like `/cash` takes them to their schedule) and the app never calls those endpoints with their session.
+
+**The schedule moved.** It used to be the owner's `/`; it is now `/schedule`, and `/` is the summary. Workers and admins keep their `/`.
 
 All roles have **Account**, for profile, password and language.
 
@@ -78,6 +80,18 @@ return <PageHead title={t.schedule.title} sub={`${fmt.long(date)} · ${t.common.
 - **Who is in now** is refreshed every minute and whenever the tab comes back into view.
 - **CSV exports** need the bearer token, so they are fetched with it and saved from a blob, not opened as links. The file name comes from `Content-Disposition`; a cross-origin API has to expose that header for the browser to read it, otherwise a name like `horas_2026-11-16_2026-11-22.csv` is used.
 
+## Cash, expenses and the summary
+
+- **A record for running the bar.** The cash closing is an internal management record of the day: it does not replace invoicing software or the accountant, and the app makes no claim about any tax or invoicing rule. There are no sales per employee and no point of sale.
+- **Service day.** A closing and an expense belong to a service day, like shifts and time entries: a night that ends at 02:00 belongs to the day it started. Before 06:00 on the venue's clock, Cash suggests yesterday's service.
+- **Amounts** are typed with the numeric keypad and a comma or a point (`1.234,50`, `1234,5` and `1234.50` all work; a lone separator followed by three digits groups thousands) and shown back as `1.234,50` when the field is left. Sums are done in cents. Money reads `1.234,50 €`.
+- **The live figures** follow the API: total sales = cash + card + other; expected cash = opening float + cash sales − the day's cash expenses − cash withdrawals; difference = counted cash − expected cash, shown with its sign, in words (cash over, cash short, balanced) and in colour. Tips are recorded but are not sales. The day's cash expenses come from the API: the closing's own figure once it exists, else the day's expenses paid in cash.
+- **Closing.** "Save draft" creates or updates the draft (only when something changed); "Close the till" saves and closes. Counted cash is needed to close, and a difference over 5,00 € needs a reason first. The limit is the API's default; when the API asks for a reason anyway (409), the reason field comes up. A closed day is read only, with "Reopen" (a reason of 3 to 255 characters) and its history. When someone else saved or closed the day meanwhile (409), the form reloads it and says so.
+- **Expenses paid in cash** count in that day's closing, so once the day is closed the API refuses to add, change or delete them (409). The dialog explains that the day's closing has to be reopened and links to it on Cash. Expenses paid otherwise are never blocked.
+- **Estimated margin** = sales − expenses other than payroll − staff cost of the hours clocked (hours × the rate in force, as on the Hours page). Payroll is not taken off twice. It is never called profit. With no hourly rates, staff cost shows "—" with a link to Team, and the margin card says it has no staff cost in it.
+- **Against the period before.** Each card shows the signed change, an arrow and words for screen readers; green or red only says whether it is good news (fewer expenses is). When the period before had nothing, it says so instead of comparing, and a change from 0 shows no percentage. Staff cost over sales changes in points.
+- **The chart** is plain HTML and CSS, no library: per day, sales next to total cost (expenses + staff) on one axis in euros, with a legend. The days are one tab stop walked with the arrow keys (Home and End too) and a readout line gives each day's figures; a table with every value sits behind it for screen readers. Long periods scroll sideways inside the card and start at the most recent days.
+
 ## Auth
 
 The app signs in with `POST /api/auth/login` and gets a JWT that is **valid for one hour**. It sends that token as `Authorization: Bearer ...` on every other call. The login request itself never carries a token.
@@ -98,8 +112,8 @@ There is no refresh token yet. The code that would change for one lives in `src/
 src/
 ├── api/          fetch client (JSON calls and authenticated downloads), DTO types, one function per endpoint
 ├── auth/         session handling
-├── components/   Board, shift, event and time entry dialogs, clock card, Now card, hours table, period picker, shared UI, layout, error boundary
-├── lib/          queries (TanStack Query), venue selection, date, time zone and period helpers, hours sorting, downloads, i18n/
+├── components/   Board, shift, event and time entry dialogs, clock card, Now card, hours table, period picker, cash closing form, expense dialog, amount field, summary chart, shared UI, layout, error boundary
+├── lib/          queries (TanStack Query), venue selection, date, time zone and period helpers, hours sorting, typed amounts, cash closing figures, summary comparisons, API messages, downloads, i18n/
 ├── pages/        owner/, worker/, admin/, Login, Account
 ├── styles/       app.css (tokens, light and dark)
 └── test/         helpers: a fake API answered by path, and the app rendered with a stored session
@@ -151,3 +165,23 @@ The screens for hours and clocking in follow the delivery 2 API contract. Instan
 `GET /api/time-entries/establishment/{id}?from&to` is typed in `src/api/endpoints.ts` but not used by any screen yet.
 
 A 401 with `code: "ACCOUNT_DISABLED"` on any call signs the person out with that reason. `DELETE /api/establishments/{id}` (and deleting a worker) answers 409 when there are time entries.
+
+### Cash, expenses and the summary
+
+The Summary, Cash and Expenses pages follow the delivery 3 API contract. Every endpoint is for the venue's owner or a platform admin; a worker gets 403. Amounts are euros with two decimals.
+
+| Endpoint | Used for |
+|---|---|
+| `GET /api/reports/establishment/{id}/summary?from&to` → `{ from, to, currency, totals, days[], expensesByCategory[], previous }` | Summary: cards, chart, categories and alerts; the days with activity and no closing on Cash |
+| `GET /api/reports/establishment/{id}/summary.csv?from&to`, `/cash-closings.csv?from&to`, `/expenses.csv?from&to` | "Export summary", "Export closings" and "Export expenses" (CSV); the file name comes from `Content-Disposition` |
+| `GET /api/cash-closings/establishment/{id}?from&to` | The day's closing (`from` = `to` = the day) and the period's list |
+| `POST /api/cash-closings` `{ establishmentId, businessDate, openingFloat, cashSales, cardSales, otherSales, cashWithdrawals, countedCash, tips, notes }` → 201 draft; 409 if the day has one | Save draft (first time) |
+| `PUT /api/cash-closings/{id}` (same body) → 200; 409 once closed | Save draft |
+| `PUT /api/cash-closings/{id}/close` `{ differenceReason? }` → 200; 409 when the difference is over the limit with no reason, or already closed | Close the till |
+| `PUT /api/cash-closings/{id}/reopen` `{ reason }` (3..255) → 200 draft; 409 if not closed | Reopen |
+| `DELETE /api/cash-closings/{id}` → 204, drafts only | Discard draft |
+| `GET /api/cash-closings/{id}/history` → changes, oldest first | History |
+| `GET /api/expenses/establishment/{id}?from&to&category` | Expenses list and its total; the day's cash expenses on Cash |
+| `POST /api/expenses`, `PUT /api/expenses/{id}` `{ establishmentId, date, category, description, supplier, amount, paymentMethod, notes }`, `DELETE /api/expenses/{id}`; 409 for a cash expense of a closed day | Add, edit and delete an expense |
+
+`GET /api/cash-closings/{id}` is typed in `src/api/endpoints.ts` but not used by any screen yet.
