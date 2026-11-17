@@ -156,12 +156,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const renewSession = useCallback(
     async (password: string) => {
       if (!user) throw new Error('renewSession needs a signed-in user')
-      const token = await api.auth.login(user.username, password)
+      const token = await api.auth.login(user.username, password).catch((e: unknown) => {
+        // A deactivated account signs out with that reason, as a 401 on any other call would
+        if (isDisabledAccount(e)) endSession('disabled')
+        throw e
+      })
       const session = { token: token.accessToken, expiresAt: Date.parse(token.expiresAt) }
       startSession(session)
       return session.expiresAt
     },
-    [user, startSession],
+    [user, startSession, endSession],
   )
 
   const value = useMemo(

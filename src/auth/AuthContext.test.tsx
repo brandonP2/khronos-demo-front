@@ -169,4 +169,31 @@ describe('session warning', () => {
     expect(JSON.parse(sessionStorage.getItem('khronos.session')!).token).toBe('fresh-token')
     expect(calls).toContain('POST /auth/login')
   })
+
+  async function renewWith(loginAnswer: () => Response) {
+    storeSession(4)
+    mockFetch((path) => (path === '/users/me' ? json(200, admin) : path === '/auth/login' ? loginAnswer() : json(200, [])))
+    renderApp()
+    fireEvent.click(await screen.findByRole('button', { name: 'Seguir conectado' }))
+    fireEvent.change(await screen.findByLabelText('Contraseña'), { target: { value: 'admin1234' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Seguir' }))
+  }
+
+  it('says the password is wrong for a plain 401', async () => {
+    await renewWith(() => json(401, { status: 401, message: 'Invalid username or password', code: 'INVALID_CREDENTIALS' }))
+    expect(await screen.findByText('Contraseña incorrecta.')).toBeTruthy()
+    expect(sessionStorage.getItem('khronos.session')).not.toBeNull()
+  })
+
+  it('signs out with the reason when the account was disabled meanwhile', async () => {
+    await renewWith(() => json(401, { status: 401, message: 'This account is disabled', code: 'ACCOUNT_DISABLED' }))
+    expect(await screen.findByText(/Se ha cerrado tu sesión porque tu cuenta está desactivada/)).toBeTruthy()
+    expect(screen.queryByText('Contraseña incorrecta.')).toBeNull()
+    expect(sessionStorage.getItem('khronos.session')).toBeNull()
+  })
+
+  it('asks to wait after too many attempts', async () => {
+    await renewWith(() => json(429, { status: 429, message: 'Too many login attempts' }, { 'Retry-After': '30' }))
+    expect(await screen.findByText('Demasiados intentos. Espera 30 segundos y vuelve a probar.')).toBeTruthy()
+  })
 })

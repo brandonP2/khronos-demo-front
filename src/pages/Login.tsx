@@ -2,23 +2,12 @@ import { useEffect, useState } from 'react'
 import { Clock } from 'lucide-react'
 import { ApiError } from '../api/client'
 import type { Assignment, KEvent, Shift, Zone } from '../api/types'
-import { isDisabledAccount, useAuth } from '../auth/AuthContext'
+import { useAuth } from '../auth/AuthContext'
+import { loginErrorText } from '../auth/loginErrors'
 import { Board } from '../components/Board'
-import { Button, ErrorNote, Field, Logo, errorMessage } from '../components/ui'
-import { useFmt, useT, type Messages } from '../lib/i18n'
+import { Button, ErrorNote, Field, Logo } from '../components/ui'
+import { useFmt, useT } from '../lib/i18n'
 import { today } from '../lib/time'
-
-/** The login endpoint's own errors are worded here; anything else falls back to the shared wording */
-function loginErrorText(error: unknown, t: Messages): string | null {
-  if (!error) return null
-  if (error instanceof ApiError && error.status === 401) {
-    return isDisabledAccount(error) ? t.login.accountDisabled : t.login.invalidCredentials
-  }
-  if (error instanceof ApiError && error.kind === 'rate-limited') {
-    return t.login.tooManyAttempts(error.retryAfter ? t.common.wait(error.retryAfter) : null)
-  }
-  return errorMessage(error, t)
-}
 
 export default function Login() {
   const t = useT()

@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
 import { useMutation } from '@tanstack/react-query'
 import { Clock, WifiOff } from 'lucide-react'
-import { ApiError } from '../api/client'
 import { useAuth } from '../auth/AuthContext'
+import { loginErrorText } from '../auth/loginErrors'
 import { useFmt, useT } from '../lib/i18n'
 import { Button, Dialog, Empty, ErrorNote, Field, errorMessage, useToast } from './ui'
 
@@ -62,9 +62,9 @@ function RenewDialog({ expiresAt, onClose }: { expiresAt: number; onClose: () =>
     },
   })
 
-  // The username is fixed, so a 401 here can only mean a wrong password
-  const error =
-    mutation.error instanceof ApiError && mutation.error.status === 401 ? t.session.wrongPassword : mutation.error
+  // Read like the login screen does. The username is fixed, so a plain 401 means a wrong
+  // password; a disabled account has already ended the session (see renewSession)
+  const error = loginErrorText(mutation.error, t, t.session.wrongPassword)
 
   return (
     <Dialog
