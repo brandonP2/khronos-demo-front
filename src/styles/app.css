@@ -2263,6 +2263,17 @@ a {
   opacity: 0.6;
 }
 
+/* Activity and no cash closing: hatched, so the day shows even with no bars, and not by colour alone */
+.swatch.missing,
+.chart-day.missing .chart-bars {
+  background-image: repeating-linear-gradient(135deg, transparent 0 3px, var(--accent-line) 3px 4px);
+}
+
+.swatch.missing {
+  outline: 1px solid var(--accent-line);
+  outline-offset: -1px;
+}
+
 .chart-readout {
   display: flex;
   flex-wrap: wrap;

@@ -614,6 +614,8 @@ export const en: Messages = {
     group: 'Sales and total cost by day. Use the arrow keys to go through the days.',
     day: (day: string, sales: string, cost: string) => `${day}: sales ${sales}, total cost ${cost}`,
     emptyDay: (day: string) => `${day}: no data`,
+    dayMissing: (day: string, sales: string, cost: string) => `${day}: no cash closing; sales ${sales}, total cost ${cost}`,
+    noClosing: 'No cash closing',
     readout: (sales: string, expenses: string, labor: string, margin: string) =>
       `Sales ${sales} · Expenses ${expenses} · Staff ${labor} · Margin ${margin}`,
     noRate: 'no rate',

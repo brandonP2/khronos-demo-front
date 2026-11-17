@@ -36,9 +36,13 @@ export function dayCost(day: SummaryDay): number {
   return fromCents(toCents(day.expenses) + toCents(day.laborCost ?? 0))
 }
 
-/** A day with no sales, no expenses, no staff cost and no closing */
+/**
+ * A day with no activity, no closing, no sales, no expenses and no staff cost. A MISSING day
+ * (a shift or an entry and no closing) is never empty, even when its figures are 0 or unknown:
+ * its sales are simply not in yet.
+ */
 export function isEmptyDay(day: SummaryDay): boolean {
-  return day.sales === 0 && day.expenses === 0 && !day.laborCost && (day.closingStatus === 'NONE' || day.closingStatus === 'MISSING')
+  return day.closingStatus === 'NONE' && day.sales === 0 && day.expenses === 0 && !day.laborCost
 }
 
 /** The smallest round number at or above the value whose half is round too: 1234 to 2000, 4100 to 5000 */

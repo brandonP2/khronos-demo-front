@@ -35,8 +35,12 @@ export function SummaryChart({ days, today }: { days: SummaryDay[]; /** The venu
 
   const money = (n: number) => fmt.money(n)
   const labor = (d: SummaryDay) => (d.laborCost === null ? t.chart.noRate : money(d.laborCost))
+  // A day with activity and no closing is shown, and said, even with nothing to draw
+  const missing = (d: SummaryDay) => d.closingStatus === 'MISSING'
   const label = (d: SummaryDay) =>
-    isEmptyDay(d) ? t.chart.emptyDay(fmt.long(d.date)) : t.chart.day(fmt.long(d.date), money(d.sales), money(dayCost(d)))
+    isEmptyDay(d)
+      ? t.chart.emptyDay(fmt.long(d.date))
+      : (missing(d) ? t.chart.dayMissing : t.chart.day)(fmt.long(d.date), money(d.sales), money(dayCost(d)))
 
   const move = (to: number) => {
     const next = Math.max(0, Math.min(days.length - 1, to))
@@ -74,6 +78,12 @@ export function SummaryChart({ days, today }: { days: SummaryDay[]; /** The venu
             <span className="swatch cost" />
             {t.chart.cost} <span className="muted">({t.chart.costHint})</span>
           </li>
+          {days.some(missing) && (
+            <li>
+              <span className="swatch missing" />
+              {t.chart.noClosing}
+            </li>
+          )}
         </ul>
       </figcaption>
 
@@ -99,7 +109,7 @@ export function SummaryChart({ days, today }: { days: SummaryDay[]; /** The venu
                   columns.current[i] = el
                 }}
                 type="button"
-                className={isEmptyDay(d) ? 'chart-day empty' : 'chart-day'}
+                className={isEmptyDay(d) ? 'chart-day empty' : missing(d) ? 'chart-day missing' : 'chart-day'}
                 data-active={i === active || undefined}
                 tabIndex={i === active ? 0 : -1}
                 aria-label={label(d)}
@@ -129,6 +139,7 @@ export function SummaryChart({ days, today }: { days: SummaryDay[]; /** The venu
           {isEmptyDay(current)
             ? t.chart.noData
             : t.chart.readout(money(current.sales), money(current.expenses), labor(current), money(current.margin))}
+          {missing(current) && ` · ${t.chart.noClosing}`}
         </span>
       </p>
 

@@ -222,6 +222,10 @@ describe('summary chart', () => {
     const columns = within(chart).getAllByRole('button')
     expect(columns[6].getAttribute('aria-label')).toBe('Domingo, 15 de noviembre: sin datos')
     expect(columns[6].classList.contains('empty')).toBe(true)
+    // A day with activity and no closing is never "no data", even with nothing to draw
+    expect(plain(columns[2].getAttribute('aria-label'))).toBe('Miércoles, 11 de noviembre: sin cierre de caja; ventas 0,00 €, coste total 0,00 €')
+    expect(columns[2].classList.contains('empty')).toBe(false)
+    expect(columns[2].classList.contains('missing')).toBe(true)
     // One tab stop; the arrows move between days and the readout follows
     expect(columns.filter((c) => c.tabIndex === 0)).toHaveLength(1)
     act(() => columns[0].focus())
@@ -229,9 +233,25 @@ describe('summary chart', () => {
     expect(document.activeElement).toBe(columns[1])
     const readout = document.querySelector('.chart-readout') as HTMLElement
     expect(plain(readout.textContent)).toBe('Martes, 10 de noviembre Ventas 2.000,00 € · Gastos 400,00 € · Personal 600,00 € · Margen 1.000,00 €')
-    fireEvent.keyDown(columns[1], { key: 'End' })
+    fireEvent.keyDown(columns[1], { key: 'ArrowRight' })
+    expect(plain(readout.textContent)).toBe('Miércoles, 11 de noviembre Ventas 0,00 € · Gastos 0,00 € · Personal 0,00 € · Margen 0,00 € · Sin cierre de caja')
+    fireEvent.keyDown(columns[2], { key: 'End' })
     expect(document.activeElement).toBe(columns[6])
     expect(plain(readout.textContent)).toBe('Domingo, 15 de noviembre Sin datos')
+  })
+
+  it('shows a day with no closing and no rate, with the staff cost as missing rather than 0', async () => {
+    const days = summary().days.map((d) => (d.date === '2026-11-13' ? { ...d, laborCost: null } : d))
+    summaryApi(summary({ days }))
+    renderApp('/')
+    const chart = await screen.findByRole('group', { name: /Ventas y coste total por día/ })
+    const friday = within(chart).getAllByRole('button')[4]
+    expect(friday.classList.contains('missing')).toBe(true)
+    act(() => friday.focus())
+    expect(plain(document.querySelector('.chart-readout')!.textContent)).toBe(
+      'Viernes, 13 de noviembre Ventas 0,00 € · Gastos 0,00 € · Personal sin tarifa · Margen 0,00 € · Sin cierre de caja',
+    )
+    expect(screen.getByText('Sin cierre de caja', { selector: '.chart-legend li' })).toBeTruthy()
   })
 
   it('has a table with every value behind the chart', async () => {

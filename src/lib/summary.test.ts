@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { SummaryDay } from '../api/types'
-import { barPercent, chartScale, dayCost, isEmptyPrevious, niceCeiling, percentOf, trend } from './summary'
+import { barPercent, chartScale, dayCost, isEmptyDay, isEmptyPrevious, niceCeiling, percentOf, trend } from './summary'
 
 const day = (date: string, patch: Partial<SummaryDay> = {}): SummaryDay => ({
   date,
@@ -71,5 +71,18 @@ describe('chart scale', () => {
     expect(barPercent(0, 2000)).toBe(0)
     expect(barPercent(10, 0)).toBe(0)
     expect(chartScale([day('2026-11-16')])).toEqual({ max: 0, ticks: [0] })
+  })
+})
+
+describe('empty days', () => {
+  it('is a day with no activity and nothing in it', () => {
+    expect(isEmptyDay(day('2026-11-16'))).toBe(true)
+    expect(isEmptyDay(day('2026-11-16', { laborCost: null }))).toBe(true)
+    expect(isEmptyDay(day('2026-11-16', { expenses: 12 }))).toBe(false)
+  })
+
+  it('never is a day with activity and no closing, whatever its figures', () => {
+    expect(isEmptyDay(day('2026-11-16', { closingStatus: 'MISSING' }))).toBe(false)
+    expect(isEmptyDay(day('2026-11-16', { closingStatus: 'MISSING', laborCost: null }))).toBe(false)
   })
 })
