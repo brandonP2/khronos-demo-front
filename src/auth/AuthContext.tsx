@@ -3,6 +3,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { ApiError, setAccessToken, setUnauthorizedHandler } from '../api/client'
 import { api } from '../api/endpoints'
 import type { User } from '../api/types'
+import { clearDrafts } from '../lib/drafts'
 
 // The API issues a bearer token that is valid for one hour. It lives in sessionStorage,
 // so it is gone when the tab closes, and the app signs out on its own when it expires.
@@ -78,6 +79,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (expiryTimer.current) clearTimeout(expiryTimer.current)
       expiryTimer.current = null
       writeSession(null)
+      // What this person left half typed is not for whoever signs in next in this tab
+      clearDrafts()
       setAccessToken(null)
       setExpiresAt(null)
       setUser(null)

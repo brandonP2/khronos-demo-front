@@ -10,6 +10,7 @@ import type {
   StockMovement,
   StockUnit,
 } from '../api/types'
+import { DRAFT_PREFIXES } from './drafts'
 import { useFmt, useT, type Messages } from './i18n'
 import { fromCents, toCents } from './money'
 import type { Fmt } from './time'
@@ -283,20 +284,27 @@ export interface CountDraft {
   counts: CountTexts
 }
 
-const countDraftKey = (venueId: number) => `khronos.stockCount.${venueId}`
+const countDraftKey = (venueId: number) => `${DRAFT_PREFIXES[0]}${venueId}`
 
 export function isEmptyCountDraft(draft: CountDraft): boolean {
   return draft.notes.trim() === '' && Object.values(draft.counts).every((text) => text.trim() === '')
 }
 
-/** The stored draft, or null when there is none or it cannot be read */
-export function loadCountDraft(venueId: number): CountDraft | null {
+/**
+ * The draft `userId` stored, or null when there is none or it cannot be read. One stored by
+ * someone else in this tab is thrown away: it was never theirs to see.
+ */
+export function loadCountDraft(venueId: number, userId: number): CountDraft | null {
   try {
     const raw = sessionStorage.getItem(countDraftKey(venueId))
     if (!raw) return null
     const data: unknown = JSON.parse(raw)
     if (!data || typeof data !== 'object') return null
-    const { date, notes, counts } = data as Record<string, unknown>
+    const { userId: owner, date, notes, counts } = data as Record<string, unknown>
+    if (owner !== userId) {
+      sessionStorage.removeItem(countDraftKey(venueId))
+      return null
+    }
     if (typeof date !== 'string' || typeof notes !== 'string' || !counts || typeof counts !== 'object') return null
     const texts: CountTexts = {}
     for (const [id, text] of Object.entries(counts)) if (typeof text === 'string') texts[id] = text
@@ -307,11 +315,11 @@ export function loadCountDraft(venueId: number): CountDraft | null {
   }
 }
 
-/** Stores the draft; an empty one is removed. Storage that is full or blocked is ignored. */
-export function saveCountDraft(venueId: number, draft: CountDraft) {
+/** Stores the draft with whose it is; an empty one is removed. Storage that is full or blocked is ignored. */
+export function saveCountDraft(venueId: number, userId: number, draft: CountDraft) {
   try {
     if (isEmptyCountDraft(draft)) sessionStorage.removeItem(countDraftKey(venueId))
-    else sessionStorage.setItem(countDraftKey(venueId), JSON.stringify(draft))
+    else sessionStorage.setItem(countDraftKey(venueId), JSON.stringify({ userId, ...draft }))
   } catch {
     // Not kept across a reload, which only matters if the page is left by mistake
   }

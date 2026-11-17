@@ -139,6 +139,21 @@ describe('the physical count', () => {
     expect(sessionStorage.getItem('khronos.stockCount.1')).toBeNull()
   })
 
+  it('forgets a count half typed when the session ends, and never offers someone else\'s', async () => {
+    // Left in this tab by another person
+    sessionStorage.setItem('khronos.stockCount.1', JSON.stringify({ userId: 9, date: today, notes: '', counts: { '1': '7' } }))
+    countApi()
+    renderApp('/inventory/count')
+    await screen.findByLabelText('Contado de Ginebra Puerto')
+    expect(field('Ginebra Puerto').value).toBe('')
+    expect(screen.queryByText('Se ha recuperado el recuento que tenías a medias en esta pestaña.')).toBeNull()
+
+    fireEvent.change(field('Ginebra Puerto'), { target: { value: '3,5' } })
+    await waitFor(() => expect(JSON.parse(sessionStorage.getItem('khronos.stockCount.1')!)).toMatchObject({ userId: 2 }))
+    fireEvent.click(screen.getAllByRole('button', { name: 'Cerrar sesión' })[0])
+    await waitFor(() => expect(sessionStorage.getItem('khronos.stockCount.1')).toBeNull())
+  })
+
   it('finds a product by name without losing the rest of the count', async () => {
     countApi()
     renderApp('/inventory/count')

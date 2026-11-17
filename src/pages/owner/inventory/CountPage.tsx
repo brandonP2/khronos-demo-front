@@ -9,6 +9,7 @@ import { useMutation } from '@tanstack/react-query'
 import { ArrowLeft, ClipboardCheck, ClipboardList } from 'lucide-react'
 import { api } from '../../../api/endpoints'
 import type { Product } from '../../../api/types'
+import { useMe } from '../../../auth/AuthContext'
 import { QuantityInput } from '../../../components/QuantityInput'
 import { Button, Dialog, Empty, ErrorNote, Field, Loading, PageHead, useToast } from '../../../components/ui'
 import { useFmt, useT } from '../../../lib/i18n'
@@ -35,10 +36,11 @@ export default function CountPage() {
   const t = useT()
   const c = t.inventory.count
   const { venue } = useVenue()
+  const me = useMe()
   const venueId = venue?.id ?? 0
   const today = zonedToday(venueTimeZone(venue))
   const products = useProducts(venue?.id)
-  const [restored] = useState(() => loadCountDraft(venueId))
+  const [restored] = useState(() => loadCountDraft(venueId, me.id))
   const [counts, setCounts] = useState<CountTexts>(restored?.counts ?? {})
   const [notes, setNotes] = useState(restored?.notes ?? '')
   const [date, setDate] = useState(restored && restored.date <= today ? restored.date : today)
@@ -56,8 +58,8 @@ export default function CountPage() {
 
   // Kept in this tab as it is typed; an empty count is not kept
   useEffect(() => {
-    if (venueId && !saved.current) saveCountDraft(venueId, { date, notes, counts })
-  }, [venueId, date, notes, counts])
+    if (venueId && !saved.current) saveCountDraft(venueId, me.id, { date, notes, counts })
+  }, [venueId, me.id, date, notes, counts])
 
   // Closing or reloading the tab with a count half typed asks first
   useEffect(() => {

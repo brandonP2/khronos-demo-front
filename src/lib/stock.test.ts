@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { Product, StockMovement } from '../api/types'
 import { product } from '../test/inventory'
+import { clearDrafts } from './drafts'
 import { dictionaries } from './i18n'
 import {
   applyMovements,
@@ -268,29 +269,50 @@ describe('the count draft', () => {
   })
 
   it('is kept per venue in this tab, and an empty one is not kept', () => {
-    saveCountDraft(1, { date: '2026-11-17', notes: '', counts: { '1': '3' } })
-    expect(loadCountDraft(1)).toEqual({ date: '2026-11-17', notes: '', counts: { '1': '3' } })
-    expect(loadCountDraft(2)).toBeNull()
-    saveCountDraft(1, { date: '2026-11-17', notes: ' ', counts: { '1': '' } })
-    expect(loadCountDraft(1)).toBeNull()
-    saveCountDraft(1, { date: '2026-11-17', notes: 'Cierre', counts: {} })
+    saveCountDraft(1, 5, { date: '2026-11-17', notes: '', counts: { '1': '3' } })
+    expect(loadCountDraft(1, 5)).toEqual({ date: '2026-11-17', notes: '', counts: { '1': '3' } })
+    expect(loadCountDraft(2, 5)).toBeNull()
+    saveCountDraft(1, 5, { date: '2026-11-17', notes: ' ', counts: { '1': '' } })
+    expect(loadCountDraft(1, 5)).toBeNull()
+    saveCountDraft(1, 5, { date: '2026-11-17', notes: 'Cierre', counts: {} })
     clearCountDraft(1)
-    expect(loadCountDraft(1)).toBeNull()
+    expect(loadCountDraft(1, 5)).toBeNull()
+  })
+
+  it('is only offered to the person who typed it, and thrown away for anyone else', () => {
+    saveCountDraft(1, 5, { date: '2026-11-17', notes: '', counts: { '1': '3' } })
+    expect(loadCountDraft(1, 6)).toBeNull()
+    expect(sessionStorage.getItem('khronos.stockCount.1')).toBeNull()
+    expect(loadCountDraft(1, 5)).toBeNull()
+    // A draft from before drafts said whose they were is nobody's
+    sessionStorage.setItem('khronos.stockCount.1', JSON.stringify({ date: '2026-11-17', notes: '', counts: { '1': '3' } }))
+    expect(loadCountDraft(1, 5)).toBeNull()
+  })
+
+  it('is forgotten with every other draft when the session ends', () => {
+    saveCountDraft(1, 5, { date: '2026-11-17', notes: '', counts: { '1': '3' } })
+    saveCountDraft(2, 5, { date: '2026-11-17', notes: 'Barra', counts: {} })
+    sessionStorage.setItem('khronos.session', 'kept')
+    clearDrafts()
+    expect(loadCountDraft(1, 5)).toBeNull()
+    expect(loadCountDraft(2, 5)).toBeNull()
+    expect(sessionStorage.getItem('khronos.session')).toBe('kept')
   })
 
   it('ignores what it cannot read, and storage that refuses', () => {
     sessionStorage.setItem('khronos.stockCount.1', '{not json')
-    expect(loadCountDraft(1)).toBeNull()
-    sessionStorage.setItem('khronos.stockCount.1', JSON.stringify({ date: 1, counts: [] }))
-    expect(loadCountDraft(1)).toBeNull()
+    expect(loadCountDraft(1, 5)).toBeNull()
+    sessionStorage.setItem('khronos.stockCount.1', JSON.stringify({ userId: 5, date: 1, counts: [] }))
+    expect(loadCountDraft(1, 5)).toBeNull()
     vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
       throw new Error('QuotaExceededError')
     })
     vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
       throw new Error('SecurityError')
     })
-    expect(() => saveCountDraft(1, { date: '2026-11-17', notes: '', counts: { '1': '3' } })).not.toThrow()
-    expect(loadCountDraft(1)).toBeNull()
+    expect(() => saveCountDraft(1, 5, { date: '2026-11-17', notes: '', counts: { '1': '3' } })).not.toThrow()
+    expect(loadCountDraft(1, 5)).toBeNull()
+    expect(() => clearDrafts()).not.toThrow()
   })
 })
 
