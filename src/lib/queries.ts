@@ -2,7 +2,7 @@ import { useCallback, useMemo } from 'react'
 import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useT } from './i18n'
 import { api } from '../api/endpoints'
-import type { Assignment, DateRange, Period, TimeEntryQuery, User, Worker } from '../api/types'
+import type { Assignment, DateRange, ExpenseQuery, Period, TimeEntryQuery, User, Worker } from '../api/types'
 
 const rangeKey = (range: DateRange) => [range.from ?? null, range.to ?? null] as const
 
@@ -25,6 +25,10 @@ export const keys = {
   rates: (workerId: number) => ['rates', workerId] as const,
   hoursReport: (venueId: number, period: Period) => ['reports', 'hours', venueId, period.from, period.to] as const,
   workerDays: (workerId: number, period: Period) => ['reports', 'days', workerId, period.from, period.to] as const,
+  summary: (venueId: number, period: Period) => ['reports', 'summary', venueId, period.from, period.to] as const,
+  cashClosings: (venueId: number, range: DateRange) => ['cash-closings', venueId, ...rangeKey(range)] as const,
+  cashClosingHistory: (closingId: number) => ['cash-closings', 'history', closingId] as const,
+  expenses: (venueId: number, query: ExpenseQuery) => ['expenses', venueId, ...rangeKey(query), query.category ?? null] as const,
 }
 
 export interface StaffMember extends Worker {
@@ -217,6 +221,43 @@ export function useWorkerDays(workerId: number, period: Period | null) {
   })
 }
 
+/* ---------- Cash closing, expenses and the business summary ---------- */
+
+/** Owner only. Nothing is fetched while the period is not valid. */
+export function useSummary(venueId: number | undefined, period: Period | null) {
+  return useQuery({
+    queryKey: keys.summary(venueId ?? 0, period ?? { from: '', to: '' }),
+    queryFn: () => api.reports.summary(venueId!, period!),
+    enabled: !!venueId && !!period,
+    placeholderData: keepPreviousData,
+  })
+}
+
+/** Owner only. Newest service day first. */
+export function useCashClosings(venueId: number | undefined, range: DateRange | null) {
+  return useQuery({
+    queryKey: keys.cashClosings(venueId ?? 0, range ?? {}),
+    queryFn: () => api.cashClosings.byEstablishment(venueId!, range!),
+    enabled: !!venueId && !!range,
+    select: (closings) => [...closings].sort((a, b) => b.businessDate.localeCompare(a.businessDate)),
+  })
+}
+
+export function useCashClosingHistory(closingId: number) {
+  return useQuery({ queryKey: keys.cashClosingHistory(closingId), queryFn: () => api.cashClosings.history(closingId) })
+}
+
+/** Owner only. Newest first, as the API sends them. */
+export function useExpenses(venueId: number | undefined, query: ExpenseQuery | null) {
+  return useQuery({
+    queryKey: keys.expenses(venueId ?? 0, query ?? {}),
+    queryFn: () => api.expenses.byEstablishment(venueId!, query!),
+    enabled: !!venueId && !!query,
+    placeholderData: keepPreviousData,
+    select: (expenses) => [...expenses].sort((a, b) => b.date.localeCompare(a.date) || b.id - a.id),
+  })
+}
+
 /** Shift and event edits can unassign workers on the server, so assignments are refetched with them */
 export function useInvalidate() {
   const qc = useQueryClient()
@@ -236,5 +277,15 @@ export function useInvalidate() {
     timeEntries: () =>
       Promise.all([qc.invalidateQueries({ queryKey: ['time-entries'] }), qc.invalidateQueries({ queryKey: ['reports'] })]),
     rates: () => Promise.all([qc.invalidateQueries({ queryKey: ['rates'] }), qc.invalidateQueries({ queryKey: ['reports'] })]),
+    /** A closing changes the summary */
+    cash: () =>
+      Promise.all([qc.invalidateQueries({ queryKey: ['cash-closings'] }), qc.invalidateQueries({ queryKey: ['reports'] })]),
+    /** A cash expense also changes the cash expected in that day's closing */
+    expenses: () =>
+      Promise.all([
+        qc.invalidateQueries({ queryKey: ['expenses'] }),
+        qc.invalidateQueries({ queryKey: ['cash-closings'] }),
+        qc.invalidateQueries({ queryKey: ['reports'] }),
+      ]),
   }
 }

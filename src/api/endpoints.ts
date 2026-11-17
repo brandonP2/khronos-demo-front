@@ -1,6 +1,10 @@
 import { download, request } from './client'
 import type {
   Assignment,
+  BusinessSummary,
+  CashClosing,
+  CashClosingChange,
+  CashClosingInput,
   ClockInInput,
   ClockOutForInput,
   ClockOutInput,
@@ -8,6 +12,9 @@ import type {
   Establishment,
   EstablishmentInput,
   EventInput,
+  Expense,
+  ExpenseInput,
+  ExpenseQuery,
   HoursReport,
   KEvent,
   Period,
@@ -32,11 +39,12 @@ import type {
 } from './types'
 
 /** "?from=2026-11-16&to=2026-11-22", or nothing when the range is open on both sides */
-function rangeQuery(range: TimeEntryQuery = {}): string {
+function rangeQuery(range: TimeEntryQuery & ExpenseQuery = {}): string {
   const params = new URLSearchParams()
   if (range.from) params.set('from', range.from)
   if (range.to) params.set('to', range.to)
   if (range.includeVoided) params.set('includeVoided', 'true')
+  if (range.category) params.set('category', range.category)
   const query = params.toString()
   return query ? `?${query}` : ''
 }
@@ -156,5 +164,46 @@ export const api = {
       download(`/reports/establishment/${establishmentId}/time-entries.csv${rangeQuery(period)}`),
     workerTimeEntriesCsv: (workerId: number, period: Period) =>
       download(`/reports/worker/${workerId}/time-entries.csv${rangeQuery(period)}`),
+    /** Owner only: sales, expenses, staff cost and margin, day by day, against the period before */
+    summary: (establishmentId: number, period: Period) =>
+      request<BusinessSummary>('GET', `/reports/establishment/${establishmentId}/summary${rangeQuery(period)}`),
+    /** One row per day */
+    summaryCsv: (establishmentId: number, period: Period) =>
+      download(`/reports/establishment/${establishmentId}/summary.csv${rangeQuery(period)}`),
+    /** One row per closing */
+    cashClosingsCsv: (establishmentId: number, period: Period) =>
+      download(`/reports/establishment/${establishmentId}/cash-closings.csv${rangeQuery(period)}`),
+    /** One row per expense */
+    expensesCsv: (establishmentId: number, period: Period) =>
+      download(`/reports/establishment/${establishmentId}/expenses.csv${rangeQuery(period)}`),
+  },
+  /** Owner and admin only: the end-of-day cash count, one per venue and service day */
+  cashClosings: {
+    /** Newest service day first */
+    byEstablishment: (establishmentId: number, range?: DateRange) =>
+      request<CashClosing[]>('GET', `/cash-closings/establishment/${establishmentId}${rangeQuery(range)}`),
+    get: (id: number) => request<CashClosing>('GET', `/cash-closings/${id}`),
+    /** Starts as a draft; 409 when the day already has one or is in the future */
+    create: (input: CashClosingInput) => request<CashClosing>('POST', '/cash-closings', input),
+    /** 409 once closed */
+    update: (id: number, input: CashClosingInput) => request<CashClosing>('PUT', `/cash-closings/${id}`, input),
+    /** 409 when the difference is over the limit (5,00 € by default) and no reason is given, or it is closed already */
+    close: (id: number, differenceReason?: string) =>
+      request<CashClosing>('PUT', `/cash-closings/${id}/close`, differenceReason ? { differenceReason } : {}),
+    /** Back to a draft; the reason (3 to 255 characters) is kept in the history */
+    reopen: (id: number, reason: string) => request<CashClosing>('PUT', `/cash-closings/${id}/reopen`, { reason }),
+    /** Drafts only */
+    remove: (id: number) => request<void>('DELETE', `/cash-closings/${id}`),
+    /** Oldest change first */
+    history: (id: number) => request<CashClosingChange[]>('GET', `/cash-closings/${id}/history`),
+  },
+  /** Owner and admin only. A cash expense of a day whose closing is closed answers 409. */
+  expenses: {
+    /** Newest first */
+    byEstablishment: (establishmentId: number, query?: ExpenseQuery) =>
+      request<Expense[]>('GET', `/expenses/establishment/${establishmentId}${rangeQuery(query)}`),
+    create: (input: ExpenseInput) => request<Expense>('POST', '/expenses', input),
+    update: (id: number, input: ExpenseInput) => request<Expense>('PUT', `/expenses/${id}`, input),
+    remove: (id: number) => request<void>('DELETE', `/expenses/${id}`),
   },
 }

@@ -307,6 +307,178 @@ export interface WorkerDaysReport {
   days: WorkerDay[]
 }
 
+/* ---------- Cash closing, expenses and the business summary (owner and admin only) ---------- */
+
+export type CashClosingStatus = 'DRAFT' | 'CLOSED'
+
+/**
+ * What the owner types at the end of service. Amounts are euros with two decimals, never
+ * negative. establishmentId and businessDate are only read on creation; a PUT ignores them.
+ */
+export interface CashClosingInput {
+  establishmentId: number
+  /** Service day, not in the future */
+  businessDate: string
+  /** Cash in the till before service */
+  openingFloat: number
+  cashSales: number
+  cardSales: number
+  /** Bizum, vouchers and the like */
+  otherSales: number
+  /** Cash taken out of the till during the day */
+  cashWithdrawals: number
+  countedCash: number
+  /** For information only; not part of sales */
+  tips: number | null
+  /** At most 500 characters */
+  notes: string | null
+}
+
+/** One closing per venue and service day. The figures are worked out by the API, frozen once closed. */
+export interface CashClosing {
+  id: number
+  establishmentId: number
+  businessDate: string
+  status: CashClosingStatus
+  openingFloat: number
+  cashSales: number
+  cardSales: number
+  otherSales: number
+  cashWithdrawals: number
+  countedCash: number
+  tips: number | null
+  notes: string | null
+  /** The day's expenses paid in cash */
+  cashExpenses: number
+  /** cashSales + cardSales + otherSales */
+  totalSales: number
+  /** openingFloat + cashSales - cashExpenses - cashWithdrawals */
+  expectedCash: number
+  /** countedCash - expectedCash; negative when cash is missing */
+  difference: number
+  differenceReason: string | null
+  closedAt: string | null
+  closedByName: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+export type CashClosingAction = 'CREATED' | 'UPDATED' | 'CLOSED' | 'REOPENED'
+
+/** The values right after the change */
+export interface CashClosingChange {
+  id: number
+  action: CashClosingAction
+  changedAt: string
+  changedByUserId: number
+  changedByName: string
+  reason: string | null
+  totalSales: number
+  countedCash: number
+  difference: number
+}
+
+export type ExpenseCategory = 'SUPPLIES' | 'RENT' | 'UTILITIES' | 'PAYROLL' | 'MAINTENANCE' | 'MARKETING' | 'TAXES' | 'OTHER'
+
+export type PaymentMethod = 'CASH' | 'CARD' | 'TRANSFER' | 'OTHER'
+
+/** establishmentId is only read on creation */
+export interface ExpenseInput {
+  establishmentId: number
+  /** Service day, not in the future */
+  date: string
+  category: ExpenseCategory
+  /** 1 to 150 characters */
+  description: string
+  /** At most 100 characters */
+  supplier: string | null
+  /** Above 0 */
+  amount: number
+  paymentMethod: PaymentMethod
+  /** At most 500 characters */
+  notes: string | null
+}
+
+export interface Expense {
+  id: number
+  establishmentId: number
+  date: string
+  category: ExpenseCategory
+  description: string
+  supplier: string | null
+  amount: number
+  paymentMethod: PaymentMethod
+  notes: string | null
+  createdAt: string
+  createdByName: string
+}
+
+/** Every filter is optional; the list comes newest first */
+export interface ExpenseQuery extends DateRange {
+  category?: ExpenseCategory
+}
+
+/** MISSING: there was activity (a shift or an entry) and no closing; NONE: neither */
+export type ClosingDayStatus = 'CLOSED' | 'DRAFT' | 'MISSING' | 'NONE'
+
+export interface SummaryDay {
+  date: string
+  sales: number
+  expenses: number
+  /** null when nobody had a rate for some of the day's minutes */
+  laborCost: number | null
+  margin: number
+  closingStatus: ClosingDayStatus
+  cashDifference: number | null
+}
+
+export interface SummaryTotals {
+  /** From the period's closings, in any status */
+  sales: number
+  cashSales: number
+  cardSales: number
+  otherSales: number
+  tips: number
+  /** Every expense of the period, payroll included */
+  expenses: number
+  payrollExpenses: number
+  /** Worked hours times the rate in force; null when a rate is missing */
+  laborCost: number | null
+  plannedLaborCost: number | null
+  /** sales - (expenses - payrollExpenses) - (laborCost ?? 0); can be negative */
+  grossMargin: number
+  /** laborCost / sales * 100, one decimal; null when there are no sales or no labor cost */
+  laborCostPercent: number | null
+  /** Sum of the closings' differences */
+  cashDifference: number
+  closedDays: number
+  draftDays: number
+  /** Days before today with a shift or an entry and no closing */
+  missingClosingDays: number
+}
+
+/** The period right before, of the same length */
+export interface SummaryPrevious {
+  from: string
+  to: string
+  sales: number
+  expenses: number
+  laborCost: number | null
+  grossMargin: number
+}
+
+export interface BusinessSummary {
+  from: string
+  to: string
+  currency: 'EUR'
+  totals: SummaryTotals
+  /** One per day of the period, oldest first */
+  days: SummaryDay[]
+  /** Only categories with an amount, largest first */
+  expensesByCategory: { category: ExpenseCategory; amount: number }[]
+  previous: SummaryPrevious
+}
+
 export interface ApiErrorBody {
   timestamp?: string
   status: number
