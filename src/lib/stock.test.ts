@@ -21,7 +21,6 @@ import {
   saveCountDraft,
   stockChange,
   suggestedQuantity,
-  withStock,
   type MovementDraft,
 } from './stock'
 import { makeFmt } from './time'
@@ -127,14 +126,6 @@ describe('the stock list', () => {
     expect(names(groups[0].products)).toEqual(['Bombay', 'Ginebra Puerto'])
   })
 
-  it('works out the value and the low mark again after a movement', () => {
-    const gin = product(1, { minStock: 3, unitCost: 10, currentStock: 5, stockValue: 50 })
-    expect(withStock(gin, 2.5)).toMatchObject({ currentStock: 2.5, stockValue: 25, isLowStock: true })
-    expect(withStock(gin, -1)).toMatchObject({ stockValue: 0, isLowStock: true })
-    expect(withStock(gin, 8, 12)).toMatchObject({ unitCost: 12, stockValue: 96, isLowStock: false })
-    expect(withStock(product(2), 4)).toMatchObject({ stockValue: null, isLowStock: false })
-  })
-
   it('takes the stock from the latest movement of each product', () => {
     const movement = (id: number, productId: number, stockAfter: number, patch: Partial<StockMovement> = {}): StockMovement => ({
       id,
@@ -153,11 +144,11 @@ describe('the stock list', () => {
       stockAfter,
       ...patch,
     })
-    const after = applyMovements(
-      [product(1, { currentStock: 5, unitCost: 2 }), product(2, { currentStock: 1 })],
-      [movement(8, 1, 7, { type: 'PURCHASE', unitCost: 3 }), movement(7, 1, 6)],
-    )
-    expect(after[0]).toMatchObject({ currentStock: 7, unitCost: 3, stockValue: 21 })
+    const gin = product(1, { currentStock: 5, unitCost: 2, stockValue: 10, minStock: 6, isLowStock: true })
+    const after = applyMovements([gin, product(2, { currentStock: 1 })], [movement(8, 1, 7, { type: 'PURCHASE', unitCost: 3 }), movement(7, 1, 6)])
+    expect(after[0].currentStock).toBe(7)
+    // Only the stock: the cost, the value and the low mark come with the refetch, from the API
+    expect(after[0]).toEqual({ ...gin, currentStock: 7 })
     expect(after[1].currentStock).toBe(1)
   })
 })

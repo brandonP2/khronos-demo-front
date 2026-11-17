@@ -147,19 +147,11 @@ export function groupByCategory<T extends { category: ProductCategory; name: str
 /** Negative stock: more went out than came in, which most often means a purchase was not recorded */
 export const isNegative = (p: Pick<Product, 'currentStock'>) => toMilli(p.currentStock) < 0
 
-/** The product as the API would give it back with another stock, and a new cost when a purchase brought one */
-export function withStock(product: Product, stock: number, unitCost?: number | null): Product {
-  const cost = unitCost ?? product.unitCost
-  return {
-    ...product,
-    currentStock: stock,
-    unitCost: cost,
-    stockValue: cost === null ? null : toMilli(stock) <= 0 ? 0 : quantityValue(stock, cost),
-    isLowStock: product.minStock !== null && toMilli(stock) <= toMilli(product.minStock),
-  }
-}
-
-/** The products after some movements, each with the stock the API reported right after it */
+/**
+ * The products after some movements, each with the stock the API reported right after its latest
+ * one (stockAfter). Only the stock: its value, the low mark and the cost follow from rules the API
+ * owns, so they are left as they were until the products are refetched, right after.
+ */
 export function applyMovements(products: Product[], movements: StockMovement[]): Product[] {
   const last = new Map<number, StockMovement>()
   for (const m of movements) {
@@ -168,7 +160,7 @@ export function applyMovements(products: Product[], movements: StockMovement[]):
   }
   return products.map((p) => {
     const m = last.get(p.id)
-    return m ? withStock(p, m.stockAfter, m.type === 'PURCHASE' ? m.unitCost : undefined) : p
+    return m ? { ...p, currentStock: m.stockAfter } : p
   })
 }
 
