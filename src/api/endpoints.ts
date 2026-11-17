@@ -247,11 +247,11 @@ export const api = {
     get: (id: number) => request<Product>('GET', `/products/${id}`),
     /** 409 when the venue already has a product with that name */
     create: (input: ProductInput) => request<Product>('POST', '/products', input),
-    /** 409 when the unit changes and the product already has movements */
+    /** 409 PRODUCT_UNIT_LOCKED when the unit changes and the product has movements or order lines */
     update: (id: number, input: ProductInput) => request<Product>('PUT', `/products/${id}`, input),
     /** An inactive product takes no new movements or order lines */
     setActive: (id: number, active: boolean) => request<Product>('PUT', `/products/${id}/active`, { active }),
-    /** Only with no movements and no order lines; otherwise 409, and deactivating is the way */
+    /** Only with no movements and no order lines; otherwise 409 PRODUCT_HAS_HISTORY, and deactivating is the way */
     remove: (id: number) => request<void>('DELETE', `/products/${id}`),
   },
   /** The stock is the sum of these; there is no PUT or DELETE */
@@ -266,7 +266,7 @@ export const api = {
     create: (input: StockCountInput) => request<StockMovement[]>('POST', '/stock-counts', input),
   },
   purchaseOrders: {
-    /** Newest first */
+    /** Newest first; without dates the ones created in the last 366 days, and 366 days at most */
     byEstablishment: (establishmentId: number, query?: PurchaseOrderQuery) =>
       request<PurchaseOrder[]>('GET', `/purchase-orders/establishment/${establishmentId}${rangeQuery(query)}`),
     get: (id: number) => request<PurchaseOrder>('GET', `/purchase-orders/${id}`),

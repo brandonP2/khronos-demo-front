@@ -583,7 +583,7 @@ export interface StockMovementInput {
   type: ManualMovementType
   /** Above 0 for PURCHASE, WASTE and CONSUMPTION (the type gives the sign); not 0 and signed for ADJUSTMENT */
   quantity: number
-  /** PURCHASE only; when sent it becomes the product's cost per unit */
+  /** PURCHASE only (the API refuses it with any other type); when sent it becomes the product's cost per unit */
   unitCost: number | null
   /** Required (3 to 255 characters) for WASTE and ADJUSTMENT */
   reason: string | null
@@ -692,9 +692,10 @@ export interface PurchaseOrderQuery extends DateRange {
 
 /**
  * Receiving an ordered order, all its lines included, in one transaction: a PURCHASE movement per
- * line received, the products' costs updated and, when asked for, an expense of the total
- * (SUPPLIES, dated receivedDate). A cash expense on a day whose till is closed answers 409 and
- * nothing is received.
+ * line received above 0, at the cost sent, else the line's, else the product's, which the line keeps
+ * and becomes the product's; and, when asked for, an expense of the total (SUPPLIES, dated
+ * receivedDate). With every line at 0 it answers 409 PURCHASE_ORDER_NOTHING_RECEIVED. A cash
+ * expense on a day whose till is closed answers 409 CASH_DAY_CLOSED and nothing is received.
  */
 export interface ReceiveOrderInput {
   receivedDate: string | null
