@@ -8,6 +8,7 @@ import { useT } from './lib/i18n'
 import { VenueProvider, useVenue } from './lib/VenueContext'
 import Login from './pages/Login'
 import Account from './pages/Account'
+import SummaryPage from './pages/owner/SummaryPage'
 import SchedulePage from './pages/owner/SchedulePage'
 import CashPage from './pages/owner/CashPage'
 import ExpensesPage from './pages/owner/ExpensesPage'
@@ -56,7 +57,9 @@ function OwnerApp() {
               <NoVenue />
             ) : (
               <Routes key={venue.id}>
-                <Route index element={<SchedulePage />} />
+                {/* The owner starts on the summary; the schedule has its own address */}
+                <Route index element={<SummaryPage />} />
+                <Route path="schedule" element={<SchedulePage />} />
                 <Route path="hours" element={<HoursPage />} />
                 <Route path="cash" element={<CashPage />} />
                 <Route path="expenses" element={<ExpensesPage />} />

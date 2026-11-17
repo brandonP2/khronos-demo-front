@@ -65,7 +65,7 @@ describe("a device on another day than the venue, near midnight", () => {
 
   it("opens the schedule on the venue's today and treats the device's as past", async () => {
     ownerApi()
-    renderApp('/')
+    renderApp('/schedule')
     expect(await screen.findByRole('heading', { level: 1, name: 'Hoy' })).toBeTruthy()
     expect(screen.getByText('Sábado, 21 de noviembre')).toBeTruthy()
     expect(document.querySelector('.week-day.is-today .dn')?.textContent).toBe('21')

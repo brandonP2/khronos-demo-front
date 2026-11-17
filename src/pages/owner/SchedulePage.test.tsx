@@ -37,7 +37,7 @@ function renderApp() {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   return render(
     <QueryClientProvider client={queryClient}>
-      <MemoryRouter>
+      <MemoryRouter initialEntries={['/schedule']}>
         <LocaleProvider initialLocale="es">
           <AuthProvider>
             <ToastProvider>

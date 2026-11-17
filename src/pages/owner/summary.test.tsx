@@ -1,0 +1,280 @@
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { act, cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react'
+import type { BusinessSummary, SummaryDay } from '../../api/types'
+import { json, ownerApi, plain, renderApp } from '../../test/helpers'
+
+const day = (date: string, patch: Partial<SummaryDay> = {}): SummaryDay => ({
+  date,
+  sales: 0,
+  expenses: 0,
+  laborCost: 0,
+  margin: 0,
+  closingStatus: 'NONE',
+  cashDifference: null,
+  ...patch,
+})
+
+function summary(patch: Partial<BusinessSummary> = {}, totals: Partial<BusinessSummary['totals']> = {}): BusinessSummary {
+  return {
+    from: '2026-11-09',
+    to: '2026-11-15',
+    currency: 'EUR',
+    totals: {
+      sales: 4200,
+      cashSales: 1500,
+      cardSales: 2500,
+      otherSales: 200,
+      tips: 80,
+      expenses: 1800,
+      payrollExpenses: 600,
+      laborCost: 1300,
+      plannedLaborCost: 1250,
+      grossMargin: 1700,
+      laborCostPercent: 31,
+      cashDifference: -12.5,
+      closedDays: 4,
+      draftDays: 1,
+      missingClosingDays: 2,
+      ...totals,
+    },
+    days: [
+      day('2026-11-09', { sales: 1000, expenses: 200, laborCost: 300, margin: 500, closingStatus: 'CLOSED', cashDifference: -2.5 }),
+      day('2026-11-10', { sales: 2000, expenses: 400, laborCost: 600, margin: 1000, closingStatus: 'CLOSED', cashDifference: -10 }),
+      day('2026-11-11', { closingStatus: 'MISSING' }),
+      day('2026-11-12', { sales: 600, expenses: 1200, laborCost: null, margin: -600, closingStatus: 'DRAFT', cashDifference: 0 }),
+      day('2026-11-13', { closingStatus: 'MISSING' }),
+      day('2026-11-14'),
+      day('2026-11-15'),
+    ],
+    expensesByCategory: [
+      { category: 'SUPPLIES', amount: 900 },
+      { category: 'PAYROLL', amount: 600 },
+      { category: 'UTILITIES', amount: 300 },
+    ],
+    previous: { from: '2026-11-02', to: '2026-11-08', sales: 3500, expenses: 2000, laborCost: 1300, grossMargin: 1000 },
+    ...patch,
+  }
+}
+
+function summaryApi(body: BusinessSummary | (() => Response)) {
+  return ownerApi((call) => {
+    if (call.path.startsWith('/reports/establishment/1/summary?')) return typeof body === 'function' ? body() : json(200, body)
+  })
+}
+
+/** A stat card by its label, with its text flattened */
+const stat = (label: string) => screen.getByText(label, { selector: '.stat .label' }).closest('.stat') as HTMLElement
+
+beforeEach(() => sessionStorage.clear())
+
+afterEach(() => {
+  cleanup()
+  vi.unstubAllGlobals()
+})
+
+describe('summary cards', () => {
+  it('compares each figure with the period before, with a sign, an arrow and words', async () => {
+    summaryApi(summary())
+    renderApp('/')
+    expect(await screen.findByRole('heading', { name: 'Resumen' })).toBeTruthy()
+    await screen.findByText('Ventas', { selector: '.stat .label' })
+
+    const sales = stat('Ventas')
+    expect(plain(sales.textContent)).toContain('4.200,00 €')
+    expect(plain(sales.querySelector('.trend')!.textContent)).toBe('+700,00 € (+20,0 %) más que en el periodo anterior')
+    expect(sales.querySelector('.trend')!.classList.contains('good')).toBe(true)
+    expect(sales.querySelector('.trend svg')).toBeTruthy()
+
+    // Fewer expenses is good news
+    const expenses = stat('Gastos')
+    expect(plain(expenses.querySelector('.trend')!.textContent)).toBe('−200,00 € (−10,0 %) menos que en el periodo anterior')
+    expect(expenses.querySelector('.trend')!.classList.contains('good')).toBe(true)
+
+    expect(plain(stat('Coste de personal').textContent)).toContain('Igual que en el periodo anterior')
+
+    const margin = stat('Margen estimado')
+    expect(plain(margin.textContent)).toContain('1.700,00 €')
+    expect(plain(margin.textContent)).toContain('Ventas − gastos sin nóminas − coste de personal por las horas fichadas')
+    expect(margin.textContent).not.toMatch(/beneficio/i)
+
+    // Staff cost over sales went from 37,1 % to 31,0 %: a fall in points, which is good news
+    const share = stat('Coste de personal sobre ventas')
+    expect(plain(share.textContent)).toContain('31,0 %')
+    expect(plain(share.querySelector('.trend')!.textContent)).toBe('−6,1 puntos menos que en el periodo anterior')
+    expect(share.querySelector('.trend')!.classList.contains('good')).toBe(true)
+  })
+
+  it('marks a rise in costs as bad news, still in words', async () => {
+    summaryApi(summary({ previous: { from: '2026-11-02', to: '2026-11-08', sales: 4200, expenses: 1500, laborCost: 1300, grossMargin: 2000 } }))
+    renderApp('/')
+    await screen.findByText('Gastos', { selector: '.stat .label' })
+    const trend = stat('Gastos').querySelector('.trend')!
+    expect(trend.classList.contains('bad')).toBe(true)
+    expect(plain(trend.textContent)).toBe('+300,00 € (+20,0 %) más que en el periodo anterior')
+    expect(plain(stat('Margen estimado').querySelector('.trend')!.textContent)).toBe('−300,00 € (−15,0 %) menos que en el periodo anterior')
+  })
+
+  it('says when there is nothing to compare with, and never divides by zero', async () => {
+    summaryApi(summary({ previous: { from: '2026-11-02', to: '2026-11-08', sales: 0, expenses: 0, laborCost: null, grossMargin: 0 } }))
+    renderApp('/')
+    await screen.findByText('Ventas', { selector: '.stat .label' })
+    expect(screen.getAllByText('Sin datos del periodo anterior')).toHaveLength(5)
+    cleanup()
+
+    // Expenses but no sales the period before: sales went up from 0, with no percentage
+    summaryApi(summary({ previous: { from: '2026-11-02', to: '2026-11-08', sales: 0, expenses: 100, laborCost: null, grossMargin: -100 } }))
+    renderApp('/')
+    await screen.findByText('Ventas', { selector: '.stat .label' })
+    expect(plain(stat('Ventas').querySelector('.trend')!.textContent)).toBe('+4.200,00 € más que en el periodo anterior')
+    expect(document.body.textContent).not.toMatch(/Infinity|NaN/)
+  })
+
+  it('shows staff cost as a dash with a link to Team when rates are missing', async () => {
+    summaryApi(summary({}, { laborCost: null, laborCostPercent: null, grossMargin: 3000 }))
+    renderApp('/')
+    await screen.findByText('Coste de personal', { selector: '.stat .label' })
+    const labor = stat('Coste de personal')
+    expect(labor.querySelector('.figure')!.textContent).toBe('—')
+    expect(within(labor).getByRole('link', { name: 'Fija las tarifas por hora en Equipo' }).getAttribute('href')).toBe('/team')
+    expect(stat('Coste de personal sobre ventas').querySelector('.figure')!.textContent).toBe('—')
+  })
+
+  it('offers the first steps when the period has no sales and no expenses', async () => {
+    const empty = summary(
+      { days: [day('2026-11-09')], expensesByCategory: [] },
+      { sales: 0, cashSales: 0, cardSales: 0, otherSales: 0, tips: 0, expenses: 0, payrollExpenses: 0, laborCost: null, grossMargin: 0, laborCostPercent: null, cashDifference: 0, closedDays: 0, draftDays: 0, missingClosingDays: 0 },
+    )
+    summaryApi(empty)
+    renderApp('/')
+    expect(await screen.findByText('Todavía no hay ventas ni gastos en este periodo')).toBeTruthy()
+    expect(screen.getByRole('link', { name: 'Haz el primer cierre de caja' }).getAttribute('href')).toBe('/cash')
+    expect(screen.getByRole('link', { name: 'Añade un gasto' }).getAttribute('href')).toBe('/expenses?new=1')
+    expect(screen.getByText('Todo al día: no falta ningún cierre de caja ni hay borradores.')).toBeTruthy()
+    expect(screen.queryByRole('group', { name: /Ventas y coste total por día/ })).toBeNull()
+  })
+
+  it('shows an error with a way to try again', async () => {
+    let fail = true
+    summaryApi(() => (fail ? json(500, { status: 500, message: 'Database down' }) : json(200, summary())))
+    renderApp('/')
+    expect(await screen.findByText('Database down')).toBeTruthy()
+    fail = false
+    fireEvent.click(screen.getByRole('button', { name: 'Reintentar' }))
+    expect(await screen.findByText('Ventas', { selector: '.stat .label' })).toBeTruthy()
+  })
+})
+
+describe('summary alerts', () => {
+  it('links every day with no closing and every draft to that day on Cash, and shows the cash difference', async () => {
+    summaryApi(summary())
+    renderApp('/')
+    expect(await screen.findByText('2 días con actividad y sin cierre de caja')).toBeTruthy()
+    const missing = screen.getByRole('link', { name: 'Cerrar la caja del Viernes, 13 de noviembre' })
+    expect(missing.getAttribute('href')).toBe('/cash?date=2026-11-13')
+    expect(screen.getByRole('link', { name: 'Cerrar la caja del Miércoles, 11 de noviembre' })).toBeTruthy()
+    expect(screen.getByText('1 cierre de caja en borrador')).toBeTruthy()
+    expect(screen.getByRole('link', { name: 'Revisar el cierre del Jueves, 12 de noviembre' }).getAttribute('href')).toBe('/cash?date=2026-11-12')
+    const difference = screen.getByText(/Descuadre acumulado de los cierres/).closest('.alert-item') as HTMLElement
+    expect(plain(difference.textContent)).toContain('−12,50 € (Falta dinero)')
+    // Who is clocked in now, from the schedule's Now card
+    expect(await screen.findByText('Nadie ha fichado la entrada ahora mismo.')).toBeTruthy()
+  })
+
+  it('splits the expenses by category with their amount and share', async () => {
+    summaryApi(summary())
+    renderApp('/')
+    const list = (await screen.findByText('Género y bebidas')).closest('ul') as HTMLElement
+    const rows = [...list.querySelectorAll('li')].map((li) => plain(li.textContent))
+    expect(rows).toEqual([
+      'Género y bebidas900,00 €50,0 % del total',
+      'Nóminas y seguros sociales600,00 €33,3 % del total',
+      'Suministros300,00 €16,7 % del total',
+    ])
+    const bars = [...list.querySelectorAll<HTMLElement>('.category-bar > span')].map((b) => b.style.width)
+    expect(bars[0]).toBe('100%')
+    expect(parseFloat(bars[2])).toBeCloseTo(33.33, 1)
+  })
+})
+
+describe('summary chart', () => {
+  it('draws sales and total cost in proportion on one axis', async () => {
+    summaryApi(summary())
+    renderApp('/')
+    const chart = await screen.findByRole('group', { name: /Ventas y coste total por día/ })
+    const columns = within(chart).getAllByRole('button')
+    expect(columns).toHaveLength(7)
+    // The axis tops at 2.000 €: 1.000 € of sales is half the height, 500 € of cost a quarter
+    const heights = (column: HTMLElement) =>
+      [...column.querySelectorAll<HTMLElement>('.chart-bar')].map((bar) => bar.style.height)
+    expect(heights(columns[0])).toEqual(['50%', '25%'])
+    expect(heights(columns[1])).toEqual(['100%', '50%'])
+    // Staff cost unknown counts as 0 in the total cost
+    expect(heights(columns[3])).toEqual(['30%', '60%'])
+    expect(plain(columns[0].getAttribute('aria-label'))).toBe('Lunes, 9 de noviembre: ventas 1.000,00 €, coste total 500,00 €')
+    // The axis labels, in full under 10.000 €
+    expect([...document.querySelectorAll('.chart-axis span')].map((s) => plain(s.textContent))).toEqual(['0 €', '1.000 €', '2.000 €'])
+  })
+
+  it('says which days have no data, and walks the days with the keyboard', async () => {
+    summaryApi(summary())
+    renderApp('/')
+    const chart = await screen.findByRole('group', { name: /Ventas y coste total por día/ })
+    const columns = within(chart).getAllByRole('button')
+    expect(columns[6].getAttribute('aria-label')).toBe('Domingo, 15 de noviembre: sin datos')
+    expect(columns[6].classList.contains('empty')).toBe(true)
+    // One tab stop; the arrows move between days and the readout follows
+    expect(columns.filter((c) => c.tabIndex === 0)).toHaveLength(1)
+    act(() => columns[0].focus())
+    fireEvent.keyDown(columns[0], { key: 'ArrowRight' })
+    expect(document.activeElement).toBe(columns[1])
+    const readout = document.querySelector('.chart-readout') as HTMLElement
+    expect(plain(readout.textContent)).toBe('Martes, 10 de noviembre Ventas 2.000,00 € · Gastos 400,00 € · Personal 600,00 € · Margen 1.000,00 €')
+    fireEvent.keyDown(columns[1], { key: 'End' })
+    expect(document.activeElement).toBe(columns[6])
+    expect(plain(readout.textContent)).toBe('Domingo, 15 de noviembre Sin datos')
+  })
+
+  it('has a table with every value behind the chart', async () => {
+    summaryApi(summary())
+    renderApp('/')
+    const table = await screen.findByRole('table', { name: 'Ventas, gastos, coste de personal y margen estimado por día' })
+    const rows = within(table).getAllByRole('row')
+    expect(rows).toHaveLength(8)
+    expect(plain(rows[4].textContent)).toBe('Jueves, 12 de noviembre600,00 €1.200,00 €sin tarifa1.200,00 €-600,00 €Borrador')
+    expect(table.closest('.visually-hidden')).toBe(table)
+  })
+})
+
+describe('summary export', () => {
+  it('downloads the summary as CSV with the name the server gives', async () => {
+    const calls = ownerApi((call) => {
+      if (call.path.startsWith('/reports/establishment/1/summary.csv?')) {
+        return new Response('fecha;ventas', {
+          status: 200,
+          headers: { 'Content-Type': 'text/csv', 'Content-Disposition': 'attachment; filename="resumen_casa-lucia.csv"' },
+        })
+      }
+      if (call.path.startsWith('/reports/establishment/1/summary?')) return json(200, summary())
+    })
+    const original = { create: URL.createObjectURL, revoke: URL.revokeObjectURL }
+    URL.createObjectURL = vi.fn(() => 'blob:x')
+    URL.revokeObjectURL = vi.fn()
+    const saved: string[] = []
+    vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function (this: HTMLAnchorElement) {
+      saved.push(this.download)
+    })
+    try {
+      renderApp('/')
+      fireEvent.click(await screen.findByRole('button', { name: 'Exportar resumen (CSV)' }))
+      await waitFor(() => expect(saved).toEqual(['resumen_casa-lucia.csv']))
+      const csv = calls.find((c) => c.path.includes('summary.csv'))!
+      expect(csv.path).toMatch(/^\/reports\/establishment\/1\/summary\.csv\?from=\d{4}-\d\d-\d\d&to=\d{4}-\d\d-\d\d$/)
+      expect(csv.headers.Authorization).toBe('Bearer test-token')
+      // An owner never asks for the worker's own clock endpoints
+      expect(calls.some((c) => c.path.startsWith('/time-entries/me'))).toBe(false)
+    } finally {
+      URL.createObjectURL = original.create
+      URL.revokeObjectURL = original.revoke
+    }
+  })
+})

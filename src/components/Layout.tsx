@@ -5,6 +5,7 @@ import {
   CalendarClock,
   CalendarRange,
   Clock,
+  LayoutDashboard,
   LogOut,
   Map as MapIcon,
   Menu,
@@ -29,7 +30,8 @@ interface NavItem {
 
 const NAV: Record<string, NavItem[]> = {
   OWNER: [
-    { to: '/', label: 'schedule', icon: CalendarRange },
+    { to: '/', label: 'summary', icon: LayoutDashboard },
+    { to: '/schedule', label: 'schedule', icon: CalendarRange },
     { to: '/hours', label: 'hours', icon: Clock },
     { to: '/cash', label: 'cash', icon: Wallet },
     { to: '/expenses', label: 'expenses', icon: ReceiptText },
