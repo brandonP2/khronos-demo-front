@@ -80,6 +80,8 @@ export const es = {
     staffed: (n: number) => (n === 0 ? 'sin nadie' : n === 1 ? '1 asignado' : `${n} asignados`),
     shiftLabel: (name: string, start: string, end: string) => `${name}, de ${start} a ${end}`,
     assignedTo: (event: string) => `Asignado a ${event}`,
+    /** Added to a shift bar's label while an event is focused and the shift covers it */
+    covers: (event: string) => `cubre ${event}`,
   },
   schedule: {
     title: 'Cuadrante',

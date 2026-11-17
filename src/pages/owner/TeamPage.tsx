@@ -188,6 +188,7 @@ function AddPersonDialog({ venueId, onClose }: { venueId: number; onClose: () =>
       title={t.team.addTitle}
       sub={t.team.addSub}
       onClose={onClose}
+      busy={mutation.isPending}
       footer={
         <>
           <Button variant="ghost" onClick={onClose}>
@@ -272,6 +273,7 @@ function EditPersonDialog({ member, onClose }: { member: StaffMember; onClose: (
     <Dialog
       title={t.team.editTitle(member.name)}
       onClose={onClose}
+      busy={mutation.isPending}
       footer={
         <>
           <Button variant="ghost" onClick={onClose}>

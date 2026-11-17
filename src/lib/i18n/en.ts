@@ -76,6 +76,7 @@ export const en: Messages = {
     staffed: (n: number) => `${n} on`,
     shiftLabel: (name: string, start: string, end: string) => `${name} ${start} to ${end}`,
     assignedTo: (event: string) => `On ${event}`,
+    covers: (event: string) => `covers ${event}`,
   },
   schedule: {
     title: 'Schedule',

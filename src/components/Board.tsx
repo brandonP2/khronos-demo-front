@@ -156,6 +156,12 @@ export function Board({
                           const start = minutes(s.startTime)
                           const end = minutes(s.endTime)
                           const covering = focusEvent ? shiftCovers(s, focusEvent) : false
+                          // Coverage is also said in words, not only by the accent colour
+                          const label = t.board.shiftLabel(
+                            person?.name ?? t.common.unknownPerson(workerId),
+                            hhmm(s.startTime),
+                            hhmm(s.endTime),
+                          )
                           return (
                             <button
                               key={s.id}
@@ -163,11 +169,8 @@ export function Board({
                               style={{ left: x(start), width: `${((end - start) / span) * 100}%` }}
                               onClick={() => onShiftClick?.(s)}
                               disabled={!onShiftClick}
-                              aria-label={t.board.shiftLabel(
-                                person?.name ?? t.common.unknownPerson(workerId),
-                                hhmm(s.startTime),
-                                hhmm(s.endTime),
-                              )}
+                              aria-label={covering && focusEvent ? `${label}, ${t.board.covers(focusEvent.title)}` : label}
+                              title={`${hhmm(s.startTime)}–${hhmm(s.endTime)}`}
                             >
                               {hhmm(s.startTime)}–{hhmm(s.endTime)}
                             </button>
@@ -179,6 +182,8 @@ export function Board({
                               key={ev.id}
                               className="assigned-tick"
                               style={{ left: x(minutes(eventTime(ev.dateTime))) }}
+                              role="img"
+                              aria-label={t.board.assignedTo(ev.title)}
                               title={t.board.assignedTo(ev.title)}
                             />
                           ) : null,

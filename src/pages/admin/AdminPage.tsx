@@ -167,6 +167,7 @@ function NewOwnerDialog({ onClose }: { onClose: () => void }) {
     <Dialog
       title={t.admin.newOwner}
       onClose={onClose}
+      busy={mutation.isPending}
       footer={
         <>
           <Button variant="ghost" onClick={onClose}>
@@ -231,6 +232,7 @@ function NewVenueDialog({ owners, onClose }: { owners: { id: number; name: strin
     <Dialog
       title={t.admin.newVenue}
       onClose={onClose}
+      busy={mutation.isPending}
       footer={
         <>
           <Button variant="ghost" onClick={onClose}>

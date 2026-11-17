@@ -87,6 +87,7 @@ export function EventDrawer({
       title={event.title}
       sub={`${fmt.relative(eventDate(event.dateTime))} · ${time} · ${event.zoneName}`}
       onClose={onClose}
+      busy={assign.isPending || unassign.isPending}
       footer={
         <>
           <Button variant="danger" icon={Trash2} className="spacer" onClick={() => setConfirmDelete(true)}>
@@ -292,6 +293,7 @@ export function EventFormDialog({
       title={event ? t.eventForm.editTitle : t.eventForm.newTitle}
       sub={event ? t.eventForm.editSub : t.eventForm.newSub}
       onClose={onClose}
+      busy={mutation.isPending}
       wide
       footer={
         <>

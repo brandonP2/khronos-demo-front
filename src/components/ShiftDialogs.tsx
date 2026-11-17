@@ -81,6 +81,7 @@ export function ShiftBatchDialog({
       title={t.shiftBatch.title}
       sub={t.shiftBatch.sub}
       onClose={onClose}
+      busy={mutation.isPending}
       wide
       footer={
         <>
@@ -266,6 +267,7 @@ export function ShiftEditDialog({
       title={t.shiftEdit.title}
       sub={t.shiftEdit.sub}
       onClose={onClose}
+      busy={save.isPending}
       footer={
         <>
           <Button variant="danger" icon={Trash2} className="spacer" onClick={() => setConfirmDelete(true)}>
@@ -389,6 +391,7 @@ export function CopyWeekDialog({
       title={t.copyWeek.title}
       sub={t.copyWeek.sub(fmt.week(source[0]), fmt.week(target[0]))}
       onClose={onClose}
+      busy={mutation.isPending}
       wide
       footer={
         <>

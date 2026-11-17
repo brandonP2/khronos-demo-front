@@ -1,4 +1,5 @@
 import {
+  cloneElement,
   createContext,
   useCallback,
   useContext,
@@ -59,6 +60,15 @@ export function Button({
   )
 }
 
+interface FieldControlProps {
+  'aria-describedby'?: string
+  'aria-invalid'?: boolean | 'true' | 'false'
+}
+
+/**
+ * A labelled control. The error, or else the hint, is linked to the control with
+ * aria-describedby, and an error also marks it aria-invalid, so screen readers read both.
+ */
 export function Field({
   label,
   hint,
@@ -68,14 +78,29 @@ export function Field({
   label: string
   hint?: string
   error?: string
-  children: (id: string) => ReactElement
+  children: (id: string) => ReactElement<FieldControlProps>
 }) {
   const id = useId()
+  const noteId = `${id}-note`
+  const control = children(id)
+  const note = error || hint
+  const describedBy = [control.props['aria-describedby'], note ? noteId : null].filter(Boolean).join(' ')
   return (
     <div className="field">
       <label htmlFor={id}>{label}</label>
-      {children(id)}
-      {error ? <span className="error">{error}</span> : hint ? <span className="hint">{hint}</span> : null}
+      {cloneElement(control, {
+        'aria-describedby': describedBy || undefined,
+        'aria-invalid': error ? true : control.props['aria-invalid'],
+      })}
+      {error ? (
+        <span id={noteId} className="error">
+          {error}
+        </span>
+      ) : hint ? (
+        <span id={noteId} className="hint">
+          {hint}
+        </span>
+      ) : null}
     </div>
   )
 }
@@ -158,23 +183,65 @@ export function Loading({ rows = 3 }: { rows?: number }) {
   )
 }
 
-function useEscape(onClose: () => void) {
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose()
-    document.addEventListener('keydown', onKey)
-    return () => document.removeEventListener('keydown', onKey)
-  }, [onClose])
-}
+/** Open dialogs and drawers, top-most last. Only the top one answers Escape and Tab. */
+const modalStack: object[] = []
 
-function useFocusOnOpen() {
+const FOCUSABLE =
+  'a[href], button:not([disabled]), input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+
+/**
+ * Modal behaviour shared by Dialog and Drawer: focus moves in on open, Tab stays inside,
+ * Escape closes unless a save is running, and focus goes back to what opened it on close.
+ */
+function useModal(onClose: () => void, busy: boolean) {
   const ref = useRef<HTMLDivElement>(null)
+  const latest = useRef({ onClose, busy })
+  useEffect(() => {
+    latest.current = { onClose, busy }
+  })
+
   useEffect(() => {
     const el = ref.current
     if (!el) return
+    const token = {}
+    modalStack.push(token)
+    const returnTo = document.activeElement instanceof HTMLElement ? document.activeElement : null
     const target = el.querySelector<HTMLElement>('[data-autofocus], input, select, textarea') ?? el
     target.focus()
+
+    const onKey = (e: KeyboardEvent) => {
+      if (modalStack[modalStack.length - 1] !== token) return
+      if (e.key === 'Escape') {
+        e.preventDefault()
+        if (!latest.current.busy) latest.current.onClose()
+        return
+      }
+      if (e.key !== 'Tab') return
+      const items = [...el.querySelectorAll<HTMLElement>(FOCUSABLE)].filter((n) => !n.closest('[hidden], [inert]'))
+      const active = document.activeElement
+      if (items.length === 0) {
+        e.preventDefault()
+        el.focus()
+      } else if (e.shiftKey && (active === items[0] || active === el || !el.contains(active))) {
+        e.preventDefault()
+        items[items.length - 1].focus()
+      } else if (!e.shiftKey && (active === items[items.length - 1] || !el.contains(active))) {
+        e.preventDefault()
+        items[0].focus()
+      }
+    }
+    document.addEventListener('keydown', onKey)
+    return () => {
+      document.removeEventListener('keydown', onKey)
+      modalStack.splice(modalStack.indexOf(token), 1)
+      if (returnTo?.isConnected) returnTo.focus()
+    }
   }, [])
-  return ref
+
+  const requestClose = () => {
+    if (!latest.current.busy) latest.current.onClose()
+  }
+  return { ref, requestClose }
 }
 
 interface PanelProps {
@@ -184,22 +251,24 @@ interface PanelProps {
   children: ReactNode
   footer?: ReactNode
   wide?: boolean
+  /** A save is running: Escape, the overlay and the close button do nothing until it ends */
+  busy?: boolean
 }
 
-export function Dialog({ title, sub, onClose, children, footer, wide }: PanelProps) {
+export function Dialog({ title, sub, onClose, children, footer, wide, busy = false }: PanelProps) {
   const t = useT()
-  useEscape(onClose)
-  const ref = useFocusOnOpen()
+  const { ref, requestClose } = useModal(onClose, busy)
   const titleId = useId()
   return createPortal(
     <>
-      <div className="overlay" onClick={onClose} />
+      <div className="overlay" onClick={requestClose} />
       <div
         ref={ref}
         className={wide ? 'dialog wide' : 'dialog'}
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
+        aria-busy={busy || undefined}
         tabIndex={-1}
       >
         <div className="dialog-head">
@@ -207,7 +276,7 @@ export function Dialog({ title, sub, onClose, children, footer, wide }: PanelPro
             <h2 id={titleId}>{title}</h2>
             {sub && <p>{sub}</p>}
           </div>
-          <Button variant="ghost" size="sm" iconOnly icon={X} onClick={onClose} aria-label={t.common.close} />
+          <Button variant="ghost" size="sm" iconOnly icon={X} onClick={requestClose} disabled={busy} aria-label={t.common.close} />
         </div>
         <div className="dialog-body">{children}</div>
         {footer && <div className="dialog-foot">{footer}</div>}
@@ -217,21 +286,28 @@ export function Dialog({ title, sub, onClose, children, footer, wide }: PanelPro
   )
 }
 
-export function Drawer({ title, sub, onClose, children, footer }: PanelProps) {
+export function Drawer({ title, sub, onClose, children, footer, busy = false }: PanelProps) {
   const t = useT()
-  useEscape(onClose)
-  const ref = useFocusOnOpen()
+  const { ref, requestClose } = useModal(onClose, busy)
   const titleId = useId()
   return createPortal(
     <>
-      <div className="overlay" onClick={onClose} />
-      <aside ref={ref} className="drawer" role="dialog" aria-modal="true" aria-labelledby={titleId} tabIndex={-1}>
+      <div className="overlay" onClick={requestClose} />
+      <aside
+        ref={ref}
+        className="drawer"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        aria-busy={busy || undefined}
+        tabIndex={-1}
+      >
         <div className="dialog-head">
           <div>
             <h2 id={titleId}>{title}</h2>
             {sub && <p>{sub}</p>}
           </div>
-          <Button variant="ghost" size="sm" iconOnly icon={X} onClick={onClose} aria-label={t.common.close} />
+          <Button variant="ghost" size="sm" iconOnly icon={X} onClick={requestClose} disabled={busy} aria-label={t.common.close} />
         </div>
         <div className="dialog-body">{children}</div>
         {footer && <div className="dialog-foot">{footer}</div>}
@@ -273,6 +349,7 @@ export function ConfirmDialog({
     <Dialog
       title={title}
       onClose={onClose}
+      busy={busy}
       footer={
         <>
           <Button variant="ghost" onClick={onClose}>
