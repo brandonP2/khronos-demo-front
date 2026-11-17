@@ -930,7 +930,7 @@ export const en: Messages = {
       count: 'Do a count',
       addProduct: 'Add product',
       export: 'Export stock (CSV)',
-      file: (date: string) => `stock_${date}.csv`,
+      file: (date: string) => `inventory_${date}.csv`,
       search: 'Find a product',
       searchPlaceholder: 'Gin, coffee…',
       lowOnly: 'Low stock',

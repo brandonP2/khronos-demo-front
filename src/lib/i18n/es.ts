@@ -959,7 +959,8 @@ export const es = {
       count: 'Hacer recuento',
       addProduct: 'Añadir producto',
       export: 'Exportar stock (CSV)',
-      file: (date: string) => `stock_${date}.csv`,
+      // As the API names them, for when its Content-Disposition is not there
+      file: (date: string) => `inventario_${date}.csv`,
       search: 'Buscar producto',
       searchPlaceholder: 'Ginebra, café…',
       lowOnly: 'Stock bajo',
@@ -1133,7 +1134,7 @@ export const es = {
       type: 'Tipo',
       allTypes: 'Todos los tipos',
       export: 'Exportar movimientos (CSV)',
-      file: (from: string, to: string) => `movimientos-de-stock_${from}_${to}.csv`,
+      file: (from: string, to: string) => `movimientos-stock_${from}_${to}.csv`,
       count: (n: number) => count(n, 'movimiento', 'movimientos'),
       empty: 'No hay movimientos en este periodo',
       emptyFiltered: 'No hay movimientos con estos filtros',

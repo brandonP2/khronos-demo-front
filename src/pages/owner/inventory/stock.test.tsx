@@ -181,10 +181,16 @@ describe('stock', () => {
     await waitFor(() => expect(calls.filter((c) => c.path.startsWith('/reports/establishment/1/inventory?')).length).toBe(2))
   })
 
-  it('downloads the stock as CSV', async () => {
+  it('downloads the stock as CSV, named as the API names it', async () => {
+    let named = false
     const calls = stockApi((call) =>
       call.path === '/reports/establishment/1/inventory.csv'
-        ? new Response('producto;stock', { status: 200, headers: { 'Content-Type': 'text/csv' } })
+        ? new Response('producto;stock', {
+            status: 200,
+            headers: named
+              ? { 'Content-Type': 'text/csv', 'Content-Disposition': 'attachment; filename="inventario_2026-11-16.csv"' }
+              : { 'Content-Type': 'text/csv' },
+          })
         : undefined,
     )
     const original = { create: URL.createObjectURL, revoke: URL.revokeObjectURL }
@@ -197,8 +203,12 @@ describe('stock', () => {
     try {
       renderApp('/inventory')
       fireEvent.click(await screen.findByRole('button', { name: 'Exportar stock (CSV)' }))
-      await waitFor(() => expect(saved).toEqual([`stock_${today}.csv`]))
+      // Without the API's name, the same pattern with the venue's today
+      await waitFor(() => expect(saved).toEqual([`inventario_${today}.csv`]))
       expect(calls.find((c) => c.path.endsWith('inventory.csv'))!.headers.Authorization).toBe('Bearer test-token')
+      named = true
+      fireEvent.click(screen.getByRole('button', { name: 'Exportar stock (CSV)' }))
+      await waitFor(() => expect(saved).toEqual([`inventario_${today}.csv`, 'inventario_2026-11-16.csv']))
     } finally {
       URL.createObjectURL = original.create
       URL.revokeObjectURL = original.revoke

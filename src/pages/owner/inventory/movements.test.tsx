@@ -96,7 +96,10 @@ describe('stock movements', () => {
   it('downloads the period’s movements as CSV', async () => {
     const calls = movementsApi((call) =>
       call.path.startsWith('/reports/establishment/1/stock-movements.csv?')
-        ? new Response('fecha;producto', { status: 200, headers: { 'Content-Type': 'text/csv' } })
+        ? new Response('fecha;producto', {
+            status: 200,
+            headers: { 'Content-Type': 'text/csv', 'Content-Disposition': 'attachment; filename="movimientos-stock_2026-11-16_2026-11-22.csv"' },
+          })
         : undefined,
     )
     const original = { create: URL.createObjectURL, revoke: URL.revokeObjectURL }
@@ -110,7 +113,7 @@ describe('stock movements', () => {
       renderApp('/inventory/movements')
       fireEvent.click(await screen.findByRole('button', { name: 'Exportar movimientos (CSV)' }))
       await waitFor(() => expect(saved).toHaveLength(1))
-      expect(saved[0]).toMatch(/^movimientos-de-stock_\d{4}-\d\d-\d\d_\d{4}-\d\d-\d\d\.csv$/)
+      expect(saved[0]).toBe('movimientos-stock_2026-11-16_2026-11-22.csv')
       expect(calls.find((c) => c.path.includes('stock-movements.csv'))!.path).toMatch(/\?from=\d{4}-\d\d-\d\d&to=\d{4}-\d\d-\d\d$/)
     } finally {
       URL.createObjectURL = original.create
