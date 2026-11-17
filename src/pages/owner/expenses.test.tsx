@@ -153,6 +153,24 @@ describe('expenses', () => {
     expect(within(dialog).queryByRole('link')).toBeNull()
   })
 
+  it('asks for the day when the date is left empty, and refuses a future one', async () => {
+    const calls = expensesApi()
+    renderApp('/expenses')
+    await screen.findByText('Hielo')
+    fireEvent.click(screen.getByRole('button', { name: 'Añadir gasto' }))
+    const dialog = screen.getByRole('dialog', { name: 'Añadir gasto' })
+    fireEvent.change(within(dialog).getByLabelText('Importe'), { target: { value: '12' } })
+    fireEvent.change(within(dialog).getByLabelText('Descripción'), { target: { value: 'Hielo' } })
+    fireEvent.change(within(dialog).getByLabelText('Fecha'), { target: { value: '' } })
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Añadir gasto' }))
+    expect(within(dialog).getByText('Elige el día del gasto')).toBeTruthy()
+    expect(within(dialog).queryByText('No puede ser un día futuro')).toBeNull()
+
+    fireEvent.change(within(dialog).getByLabelText('Fecha'), { target: { value: '2999-01-01' } })
+    expect(within(dialog).getByText('No puede ser un día futuro')).toBeTruthy()
+    expect(calls.some((c) => c.method === 'POST')).toBe(false)
+  })
+
   it('opens the new expense straight away from a link', async () => {
     expensesApi()
     renderApp('/expenses?new=1')

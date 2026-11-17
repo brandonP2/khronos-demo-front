@@ -780,6 +780,7 @@ export const es = {
     formSub: 'Los gastos pagados en efectivo cuentan en el cierre de caja de ese día.',
     date: 'Fecha',
     dateHint: 'El día de servicio al que corresponde',
+    dateRequired: 'Elige el día del gasto',
     futureDate: 'No puede ser un día futuro',
     description: 'Descripción',
     descriptionPlaceholder: 'Pedido de bebidas',

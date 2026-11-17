@@ -92,7 +92,7 @@ export function ExpenseFormDialog({
 
   const amount = parseAmount(amountText)
   const errors = {
-    date: !date ? t.expenses.futureDate : date > today ? t.expenses.futureDate : undefined,
+    date: !date ? t.expenses.dateRequired : date > today ? t.expenses.futureDate : undefined,
     description: description.trim().length === 0 || description.trim().length > DESCRIPTION_MAX ? t.expenses.descriptionError : undefined,
     amount: amount === null || amount <= 0 ? t.expenses.amountError : undefined,
   }

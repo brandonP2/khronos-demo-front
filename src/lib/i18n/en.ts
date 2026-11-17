@@ -755,6 +755,7 @@ export const en: Messages = {
     formSub: 'Expenses paid in cash count in that day’s cash closing.',
     date: 'Date',
     dateHint: 'The service day it belongs to',
+    dateRequired: 'Pick the day of the expense',
     futureDate: 'It cannot be a future day',
     description: 'Description',
     descriptionPlaceholder: 'Drinks order',
