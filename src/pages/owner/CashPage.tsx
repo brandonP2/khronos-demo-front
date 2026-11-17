@@ -129,7 +129,8 @@ function ClosingList({
   const fmt = useFmt()
   const { value, setValue, period } = usePeriod(presetPeriod('this-month', today), today)
   const closings = useCashClosings(venueId, period)
-  // The summary knows which days had shifts or clock-ins and no closing
+  // Only the summary knows which days had shifts or clock-ins and no closing. It is the Summary
+  // page's own query (same key), so a period loaded there in the last 30 seconds is not asked again.
   const summary = useSummary(venueId, period)
   const file = useDownload()
 
