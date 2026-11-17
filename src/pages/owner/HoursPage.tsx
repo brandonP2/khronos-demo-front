@@ -2,7 +2,7 @@ import { Clock, Download, FileText } from 'lucide-react'
 import { api } from '../../api/endpoints'
 import { HoursTable } from '../../components/HoursTable'
 import { PeriodPicker, usePeriod } from '../../components/PeriodPicker'
-import { Difference } from '../../components/TimeEntries'
+import { Cost, Difference } from '../../components/TimeEntries'
 import { Button, Empty, ErrorNote, Loading, PageHead } from '../../components/ui'
 import { useDownload } from '../../lib/download'
 import { useFmt, useT } from '../../lib/i18n'
@@ -29,7 +29,10 @@ export default function HoursPage() {
   const nothing = workers.every((w) => w.shiftsCount === 0 && w.entriesCount === 0)
   const shifts = workers.reduce((n, w) => n + w.shiftsCount, 0)
   const entries = workers.reduce((n, w) => n + w.entriesCount, 0)
-  const withoutRate = workers.filter((w) => w.currentHourlyRate === null && (w.shiftsCount > 0 || w.entriesCount > 0)).length
+  // A cost is null when some of the person's minutes fall on days with no rate; totals leave them out
+  const withoutRate = workers.filter(
+    (w) => (w.actualCost === null && w.workedMinutes > 0) || (w.plannedCost === null && w.plannedMinutes > 0),
+  ).length
   const personHref = (workerId: number) => (period ? `/team/${workerId}?from=${period.from}&to=${period.to}` : `/team/${workerId}`)
 
   return (
@@ -103,9 +106,13 @@ export default function HoursPage() {
             </div>
             <div className="card stat">
               <span className="label">{t.hours.cost}</span>
-              <span className="figure">{data.totals.actualCost === null ? '—' : fmt.money(data.totals.actualCost)}</span>
+              <span className="figure">
+                <Cost value={data.totals.actualCost} />
+              </span>
               <span className="meta">
-                {t.hours.costMeta(data.totals.plannedCost === null ? null : fmt.money(data.totals.plannedCost))}
+                {data.totals.actualCost === null && data.totals.workedMinutes > 0
+                  ? t.hours.missingRate
+                  : t.hours.costMeta(data.totals.plannedCost === null ? null : fmt.money(data.totals.plannedCost))}
               </span>
             </div>
           </div>

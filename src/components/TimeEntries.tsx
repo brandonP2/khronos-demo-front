@@ -80,6 +80,21 @@ export function Difference({ minutes }: { minutes: number }) {
   )
 }
 
+/**
+ * A cost, or "—" when some of its minutes fall on days with no hourly rate (the API then gives
+ * null rather than a sum that falls short). The reason is in the title and read out.
+ */
+export function Cost({ value }: { value: number | null }) {
+  const t = useT()
+  const fmt = useFmt()
+  if (value !== null) return <>{fmt.money(value)}</>
+  return (
+    <span title={t.hours.missingRate}>
+      —<span className="visually-hidden"> {t.hours.missingRate}</span>
+    </span>
+  )
+}
+
 /** Every change made to an entry, oldest first, with who made it and why */
 export function HistoryDialog({ entry, timeZone, onClose }: { entry: TimeEntry; timeZone: string; onClose: () => void }) {
   const t = useT()

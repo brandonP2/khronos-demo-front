@@ -114,6 +114,30 @@ describe('HoursTable', () => {
     expect(within(bea).getByText('Inactivo')).toBeTruthy()
   })
 
+  it('shows a dash with the reason when a rate is missing for part of the period', () => {
+    render(
+      <MemoryRouter>
+        <LocaleProvider initialLocale="es">
+          <HoursTable
+            report={{
+              ...report,
+              // A rate that started mid-period: the API gives no cost rather than one that falls short
+              workers: [row(4, 'Sara', { workedMinutes: 600, entriesCount: 2, currentHourlyRate: 12, plannedCost: null, actualCost: null })],
+              totals: { plannedMinutes: 0, workedMinutes: 600, differenceMinutes: 600, plannedCost: null, actualCost: null },
+            }}
+            personHref={(id) => `/team/${id}`}
+          />
+        </LocaleProvider>
+      </MemoryRouter>,
+    )
+    const sara = screen.getByRole('link', { name: 'Sara Ruiz' }).closest('tr')!
+    const cost = within(sara).getAllByTitle('Falta tarifa para parte del periodo')[0]
+    expect(plain(cost.textContent)).toBe('— Falta tarifa para parte del periodo')
+    expect(within(sara).getByText('Falta tarifa para parte del periodo', { selector: '.cell-sub' })).toBeTruthy()
+    const total = screen.getByRole('rowheader', { name: 'Total' }).closest('tr')!
+    expect(within(total).getByTitle('Falta tarifa para parte del periodo')).toBeTruthy()
+  })
+
   it('sorts with nulls last in the helper too', () => {
     const sorted = sortHoursRows(report.workers, { key: 'rate', direction: 'asc' })
     expect(sorted.map((r) => r.workerId)).toEqual([2, 1, 3])
@@ -154,7 +178,9 @@ describe('Hours page', () => {
       expect(await screen.findByRole('heading', { name: 'Horas' })).toBeTruthy()
       // The cost card and the total row
       expect(await screen.findAllByText('756,25 €', { normalizer: plain })).toHaveLength(2)
-      expect(screen.getByText('1 persona no tiene tarifa por hora y no cuenta en el coste.')).toBeTruthy()
+      expect(
+        screen.getByText('1 persona no tiene tarifa por hora para todo el periodo: su coste sale «—» y no se suma al total.'),
+      ).toBeTruthy()
 
       fireEvent.click(screen.getByRole('button', { name: 'Exportar horas (CSV)' }))
       fireEvent.click(screen.getByRole('button', { name: 'Exportar registro de jornada (CSV)' }))

@@ -6,7 +6,7 @@ import { useFmt, useT } from '../lib/i18n'
 import { defaultDirection, HOURS_SORT_KEYS, rowName, sortHoursRows, type HoursSort, type HoursSortKey } from '../lib/hours'
 import { initials } from '../lib/queries'
 import { minutesLabel } from '../lib/time'
-import { Difference } from './TimeEntries'
+import { Cost, Difference } from './TimeEntries'
 import { Avatar, Button } from './ui'
 
 /** Planned against worked on one scale for the whole table, with the plan as a thin accent line */
@@ -56,8 +56,6 @@ export function HoursTable({ report, personHref }: { report: HoursReport; person
       </th>
     )
   }
-
-  const money = (value: number | null) => (value === null ? '—' : fmt.money(value))
 
   return (
     <>
@@ -157,7 +155,14 @@ export function HoursTable({ report, personHref }: { report: HoursReport; person
                   )}
                 </td>
                 <td className="right mono" data-label={label.cost}>
-                  <div>{money(row.actualCost)}</div>
+                  <div>
+                    <Cost value={row.actualCost} />
+                  </div>
+                  {row.actualCost === null && row.currentHourlyRate !== null && (
+                    <div className="muted cell-sub" aria-hidden>
+                      {t.hours.missingRate}
+                    </div>
+                  )}
                   {row.plannedCost !== null && <div className="muted cell-sub">{t.hours.plannedCost(fmt.money(row.plannedCost))}</div>}
                 </td>
               </tr>
@@ -193,7 +198,9 @@ export function HoursTable({ report, personHref }: { report: HoursReport; person
             </td>
             <td className="right" />
             <td className="right mono" data-label={label.cost}>
-              <div>{money(report.totals.actualCost)}</div>
+              <div>
+                <Cost value={report.totals.actualCost} />
+              </div>
               {report.totals.plannedCost !== null && (
                 <div className="muted cell-sub">{t.hours.plannedCost(fmt.money(report.totals.plannedCost))}</div>
               )}

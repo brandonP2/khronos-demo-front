@@ -349,7 +349,11 @@ export const es = {
     differenceMeta: 'Trabajadas menos planificadas',
     costMeta: (planned: string | null) => (planned ? `Previsto: ${planned}` : 'Añade tarifas por hora para verlo'),
     withoutRate: (n: number) =>
-      n === 1 ? '1 persona no tiene tarifa por hora y no cuenta en el coste.' : `${n} personas no tienen tarifa por hora y no cuentan en el coste.`,
+      n === 1
+        ? '1 persona no tiene tarifa por hora para todo el periodo: su coste sale «—» y no se suma al total.'
+        : `${n} personas no tienen tarifa por hora para todo el periodo: su coste sale «—» y no se suma al total.`,
+    /** Why a cost shows "—" */
+    missingRate: 'Falta tarifa para parte del periodo',
     empty: 'No hay turnos ni fichajes en este periodo',
     emptyBody: 'Cuando el equipo fiche la entrada y la salida, aquí verás sus horas frente a lo planificado.',
     columns: {

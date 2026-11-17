@@ -5,7 +5,7 @@ import type { TimeEntry } from '../../api/types'
 import { EntryFormDialog, VoidEntryDialog } from '../../components/EntryDialogs'
 import { PeriodPicker, usePeriod } from '../../components/PeriodPicker'
 import { RatesCard } from '../../components/RatesCard'
-import { DayStatusLabel, Difference, EntryTags, EntryTimes, HistoryDialog } from '../../components/TimeEntries'
+import { Cost, DayStatusLabel, Difference, EntryTags, EntryTimes, HistoryDialog } from '../../components/TimeEntries'
 import { Button, Empty, ErrorNote, Loading, PageHead } from '../../components/ui'
 import { useFmt, useT } from '../../lib/i18n'
 import { useStaff, useWorkerDays, useWorkerEntries } from '../../lib/queries'
@@ -126,8 +126,14 @@ export default function PersonPage() {
             </div>
             <div className="card stat">
               <span className="label">{t.hours.cost}</span>
-              <span className="figure">{report.actualCost === null ? '—' : fmt.money(report.actualCost)}</span>
-              <span className="meta">{t.hours.costMeta(report.plannedCost === null ? null : fmt.money(report.plannedCost))}</span>
+              <span className="figure">
+                <Cost value={report.actualCost} />
+              </span>
+              <span className="meta">
+                {report.actualCost === null && report.workedMinutes > 0
+                  ? t.hours.missingRate
+                  : t.hours.costMeta(report.plannedCost === null ? null : fmt.money(report.plannedCost))}
+              </span>
             </div>
           </div>
         )

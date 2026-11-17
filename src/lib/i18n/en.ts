@@ -331,7 +331,10 @@ export const en: Messages = {
     differenceMeta: 'Worked minus planned',
     costMeta: (planned: string | null) => (planned ? `Planned: ${planned}` : 'Add hourly rates to see it'),
     withoutRate: (n: number) =>
-      n === 1 ? '1 person has no hourly rate and is left out of the cost.' : `${n} people have no hourly rate and are left out of the cost.`,
+      n === 1
+        ? '1 person has no hourly rate for the whole period: their cost shows “—” and is left out of the total.'
+        : `${n} people have no hourly rate for the whole period: their cost shows “—” and is left out of the total.`,
+    missingRate: 'No rate for part of the period',
     empty: 'No shifts or entries in this period',
     emptyBody: 'Once the team clocks in and out, their hours show up here against the plan.',
     columns: {
