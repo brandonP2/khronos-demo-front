@@ -356,6 +356,7 @@ a {
 
 /* ---------- Controls ---------- */
 
+/* Also on links that look like a button, which are never underlined */
 .btn {
   display: inline-flex;
   align-items: center;
@@ -368,6 +369,7 @@ a {
   background: var(--card);
   color: var(--text);
   font-weight: 500;
+  text-decoration: none;
   white-space: nowrap;
   cursor: pointer;
   transition: background-color 150ms var(--ease), border-color 150ms var(--ease), transform 120ms var(--ease);
