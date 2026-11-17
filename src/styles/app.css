@@ -1429,11 +1429,15 @@ a {
 }
 
 /* Period picker above the reports */
+/* Never wider than the page, wherever it sits: as a flex or grid item it would otherwise keep the
+   width of all its shortcuts in a row, and on a phone the shortcuts scroll sideways inside it */
 .period {
   display: flex;
   align-items: flex-end;
   flex-wrap: wrap;
   gap: 12px 16px;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .period .segmented {

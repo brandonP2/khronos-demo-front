@@ -17,6 +17,8 @@ export default defineConfig(({ mode }) => {
       environment: 'jsdom',
       include: ['src/**/*.test.{ts,tsx}'],
       restoreMocks: true,
+      // Tests leave CSS out, except the stylesheet, which a test checks for what would widen a phone's page
+      css: { include: [/app\.css/] },
     },
   }
 })
