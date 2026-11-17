@@ -1,6 +1,6 @@
 # Khronos frontend
 
-React app for the [Khronos API](../khronos-demo). Owners of small venues use it to set up zones, schedule staff shifts, create events and put people on them. Staff use it to see their own week.
+React app for the [Khronos API](../khronos-demo). Owners of small venues use it to set up zones, schedule staff shifts, create events and put people on them, and to see the work actually done: who clocked in and out, planned against worked hours, punctuality and staff cost. Staff use it to see their own week, clock in and out from their phone and check their hours.
 
 The interface is in **Spanish (Spain) by default**, with English as an option.
 
@@ -16,7 +16,7 @@ The interface is in **Spanish (Spain) by default**, with English as an option.
 
 3. Open http://localhost:5173 and sign in with an API user.
 
-The API has no CORS config, so in development Vite proxies every `/api` call to the backend. Point the proxy elsewhere with `KHRONOS_API_URL=http://host:port npm run dev`. For a production build served from another origin, set `VITE_API_URL` at build time and enable CORS on the API, exposing the `Retry-After` header. Both variables are documented in `.env.example`; copy it to `.env.local` to set them.
+The API has no CORS config, so in development Vite proxies every `/api` call to the backend. Point the proxy elsewhere with `KHRONOS_API_URL=http://host:port npm run dev`. For a production build served from another origin, set `VITE_API_URL` at build time and enable CORS on the API, exposing the `Retry-After` and `Content-Disposition` headers. Both variables are documented in `.env.example`; copy it to `.env.local` to set them.
 
 | Script | What it does |
 |---|---|
@@ -34,9 +34,11 @@ The API has no CORS config, so in development Vite proxies every `/api` call to 
 
 | Role | Screens |
 |---|---|
-| Owner | **Schedule**: a day board per zone with the week strip, add shifts in batches, copy last week, and an event panel to assign people. **Events**: upcoming and past events with who is on them. **Team**: add people (creates the login and links it to the venue in one step), edit, reset a password, deactivate. **Venue and zones**. |
-| Worker | **My schedule**: upcoming shifts by day, with the events they are on during each shift. |
-| Platform admin | **Owners and venues**: create owner accounts and their venues, reset an owner's password. |
+| Owner | **Schedule** (`/`): a **Now** card with who is clocked in, since when, and quick actions to clock someone in or out; a day board per zone with the week strip, add shifts in batches, copy last week, and an event panel to assign people. **Hours** (`/hours`): planned against worked hours, punctuality and staff cost per person for a period, with CSV exports. **Events**: upcoming and past events with who is on them. **Team**: add people (creates the login and links it to the venue in one step), edit, reset a password, deactivate; each name opens the person's page. **Person** (`/team/:workerId`): details, hourly rate and its history, day by day for a period, and every time entry with add, correct, void and history. **Venue and zones**, including the venue's time zone. |
+| Worker | **My schedule** (`/`): a **Clock in** card first (out, or in since HH:MM with the time ticking, today's shift, one big button), then upcoming shifts by day, with the events they are on during each shift. **My hours** (`/hours`): their entries by period, planned against worked, the status of each day, each entry's corrections, and their own record as CSV. |
+| Platform admin | **Owners and venues**: create owner accounts and their venues (with the venue's time zone), reset an owner's password. |
+
+Workers never see hourly rates or costs, theirs included, and the app never asks the API for them with a worker's session.
 
 All roles have **Account**, for profile, password and language.
 
@@ -58,11 +60,18 @@ return <PageHead title={t.schedule.title} sub={`${fmt.long(date)} · ${t.common.
 
 ## How it maps to the API rules
 
-- **Coverage line.** On the board, each event draws a line at its start time across its zone. The shift bars it crosses belong to the people who can be assigned. This matches the API rule: a shift in the same zone, on the same date, with `start ≤ event time < end`. The event panel lists those people first. For anyone not on shift, it offers "Add a shift" with the event's zone, date and time already filled in, ending four hours later or at 23:59.
+- **Coverage line.** On the board, each event draws a line at its start time across its zone. The shift bars it crosses belong to the people who can be assigned. This matches the API rule: a shift in the same zone whose real interval `[date + start, end)` holds the event's time. The event panel lists those people first. For anyone not on shift, it offers "Add a shift" with the event's zone, date and time already filled in, ending four hours later (the next day if that passes midnight).
+- **Shifts that end the next day.** A shift's `date` is its service day, the day it starts. An end at or before the start is on the next day: 18:00–02:00 is 8 hours. The dialogs say so ("Ends the next day at 02:00. Lasts 8h.") and refuse the same time twice and more than 16 hours, like the API. The board draws a night shift whole on an axis that runs past 24:00, with "+1" on the hours of the next day and a dashed midnight line; the night shifts of the day before are carried into the small hours, so an event at 01:00 shows who covers it. Hours use `durationMinutes` from the API.
+- **Time zone.** Shifts and events are local times with no zone. Time entries are UTC instants and are always shown, and typed, on the venue's clock (`timeZone`, `Europe/Madrid` by default), whatever the device's zone. The conversion, including the nights the clocks change, lives in `src/lib/time.ts`.
+- **Time entries are never deleted.** The owner adds a day that was not clocked, corrects or voids an entry, always with a reason (3 to 255 characters) that the API keeps in the entry's history. Corrected entries are marked, voided ones are struck through.
+- **Clocking someone out.** The API has no clock-out on someone else's behalf, so the owner's "Clock out" on the Now card is a correction that sets the clock-out to now, and shows as one in the history. "Clock in now" sends the time cut to the minute, so a device clock a few seconds fast does not send a clock-in in the future.
+- **A forgotten clock-out.** When the open entry is `isStale` (open for more than 16 hours), the worker's card says so and sends them to their manager instead of offering to clock out, which would record a very long day.
 - **Batches are all or nothing.** Shifts, events and assignments are sent as one list. When the API answers `Shift [2]: ...`, the app highlights that row and shows the message. When "Assign all" fails, the panel names the person it stopped at and offers to assign the rest.
 - **Automatic unassignment.** After a shift or event is changed, the app refetches assignments, because the API may have removed people whose shift no longer covers the event.
 - **Inactive people** can't get new shifts or sign in, so they are left out of the pickers.
-- **Only the range on screen is fetched.** Schedule asks for the week shown (shifts include the week before, for "Copy last week"), Events for upcoming or past, Team for this week, and My schedule from this Monday on.
+- **Only the range on screen is fetched.** Schedule asks for the week shown (shifts include the week before, for "Copy last week" and last night's shifts), Events for upcoming or past (shifts from the day before, for cover in the small hours), Team for this week, My schedule from this Monday on, and Hours, Person and My hours for the period picked (this week, last week, this month, last month, or a range of up to 366 days).
+- **Who is in now** is refreshed every minute and whenever the tab comes back into view.
+- **CSV exports** need the bearer token, so they are fetched with it and saved from a blob, not opened as links. The file name comes from `Content-Disposition`; a cross-origin API has to expose that header for the browser to read it, otherwise a name like `horas_2026-11-16_2026-11-22.csv` is used.
 
 ## Auth
 
@@ -82,12 +91,13 @@ There is no refresh token yet. The code that would change for one lives in `src/
 
 ```
 src/
-├── api/          fetch client, DTO types, one function per endpoint
+├── api/          fetch client (JSON calls and authenticated downloads), DTO types, one function per endpoint
 ├── auth/         session handling
-├── components/   Board, shift and event dialogs, shared UI, layout, error boundary
-├── lib/          queries (TanStack Query), venue selection, date helpers, i18n/
+├── components/   Board, shift, event and time entry dialogs, clock card, Now card, hours table, period picker, shared UI, layout, error boundary
+├── lib/          queries (TanStack Query), venue selection, date, time zone and period helpers, hours sorting, downloads, i18n/
 ├── pages/        owner/, worker/, admin/, Login, Account
-└── styles/       app.css (tokens, light and dark)
+├── styles/       app.css (tokens, light and dark)
+└── test/         helpers: a fake API answered by path, and the app rendered with a stored session
 ```
 
 Tests sit next to the code they cover (`*.test.ts`, `*.test.tsx`).
@@ -108,3 +118,28 @@ On top of the original API, this version uses:
 `EstablishmentResponse.ownerEmail` and `ownerPhone` can be `null` for workers.
 
 Shifts are still listed per owner, and the app narrows them to the zones of the current venue.
+
+### Staff at work: clocking, rates and reports
+
+The screens for hours and clocking in follow the delivery 2 API contract. Instants are ISO-8601 in UTC (`2026-11-20T17:02:00Z`), durations are whole minutes, money is euros with two decimals. "Owner" below means the venue's owner or a platform admin.
+
+| Endpoint | Who | Used for |
+|---|---|---|
+| `timeZone` (IANA, default `Europe/Madrid`) on `EstablishmentRequest` and `EstablishmentResponse` | | Venue page and the admin's new-venue dialog; every time entry is shown in it |
+| `endsNextDay` and `durationMinutes` on `WorkerShiftResponse`; an `endTime` at or before `startTime` means the next day, 16 hours at most | | Board, shift dialogs, hours on Schedule, Team and My schedule |
+| `GET /api/time-entries/me/open` → `TimeEntryResponse`, or 204 | Worker | Clock card |
+| `POST /api/time-entries/clock-in` `{ note? }` → 201; 409 if already in or inactive | Worker | Clock in |
+| `POST /api/time-entries/clock-out` `{ breakMinutes?, note? }` → 200; 409 if nothing open | Worker | Clock out |
+| `POST /api/time-entries` `{ workerId, clockIn, clockOut?, breakMinutes?, reason }` → 201 | Owner | Clock someone in now (Now card), add a day (Person) |
+| `PUT /api/time-entries/{id}` `{ clockIn, clockOut, breakMinutes, reason }` | Owner | Correct an entry (Person); clock someone out now (Now card) |
+| `PUT /api/time-entries/{id}/void` `{ reason }` | Owner | Void an entry (Person) |
+| `GET /api/time-entries/{id}/history` → `TimeEntryChangeResponse[]` | Owner, or the worker on their own | History dialog |
+| `GET /api/time-entries/worker/{workerId}?from&to&includeVoided=true` | Owner | Entries on the Person page |
+| `GET /api/time-entries/establishment/{id}/open` | Owner | Now card |
+| `GET /api/workers/{workerId}/rates`, `POST` `{ hourlyRate, effectiveFrom }` (409 on a repeated date), `DELETE /{rateId}` | Owner | Hourly rate on the Person page |
+| `GET /api/reports/establishment/{id}/hours?from&to` | Owner | Hours page |
+| `GET /api/reports/worker/{workerId}/days?from&to` | Owner, or the worker on their own (costs `null`) | Person page, My hours |
+| `GET /api/reports/establishment/{id}/hours.csv?from&to` and `/time-entries.csv?from&to` | Owner | "Export hours (CSV)" and "Export time record (CSV)" on Hours |
+| `GET /api/reports/worker/{workerId}/time-entries.csv?from&to` | Owner, or the worker on their own | "Download my record (CSV)" on My hours |
+
+`GET /api/time-entries/establishment/{id}?from&to` is typed in `src/api/endpoints.ts` but not used by any screen yet.
