@@ -65,7 +65,7 @@ export default function SummaryPage() {
           </div>
         </div>
       ) : (
-        summary.data && <SummaryBody data={summary.data} refreshing={summary.isPlaceholderData} />
+        summary.data && <SummaryBody data={summary.data} refreshing={summary.isPlaceholderData} today={on} />
       )}
 
       {venue && <NowCard venueId={venue.id} staff={staff.data ?? []} timeZone={timeZone} />}
@@ -73,7 +73,7 @@ export default function SummaryPage() {
   )
 }
 
-function SummaryBody({ data, refreshing }: { data: BusinessSummary; refreshing: boolean }) {
+function SummaryBody({ data, refreshing, today }: { data: BusinessSummary; refreshing: boolean; today: string }) {
   const t = useT()
   const fmt = useFmt()
   const { totals, previous } = data
@@ -166,7 +166,7 @@ function SummaryBody({ data, refreshing }: { data: BusinessSummary; refreshing: 
       {!empty && (
         <>
           <section className="card chart-card" aria-busy={refreshing || undefined}>
-            <SummaryChart key={`${data.from}_${data.to}`} days={data.days} />
+            <SummaryChart key={`${data.from}_${data.to}`} days={data.days} today={today} />
           </section>
 
           <section className="card">

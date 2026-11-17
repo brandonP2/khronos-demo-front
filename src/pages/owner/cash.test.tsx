@@ -380,3 +380,28 @@ describe('closings of the period', () => {
     expect(await screen.findByRole('heading', { name: 'Cierre de caja del Domingo, 15 de noviembre' })).toBeTruthy()
   })
 })
+
+describe('the day on the venue\'s clock', () => {
+  beforeEach(() => {
+    // Friday 18:30 on a phone in New York, already Saturday 00:30 at the venue in Madrid
+    vi.stubEnv('TZ', 'America/New_York')
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(new Date('2026-11-20T23:30:00Z'))
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+    vi.unstubAllEnvs()
+  })
+
+  it("proposes the night's service and names it from the venue's today", async () => {
+    ownerApi((call) => {
+      if (call.path.startsWith('/cash-closings/establishment/1?') || call.path.startsWith('/expenses/establishment/1?')) return json(200, [])
+      if (call.path.startsWith('/reports/establishment/1/summary?')) return json(200, { days: [], totals: {}, expensesByCategory: [], previous: {} })
+    })
+    renderApp('/cash')
+    expect(await screen.findByRole('heading', { name: 'Cierre de caja del Viernes, 20 de noviembre' })).toBeTruthy()
+    expect(document.querySelector('.cash-day .secondary')!.textContent).toBe('Ayer')
+    expect(screen.getByText('Es de madrugada, así que se propone el servicio de ayer.')).toBeTruthy()
+  })
+})

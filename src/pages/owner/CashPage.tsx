@@ -73,7 +73,7 @@ export default function CashPage() {
           disabled={day >= today}
           onClick={() => goTo(addDays(day, 1))}
         />
-        <span className="secondary">{fmt.relative(day)}</span>
+        <span className="secondary">{fmt.relative(day, today)}</span>
       </div>
       {suggested.lateNight && day === suggested.day && !asked && <p className="muted cash-note">{t.cash.lateNight}</p>}
 

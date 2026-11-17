@@ -6,23 +6,22 @@ import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent } from 
 import type { SummaryDay } from '../api/types'
 import { useFmt, useT } from '../lib/i18n'
 import { barPercent, chartScale, dayCost, isEmptyDay } from '../lib/summary'
-import { parseISODate, today } from '../lib/time'
+import { parseISODate } from '../lib/time'
 
 /** The last day up to today with something in it, else the last day up to today */
-function defaultDay(days: SummaryDay[]): number {
-  const now = today()
+function defaultDay(days: SummaryDay[], today: string): number {
   let lastPast = -1
-  while (lastPast + 1 < days.length && days[lastPast + 1].date <= now) lastPast++
+  while (lastPast + 1 < days.length && days[lastPast + 1].date <= today) lastPast++
   for (let i = lastPast; i >= 0; i--) if (!isEmptyDay(days[i])) return i
   return lastPast >= 0 ? lastPast : Math.max(0, days.length - 1)
 }
 
-export function SummaryChart({ days }: { days: SummaryDay[] }) {
+export function SummaryChart({ days, today }: { days: SummaryDay[]; /** The venue's today */ today: string }) {
   const t = useT()
   const fmt = useFmt()
   const titleId = useId()
   const { max, ticks } = useMemo(() => chartScale(days), [days])
-  const [active, setActive] = useState(() => defaultDay(days))
+  const [active, setActive] = useState(() => defaultDay(days, today))
   const scroller = useRef<HTMLDivElement>(null)
   const columns = useRef<(HTMLButtonElement | null)[]>([])
   const current = days[Math.min(active, days.length - 1)]

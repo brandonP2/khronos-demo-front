@@ -245,6 +245,35 @@ describe('summary chart', () => {
   })
 })
 
+describe('the chart on the venue\'s clock', () => {
+  beforeEach(() => {
+    // Friday 18:30 on a phone in New York, already Saturday 00:30 at the venue in Madrid
+    vi.stubEnv('TZ', 'America/New_York')
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(new Date('2026-11-20T23:30:00Z'))
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+    vi.unstubAllEnvs()
+  })
+
+  it("starts on the venue's today, not the device's", async () => {
+    const week = ['2026-11-16', '2026-11-17', '2026-11-18', '2026-11-19', '2026-11-20', '2026-11-21', '2026-11-22']
+    const calls = summaryApi(
+      summary({
+        from: week[0],
+        to: week[6],
+        days: week.map((d) => (d === '2026-11-20' || d === '2026-11-21' ? day(d, { sales: 500, closingStatus: 'CLOSED' }) : day(d))),
+      }),
+    )
+    renderApp('/')
+    await screen.findByRole('group', { name: /Ventas y coste total por día/ })
+    expect(calls.some((c) => c.path === '/reports/establishment/1/summary?from=2026-11-16&to=2026-11-22')).toBe(true)
+    expect(plain(document.querySelector('.chart-readout-day')!.textContent)).toBe('Sábado, 21 de noviembre')
+  })
+})
+
 describe('summary export', () => {
   it('downloads the summary as CSV with the name the server gives', async () => {
     const calls = ownerApi((call) => {
