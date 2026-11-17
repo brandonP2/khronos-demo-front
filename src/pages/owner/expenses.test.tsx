@@ -114,7 +114,7 @@ describe('expenses', () => {
     fireEvent.click(within(dialog).getByRole('button', { name: 'Guardar' }))
 
     expect(
-      await within(dialog).findByText(/La caja del Sábado, 14 de noviembre está cerrada, así que sus gastos en efectivo no se pueden cambiar/),
+      await within(dialog).findByText(/La caja del sábado, 14 de noviembre está cerrada, así que sus gastos en efectivo no se pueden cambiar/),
     ).toBeTruthy()
     expect(within(dialog).getByRole('link', { name: 'Ir a la caja del 14 nov' }).getAttribute('href')).toBe('/cash?date=2026-11-14')
   })
@@ -129,7 +129,7 @@ describe('expenses', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Editar «Hielo»' }))
     const dialog = screen.getByRole('dialog', { name: 'Editar gasto' })
     fireEvent.click(within(dialog).getByRole('button', { name: 'Guardar' }))
-    expect(await within(dialog).findByText(/La caja del Viernes, 13 de noviembre está cerrada/)).toBeTruthy()
+    expect(await within(dialog).findByText(/La caja del viernes, 13 de noviembre está cerrada/)).toBeTruthy()
     expect(within(dialog).getByRole('link', { name: 'Ir a la caja del 13 nov' }).getAttribute('href')).toBe('/cash?date=2026-11-13')
   })
 
@@ -145,7 +145,7 @@ describe('expenses', () => {
     const dialog = screen.getByRole('dialog', { name: 'Eliminar este gasto' })
     expect(plain(dialog.textContent)).toContain('«Hielo», 25,50 €. No se puede deshacer.')
     fireEvent.click(within(dialog).getByRole('button', { name: 'Eliminar gasto' }))
-    expect(await within(dialog).findByText(/La caja del Sábado, 14 de noviembre está cerrada/)).toBeTruthy()
+    expect(await within(dialog).findByText(/La caja del sábado, 14 de noviembre está cerrada/)).toBeTruthy()
 
     refuse = false
     fireEvent.click(within(dialog).getByRole('button', { name: 'Eliminar gasto' }))

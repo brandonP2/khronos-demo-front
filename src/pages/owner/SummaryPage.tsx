@@ -238,7 +238,7 @@ function Alerts({ data }: { data: BusinessSummary }) {
   const dayLinks = (dates: string[], label: (day: string) => string) => (
     <div className="chips">
       {dates.slice(0, DAYS_LISTED).map((d) => (
-        <Link key={d} to={`/cash?date=${d}`} className="chip" aria-label={label(fmt.long(d))}>
+        <Link key={d} to={`/cash?date=${d}`} className="chip" aria-label={label(fmt.longInSentence(d))}>
           {fmt.day(d)}
         </Link>
       ))}

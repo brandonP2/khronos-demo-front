@@ -57,7 +57,7 @@ export function DayClosedNote({ day }: { day: string }) {
     <div className="notice" role="alert">
       <AlertCircle size={16} strokeWidth={1.5} />
       <span>
-        {t.expenses.dayClosed(fmt.long(day))}{' '}
+        {t.expenses.dayClosed(fmt.longInSentence(day))}{' '}
         <Link to={`/cash?date=${day}`}>{t.expenses.goToCash(fmt.short(day))}</Link>
       </span>
     </div>

@@ -79,7 +79,7 @@ export default function CashPage() {
 
       <section className="card">
         <div className="card-head">
-          <h2>{t.cash.closingOf(fmt.long(day))}</h2>
+          <h2>{t.cash.closingOf(fmt.longInSentence(day))}</h2>
           {!dayClosing.isLoading && <ClosingStatusTag status={closing?.status ?? 'NEW'} />}
         </div>
         <div className="card-body">
@@ -208,7 +208,7 @@ function ClosingList({
                   </>
                 )}
               </span>
-              <Button size="sm" variant={closing ? 'ghost' : 'default'} aria-label={t.cash.open(fmt.long(date))} onClick={() => open(date)}>
+              <Button size="sm" variant={closing ? 'ghost' : 'default'} aria-label={t.cash.open(fmt.longInSentence(date))} onClick={() => open(date)}>
                 {closing ? t.cash.openShort : t.cash.makeClosing}
               </Button>
             </li>

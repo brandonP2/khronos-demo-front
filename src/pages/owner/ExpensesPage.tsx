@@ -194,7 +194,7 @@ export default function ExpensesPage() {
               await api.expenses.remove(expense.id)
             } catch (e) {
               const day = lockedDay(e, expense)
-              throw day ? new Error(t.expenses.dayClosed(fmt.long(day))) : e
+              throw day ? new Error(t.expenses.dayClosed(fmt.longInSentence(day))) : e
             }
             await invalidate.expenses()
             toast(t.expenses.removed)

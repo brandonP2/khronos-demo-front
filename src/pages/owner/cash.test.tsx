@@ -136,7 +136,7 @@ describe('cash closing form', () => {
   it('works out sales, expected cash and the difference while amounts are typed, commas and empty fields included', async () => {
     cashServer(null)
     renderApp(`/cash?date=${DAY}`)
-    expect(await screen.findByRole('heading', { name: 'Cierre de caja del Lunes, 16 de noviembre' })).toBeTruthy()
+    expect(await screen.findByRole('heading', { name: 'Cierre de caja del lunes, 16 de noviembre' })).toBeTruthy()
     type('Ventas en efectivo', '1.234,50')
     type('Ventas con tarjeta', '200,5')
     type('Fondo de caja inicial', '100')
@@ -190,7 +190,7 @@ describe('cash closing form', () => {
     expect(create.body).toEqual(baseInput)
     expect(close).toMatchObject({ method: 'PUT', path: '/cash-closings/77/close', body: { differenceReason: 'Billete roto' } })
     expect(screen.getByText('Cerrado', { selector: '.card-head .tag' })).toBeTruthy()
-    expect(screen.getByText('Caja del Lunes, 16 de noviembre cerrada')).toBeTruthy()
+    expect(screen.getByText('Caja del lunes, 16 de noviembre cerrada')).toBeTruthy()
   })
 
   it('brings up the reason when the API asks for one below 5,00 €', async () => {
@@ -454,7 +454,7 @@ describe('a closed day', () => {
     expect(figure('Descuadre')).toBe('−9,00 € Falta dinero')
 
     fireEvent.click(screen.getByRole('button', { name: 'Reabrir' }))
-    const dialog = screen.getByRole('dialog', { name: 'Reabrir el cierre del Lunes, 16 de noviembre' })
+    const dialog = screen.getByRole('dialog', { name: 'Reabrir el cierre del lunes, 16 de noviembre' })
     const submit = within(dialog).getByRole('button', { name: 'Reabrir' }) as HTMLButtonElement
     expect(submit.disabled).toBe(true)
     fireEvent.change(within(dialog).getByLabelText('Motivo'), { target: { value: 'Faltaba un ticket' } })
@@ -497,8 +497,8 @@ describe('closings of the period', () => {
       'vie, 13 nov Sin cierre Hacer el cierre',
     ].map((r) => r.replace(/ /g, '')))
 
-    fireEvent.click(within(list).getByRole('button', { name: 'Abrir el cierre del Domingo, 15 de noviembre' }))
-    expect(await screen.findByRole('heading', { name: 'Cierre de caja del Domingo, 15 de noviembre' })).toBeTruthy()
+    fireEvent.click(within(list).getByRole('button', { name: 'Abrir el cierre del domingo, 15 de noviembre' }))
+    expect(await screen.findByRole('heading', { name: 'Cierre de caja del domingo, 15 de noviembre' })).toBeTruthy()
   })
 
   it('never asks for more than 366 days, the most the API lists', async () => {
@@ -535,7 +535,7 @@ describe('the day on the venue\'s clock', () => {
       if (call.path.startsWith('/reports/establishment/1/summary?')) return json(200, { days: [], totals: {}, expensesByCategory: [], previous: {} })
     })
     renderApp('/cash')
-    expect(await screen.findByRole('heading', { name: 'Cierre de caja del Viernes, 20 de noviembre' })).toBeTruthy()
+    expect(await screen.findByRole('heading', { name: 'Cierre de caja del viernes, 20 de noviembre' })).toBeTruthy()
     expect(document.querySelector('.cash-day .secondary')!.textContent).toBe('Ayer')
     expect(screen.getByText('Es de madrugada, así que se propone el servicio de ayer.')).toBeTruthy()
   })

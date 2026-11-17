@@ -206,11 +206,11 @@ describe('summary alerts', () => {
     summaryApi(summary())
     renderApp('/')
     expect(await screen.findByText('2 días con actividad y sin cierre de caja')).toBeTruthy()
-    const missing = screen.getByRole('link', { name: 'Cerrar la caja del Viernes, 13 de noviembre' })
+    const missing = screen.getByRole('link', { name: 'Cerrar la caja del viernes, 13 de noviembre' })
     expect(missing.getAttribute('href')).toBe('/cash?date=2026-11-13')
-    expect(screen.getByRole('link', { name: 'Cerrar la caja del Miércoles, 11 de noviembre' })).toBeTruthy()
+    expect(screen.getByRole('link', { name: 'Cerrar la caja del miércoles, 11 de noviembre' })).toBeTruthy()
     expect(screen.getByText('1 cierre de caja en borrador')).toBeTruthy()
-    expect(screen.getByRole('link', { name: 'Revisar el cierre del Jueves, 12 de noviembre' }).getAttribute('href')).toBe('/cash?date=2026-11-12')
+    expect(screen.getByRole('link', { name: 'Revisar el cierre del jueves, 12 de noviembre' }).getAttribute('href')).toBe('/cash?date=2026-11-12')
     const difference = screen.getByText(/Descuadre de los cierres cerrados/).closest('.alert-item') as HTMLElement
     expect(plain(difference.textContent)).toContain('−12,50 € (Falta dinero)')
     // The drafts add nothing here: no provisional line

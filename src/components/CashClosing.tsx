@@ -237,7 +237,7 @@ export function CashClosingForm({
     },
     onSuccess: async ({ saved, closed }) => {
       setOwn(saved)
-      toast(closed ? t.cash.closed(fmt.long(day)) : t.cash.saved)
+      toast(closed ? t.cash.closed(fmt.longInSentence(day)) : t.cash.saved)
       await invalidate.cash()
     },
     onError: (e) => {
@@ -498,7 +498,7 @@ function ReopenDialog({
 
   return (
     <Dialog
-      title={t.cash.reopenTitle(fmt.long(closing.businessDate))}
+      title={t.cash.reopenTitle(fmt.longInSentence(closing.businessDate))}
       sub={t.cash.reopenBody}
       onClose={onClose}
       busy={mutation.isPending}
@@ -546,7 +546,7 @@ function ClosingHistoryDialog({ closing, timeZone, onClose }: { closing: CashClo
   const fmt = useFmt()
   const history = useCashClosingHistory(closing.id)
   return (
-    <Dialog title={t.cash.historyTitle} sub={t.cash.historySub(fmt.long(closing.businessDate))} onClose={onClose}>
+    <Dialog title={t.cash.historyTitle} sub={t.cash.historySub(fmt.longInSentence(closing.businessDate))} onClose={onClose}>
       {history.isLoading ? (
         <Loading rows={2} />
       ) : history.error ? (
