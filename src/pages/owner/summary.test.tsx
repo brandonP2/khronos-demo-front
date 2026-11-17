@@ -366,7 +366,10 @@ describe('summary chart', () => {
     const rows = within(table).getAllByRole('row')
     expect(rows).toHaveLength(8)
     expect(plain(rows[4].textContent)).toBe('Jueves, 12 de noviembre600,00 €1.200,00 €sin tarifa1.200,00 €-600,00 €Borrador')
-    expect(table.closest('.visually-hidden')).toBe(table)
+    // Hidden by a clipping wrapper: a hidden table itself would still widen the page on a phone
+    expect(table.classList.contains('visually-hidden')).toBe(false)
+    expect(table.parentElement!.tagName).toBe('DIV')
+    expect(table.parentElement!.classList.contains('visually-hidden')).toBe(true)
   })
 })
 

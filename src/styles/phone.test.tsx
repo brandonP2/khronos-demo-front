@@ -34,4 +34,22 @@ describe('on a phone', () => {
     expect(shortcuts.maxWidth).toBe('100%')
     expect(shortcuts.overflowX).toBe('auto')
   })
+
+  it('hides blocks with a box that clips what is inside it', () => {
+    render(
+      <div className="visually-hidden" data-testid="hidden">
+        <table>
+          <tbody>
+            <tr>
+              <td>A cell far wider than one pixel</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>,
+    )
+    const hidden = getComputedStyle(screen.getByTestId('hidden'))
+    expect(hidden.width).toBe('1px')
+    expect(hidden.overflow).toBe('hidden')
+    expect(hidden.clipPath).toBe('inset(50%)')
+  })
 })

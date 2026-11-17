@@ -137,7 +137,8 @@ a {
   outline-offset: 2px;
 }
 
-/* Read by screen readers, not shown */
+/* Read by screen readers, not shown. Never on a table: a table grows past 1px to fit its cells
+   and, being absolute, widens the page; put it inside a div with this class instead */
 .visually-hidden {
   position: absolute;
   width: 1px;
@@ -146,6 +147,7 @@ a {
   padding: 0;
   overflow: hidden;
   clip: rect(0 0 0 0);
+  clip-path: inset(50%);
   white-space: nowrap;
   border: 0;
 }

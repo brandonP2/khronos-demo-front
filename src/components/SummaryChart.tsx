@@ -162,35 +162,38 @@ export function SummaryChart({
         </span>
       </p>
 
-      <table className="visually-hidden">
-        <caption>{t.chart.caption}</caption>
-        <thead>
-          <tr>
-            <th scope="col">{t.chart.columns.date}</th>
-            <th scope="col">{t.chart.columns.sales}</th>
-            <th scope="col">{t.chart.columns.expenses}</th>
-            <th scope="col">{t.chart.columns.labor}</th>
-            <th scope="col">
-              {t.chart.columns.cost} ({costHint})
-            </th>
-            <th scope="col">{t.chart.columns.margin}</th>
-            <th scope="col">{t.chart.columns.closing}</th>
-          </tr>
-        </thead>
-        <tbody>
-          {days.map((d) => (
-            <tr key={d.date}>
-              <th scope="row">{fmt.long(d.date)}</th>
-              <td>{money(d.sales)}</td>
-              <td>{money(d.expenses)}</td>
-              <td>{labor(d)}</td>
-              <td>{money(dayCost(d))}</td>
-              <td>{money(d.margin)}</td>
-              <td>{t.closingStatus[d.closingStatus]}</td>
+      {/* The wrapper clips: a table would grow to fit its cells and widen the page */}
+      <div className="visually-hidden">
+        <table>
+          <caption>{t.chart.caption}</caption>
+          <thead>
+            <tr>
+              <th scope="col">{t.chart.columns.date}</th>
+              <th scope="col">{t.chart.columns.sales}</th>
+              <th scope="col">{t.chart.columns.expenses}</th>
+              <th scope="col">{t.chart.columns.labor}</th>
+              <th scope="col">
+                {t.chart.columns.cost} ({costHint})
+              </th>
+              <th scope="col">{t.chart.columns.margin}</th>
+              <th scope="col">{t.chart.columns.closing}</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {days.map((d) => (
+              <tr key={d.date}>
+                <th scope="row">{fmt.long(d.date)}</th>
+                <td>{money(d.sales)}</td>
+                <td>{money(d.expenses)}</td>
+                <td>{labor(d)}</td>
+                <td>{money(dayCost(d))}</td>
+                <td>{money(d.margin)}</td>
+                <td>{t.closingStatus[d.closingStatus]}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </figure>
   )
 }
