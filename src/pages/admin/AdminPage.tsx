@@ -1,9 +1,10 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Building2, Plus, Trash2, UserPlus } from 'lucide-react'
+import { Building2, KeyRound, Plus, Trash2, UserPlus } from 'lucide-react'
 import { ApiError } from '../../api/client'
 import { api } from '../../api/endpoints'
-import type { Establishment, UserCreate } from '../../api/types'
+import type { Establishment, User, UserCreate } from '../../api/types'
+import { ResetPasswordDialog } from '../../components/ResetPasswordDialog'
 import { Avatar, Button, ConfirmDialog, Dialog, Empty, ErrorNote, Field, Loading, PageHead, useToast } from '../../components/ui'
 import { useT } from '../../lib/i18n'
 import { displayName, initials } from '../../lib/queries'
@@ -17,6 +18,7 @@ export default function AdminPage() {
   const venues = useQuery({ queryKey: ['admin', 'venues'], queryFn: api.establishments.all })
   const [modal, setModal] = useState<'owner' | 'venue' | null>(null)
   const [deleting, setDeleting] = useState<Establishment | null>(null)
+  const [resetting, setResetting] = useState<User | null>(null)
 
   const owners = (users.data ?? []).filter((u) => u.role === 'OWNER')
   const venueCount = (ownerId: number) => (venues.data ?? []).filter((v) => v.ownerId === ownerId).length
@@ -120,6 +122,17 @@ export default function AdminPage() {
                 <span className="muted mono" style={{ fontSize: 12 }}>
                   {t.admin.venueCount(venueCount(o.id))}
                 </span>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  icon={KeyRound}
+                  className="btn-compact"
+                  aria-label={`${t.resetPassword.action}: ${displayName(o)}`}
+                  title={t.resetPassword.action}
+                  onClick={() => setResetting(o)}
+                >
+                  <span className="btn-label">{t.resetPassword.action}</span>
+                </Button>
               </div>
             ))}
           </div>
@@ -127,6 +140,9 @@ export default function AdminPage() {
       </section>
 
       {modal === 'owner' && <NewOwnerDialog onClose={() => setModal(null)} />}
+      {resetting && (
+        <ResetPasswordDialog userId={resetting.id} name={displayName(resetting)} onClose={() => setResetting(null)} />
+      )}
       {modal === 'venue' && (
         <NewVenueDialog owners={owners.map((o) => ({ id: o.id, name: displayName(o) }))} onClose={() => setModal(null)} />
       )}

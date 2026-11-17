@@ -1,10 +1,11 @@
 import { useState } from 'react'
 import { useMutation } from '@tanstack/react-query'
-import { Pencil, UserCheck, UserPlus, UserX, Users } from 'lucide-react'
+import { KeyRound, Pencil, UserCheck, UserPlus, UserX, Users } from 'lucide-react'
 import { ApiError } from '../../api/client'
 import { api } from '../../api/endpoints'
 import type { UserCreate } from '../../api/types'
 import { useMe } from '../../auth/AuthContext'
+import { ResetPasswordDialog } from '../../components/ResetPasswordDialog'
 import {
   Avatar,
   Button,
@@ -22,7 +23,12 @@ import { useInvalidate, useShifts, useStaff, useZones, type StaffMember } from '
 import { minutes, today, weekDays } from '../../lib/time'
 import { useVenue } from '../../lib/VenueContext'
 
-type Modal = { kind: 'add' } | { kind: 'edit'; member: StaffMember } | { kind: 'toggle'; member: StaffMember } | null
+type Modal =
+  | { kind: 'add' }
+  | { kind: 'edit'; member: StaffMember }
+  | { kind: 'toggle'; member: StaffMember }
+  | { kind: 'reset'; member: StaffMember }
+  | null
 
 export default function TeamPage() {
   const t = useT()
@@ -134,6 +140,17 @@ export default function TeamPage() {
                         <Button
                           size="sm"
                           variant="ghost"
+                          icon={KeyRound}
+                          className="btn-compact"
+                          aria-label={`${t.resetPassword.action}: ${m.name}`}
+                          title={t.resetPassword.action}
+                          onClick={() => setModal({ kind: 'reset', member: m })}
+                        >
+                          <span className="btn-label">{t.resetPassword.action}</span>
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
                           icon={m.isActive ? UserX : UserCheck}
                           className="btn-compact"
                           aria-label={`${m.isActive ? t.team.deactivate : t.team.reactivate}: ${m.name}`}
@@ -154,6 +171,9 @@ export default function TeamPage() {
 
       {modal?.kind === 'add' && venue && <AddPersonDialog venueId={venue.id} onClose={() => setModal(null)} />}
       {modal?.kind === 'edit' && <EditPersonDialog member={modal.member} onClose={() => setModal(null)} />}
+      {modal?.kind === 'reset' && (
+        <ResetPasswordDialog userId={modal.member.userId} name={modal.member.name} onClose={() => setModal(null)} />
+      )}
       {modal?.kind === 'toggle' && (
         <ConfirmDialog
           title={modal.member.isActive ? t.team.deactivateTitle(modal.member.name) : t.team.reactivateTitle(modal.member.name)}

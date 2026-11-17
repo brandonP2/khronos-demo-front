@@ -231,6 +231,17 @@ export const en: Messages = {
     editTitle: (name: string) => `Edit ${name}`,
     saved: 'Saved',
   },
+  resetPassword: {
+    action: 'Reset password',
+    title: (name: string) => `Reset ${name}'s password`,
+    sub: 'The current password stops working. Share the new one in person; Khronos does not send passwords.',
+    newPassword: 'New password',
+    repeat: 'Repeat new password',
+    hint: '8 to 72 characters',
+    tooShort: 'Use at least 8 characters',
+    tooLong: 'Use 72 characters at most',
+    done: (name: string) => `${name}'s password was reset`,
+  },
   venuePage: {
     title: 'Venue and zones',
     sub: 'Zones are the areas people work in, like Terrace, Kitchen or Main hall.',

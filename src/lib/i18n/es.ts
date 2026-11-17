@@ -241,6 +241,17 @@ export const es = {
     editTitle: (name: string) => `Editar a ${name}`,
     saved: 'Guardado',
   },
+  resetPassword: {
+    action: 'Restablecer contraseña',
+    title: (name: string) => `Restablecer la contraseña de ${name}`,
+    sub: 'La contraseña actual deja de funcionar. Dale la nueva en persona: Khronos no envía contraseñas.',
+    newPassword: 'Nueva contraseña',
+    repeat: 'Repite la nueva contraseña',
+    hint: 'Entre 8 y 72 caracteres',
+    tooShort: 'Tiene que tener al menos 8 caracteres',
+    tooLong: 'Puede tener 72 caracteres como máximo',
+    done: (name: string) => `Contraseña de ${name} restablecida`,
+  },
   venuePage: {
     title: 'Local y zonas',
     sub: 'Las zonas son las áreas donde trabaja la gente, como Terraza, Cocina o Sala.',

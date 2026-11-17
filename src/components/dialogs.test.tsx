@@ -7,6 +7,7 @@ import { LocaleProvider } from '../lib/i18n'
 import type { StaffMember } from '../lib/queries'
 import { addDays, today } from '../lib/time'
 import { EventDrawer } from './EventDialogs'
+import { ResetPasswordDialog } from './ResetPasswordDialog'
 import { ShiftBatchDialog } from './ShiftDialogs'
 import { ToastProvider } from './ui'
 
@@ -126,5 +127,45 @@ describe('EventDrawer', () => {
     const onAddShift = renderDrawer()
     fireEvent.click(screen.getByRole('button', { name: 'Darle un turno' }))
     expect(onAddShift).toHaveBeenCalledWith(expect.objectContaining({ workerIds: [3], startTime: '23:30', endTime: '23:59' }))
+  })
+})
+
+describe('ResetPasswordDialog', () => {
+  it('checks length and repeat before sending the new password', async () => {
+    const calls: { url: string; init?: RequestInit }[] = []
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        calls.push({ url: String(input), init })
+        return new Response(null, { status: 204 })
+      }),
+    )
+    const onClose = vi.fn()
+    wrap(<ResetPasswordDialog userId={5} name="Lucía Romero" onClose={onClose} />)
+    const submit = screen.getByRole('button', { name: 'Restablecer contraseña' }) as HTMLButtonElement
+    const next = screen.getByLabelText('Nueva contraseña')
+    const repeat = screen.getByLabelText('Repite la nueva contraseña')
+
+    fireEvent.change(next, { target: { value: 'corta' } })
+    fireEvent.change(repeat, { target: { value: 'corta' } })
+    expect(screen.getByText('Tiene que tener al menos 8 caracteres')).toBeTruthy()
+    expect(submit.disabled).toBe(true)
+
+    fireEvent.change(next, { target: { value: 'x'.repeat(73) } })
+    expect(screen.getByText('Puede tener 72 caracteres como máximo')).toBeTruthy()
+
+    fireEvent.change(next, { target: { value: 'nueva-clave-segura' } })
+    fireEvent.change(repeat, { target: { value: 'otra-clave' } })
+    expect(screen.getByText('No coincide')).toBeTruthy()
+    expect(submit.disabled).toBe(true)
+
+    fireEvent.change(repeat, { target: { value: 'nueva-clave-segura' } })
+    expect(submit.disabled).toBe(false)
+    fireEvent.click(submit)
+
+    await waitFor(() => expect(onClose).toHaveBeenCalled())
+    expect(calls[0].url).toBe('/api/users/5/password/reset')
+    expect(calls[0].init?.method).toBe('PUT')
+    expect(JSON.parse(String(calls[0].init?.body))).toEqual({ newPassword: 'nueva-clave-segura' })
   })
 })
