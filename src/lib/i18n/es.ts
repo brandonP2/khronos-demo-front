@@ -42,6 +42,21 @@ export const es = {
     rateLimited: (wait: string | null) =>
       wait ? `Demasiadas peticiones. Espera ${wait} y vuelve a intentarlo.` : 'Demasiadas peticiones. Espera un poco y vuelve a intentarlo.',
   },
+  /** Messages of the API that are worded here instead of shown in English (see lib/apiMessages.ts) */
+  apiErrors: {
+    openEntryExists: 'Ya hay una entrada fichada sin salida.',
+    noOpenEntry: 'No hay ninguna entrada abierta.',
+    overlap: 'Se solapa con otro fichaje de la misma persona.',
+    clockInFuture: 'La entrada no puede ser una hora futura.',
+    clockOutBeforeIn: 'La salida tiene que ser posterior a la entrada.',
+    tooLong: 'Un fichaje no puede durar más de 24 horas.',
+    voidedNotCorrectable: 'Un fichaje anulado no se puede corregir.',
+    alreadyVoided: 'Este fichaje ya estaba anulado.',
+    clockOutFuture: 'La salida no puede ser una hora futura.',
+    breakTooLong: 'La pausa no puede ser más larga que el tiempo entre la entrada y la salida.',
+    openTooLong: 'Esta entrada lleva más de 24 horas abierta. Pide a tu encargado que la corrija con la hora real de salida.',
+    noVenue: 'Tu cuenta no está vinculada a ningún local. Habla con tu encargado.',
+  },
   fields: {
     firstName: 'Nombre',
     lastName: 'Apellidos',
@@ -526,7 +541,6 @@ export const es = {
     clockedOut: (time: string, worked: string) => `Salida fichada a las ${time} · ${worked} trabajadas`,
     stale: 'Parece que olvidaste fichar la salida. Avisa a tu encargado para que la corrija; hasta entonces no puedes volver a fichar.',
     alreadyIn: (time: string) => `Ya tenías la entrada fichada desde las ${time}.`,
-    inactive: 'No se ha podido fichar: tu ficha está desactivada. Habla con tu encargado.',
     notIn: 'No tenías ninguna entrada abierta: puede que tu encargado ya la haya cerrado.',
     outTitle: 'Fichar salida',
     outSub: (time: string, elapsed: string) => `Entraste a las ${time}. Llevas ${elapsed}.`,

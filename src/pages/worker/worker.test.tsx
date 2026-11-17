@@ -138,7 +138,7 @@ describe('clocking in from the phone', () => {
     let calledOpen = 0
     workerApi((call) => {
       if (call.path === '/time-entries/me/open') return calledOpen++ === 0 ? noContent() : json(200, entry())
-      if (call.path === '/time-entries/clock-in') return json(409, { status: 409, message: 'Worker already has an open time entry' })
+      if (call.path === '/time-entries/clock-in') return json(409, { status: 409, message: 'You already have an open time entry' })
     })
     renderApp('/')
     fireEvent.click(await screen.findByRole('button', { name: 'Fichar entrada' }))
@@ -146,14 +146,43 @@ describe('clocking in from the phone', () => {
     expect(screen.getByText('Dentro desde las 18:02')).toBeTruthy()
   })
 
-  it('explains a 409 for a deactivated record', async () => {
+  it('words a 409 it knows in the language of the app', async () => {
     workerApi((call) => {
       if (call.path === '/time-entries/me/open') return noContent()
-      if (call.path === '/time-entries/clock-in') return json(409, { status: 409, message: 'Worker is inactive' })
+      if (call.path === '/time-entries/clock-in') {
+        return json(409, { status: 409, message: 'Your account is not linked to an establishment' })
+      }
     })
     renderApp('/')
     fireEvent.click(await screen.findByRole('button', { name: 'Fichar entrada' }))
-    expect(await screen.findByText('No se ha podido fichar: tu ficha está desactivada. Habla con tu encargado.')).toBeTruthy()
+    expect(await screen.findByText('Tu cuenta no está vinculada a ningún local. Habla con tu encargado.')).toBeTruthy()
+  })
+
+  it('signs out a deactivated person who tries to clock in, and says why', async () => {
+    workerApi((call) => {
+      if (call.path === '/time-entries/me/open') return noContent()
+      if (call.path === '/time-entries/clock-in') {
+        return json(401, { status: 401, code: 'ACCOUNT_DISABLED', message: 'This account is disabled' })
+      }
+    })
+    renderApp('/')
+    fireEvent.click(await screen.findByRole('button', { name: 'Fichar entrada' }))
+    expect(await screen.findByText(/Se ha cerrado tu sesión porque tu cuenta está desactivada/)).toBeTruthy()
+  })
+
+  it('keeps the dialog open with the reason when the entry is too old to clock out', async () => {
+    workerApi((call) => {
+      if (call.path === '/time-entries/me/open') return json(200, entry({ clockIn: new Date(Date.now() - 60 * 60_000).toISOString() }))
+      if (call.path === '/time-entries/clock-out') {
+        return json(409, { status: 409, message: 'This time entry has been open for more than 24 hours; ask a manager to correct it' })
+      }
+    })
+    renderApp('/')
+    fireEvent.click(await screen.findByRole('button', { name: 'Fichar salida' }))
+    const dialog = screen.getByRole('dialog')
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Fichar salida' }))
+    expect(await within(dialog).findByText(/Esta entrada lleva más de 24 horas abierta. Pide a tu encargado/)).toBeTruthy()
+    expect(screen.queryByText(/No tenías ninguna entrada abierta/)).toBeNull()
   })
 
   it('explains a 409 on the way out when the entry was already closed', async () => {
@@ -162,7 +191,7 @@ describe('clocking in from the phone', () => {
       if (call.path === '/time-entries/me/open') return open ? json(200, open) : noContent()
       if (call.path === '/time-entries/clock-out') {
         open = null
-        return json(409, { status: 409, message: 'No open time entry' })
+        return json(409, { status: 409, message: 'You have no open time entry' })
       }
     })
     renderApp('/')

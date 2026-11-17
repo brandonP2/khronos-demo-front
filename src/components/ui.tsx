@@ -14,6 +14,7 @@ import {
 import { createPortal } from 'react-dom'
 import { AlertCircle, Check, Loader2, X, type LucideIcon } from 'lucide-react'
 import { ApiError } from '../api/client'
+import { knownApiMessage } from '../lib/apiMessages'
 import { useT, type Messages } from '../lib/i18n'
 
 type ButtonVariant = 'default' | 'primary' | 'ghost' | 'danger'
@@ -158,8 +159,8 @@ export function Empty({
 }
 
 /**
- * Errors written by the API are shown as they come (in English for now). Errors the app
- * itself detects, like a lost connection, are worded in the current language.
+ * Errors written by the API are shown as they come (in English), except the clock-in ones the
+ * app knows, which are worded in the current language like the errors the app detects itself.
  */
 export function errorMessage(error: unknown, t: Messages): string {
   if (typeof error === 'string') return error
@@ -167,7 +168,7 @@ export function errorMessage(error: unknown, t: Messages): string {
     if (error.kind === 'network') return t.errors.network
     if (error.kind === 'server') return t.errors.server
     if (error.kind === 'rate-limited') return t.errors.rateLimited(error.retryAfter === null ? null : t.common.wait(error.retryAfter))
-    return error.message
+    return knownApiMessage(error.message, t) ?? error.message
   }
   if (error instanceof Error) return error.message
   return t.errors.generic

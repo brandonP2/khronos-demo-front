@@ -5,6 +5,7 @@ import { ApiError } from '../api/client'
 import { api } from '../api/endpoints'
 import type { Shift, TimeEntry, Zone } from '../api/types'
 import { useMe } from '../auth/AuthContext'
+import { isNoOpenEntry } from '../lib/apiMessages'
 import { useT } from '../lib/i18n'
 import { keys, useInvalidate, useMyOpenEntry } from '../lib/queries'
 import { addDays, endsNextDay, hhmm, minutesLabel, minutesSince, shiftWindow, zonedTime, zonedToday } from '../lib/time'
@@ -12,6 +13,7 @@ import { useNow } from '../lib/useNow'
 import { Button, Dialog, ErrorNote, Field, NextDay, useToast } from './ui'
 
 const isConflict = (e: unknown) => e instanceof ApiError && e.status === 409
+const isNothingOpen = (e: unknown) => isConflict(e) && isNoOpenEntry((e as ApiError).message)
 
 /** The shift running now, else today's next one, else today's last one */
 export function pickShift(shifts: Shift[], day: string, timeZone: string, now: number) {
@@ -57,9 +59,10 @@ export function ClockCard({ timeZone, zones }: { timeZone: string; zones: Zone[]
     },
     onError: async (e) => {
       if (!isConflict(e)) return
-      // A 409 means already clocked in (on another phone, or by the manager) or a deactivated record
+      // Most often already clocked in, on another phone or by the manager; any other reason is
+      // shown as the API words it. A deactivated account gets a 401 and is signed out instead.
       const current = await qc.fetchQuery({ queryKey: keys.myOpenEntry(), queryFn: api.timeEntries.myOpen, staleTime: 0 })
-      setNotice(current ? t.clock.alreadyIn(zonedTime(current.clockIn, timeZone)) : t.clock.inactive)
+      if (current) setNotice(t.clock.alreadyIn(zonedTime(current.clockIn, timeZone)))
     },
   })
 
@@ -71,7 +74,7 @@ export function ClockCard({ timeZone, zones }: { timeZone: string; zones: Zone[]
     await invalidate.timeEntries()
   }
 
-  const error = notice ?? (isConflict(clockIn.error) ? null : clockIn.error) ?? open.error
+  const error = notice ?? clockIn.error ?? open.error
 
   return (
     <section className="card clock-card" aria-labelledby={titleId}>
@@ -173,7 +176,7 @@ function ClockOutDialog({
   timeZone: string
   onClose: () => void
   onDone: (closed: TimeEntry) => void
-  /** The API answered 409: there was no open entry to close */
+  /** The API answered 409 because there was no open entry to close */
   onNothingOpen: () => void
 }) {
   const t = useT()
@@ -194,10 +197,11 @@ function ClockOutDialog({
     mutationFn: () => api.timeEntries.clockOut({ breakMinutes, note: note.trim() || undefined }),
     onSuccess: onDone,
     onError: (e) => {
-      if (isConflict(e)) onNothingOpen()
+      if (isNothingOpen(e)) onNothingOpen()
     },
   })
-  const error = isConflict(mutation.error) ? null : mutation.error
+  // Any other 409, such as an entry open for more than 24 hours, stays in the dialog
+  const error = isNothingOpen(mutation.error) ? null : mutation.error
   const submit = () => !breakError && mutation.mutate()
 
   return (

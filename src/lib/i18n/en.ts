@@ -37,6 +37,20 @@ export const en: Messages = {
     rateLimited: (wait: string | null) =>
       wait ? `Too many requests. Wait ${wait} and try again.` : 'Too many requests. Wait a moment and try again.',
   },
+  apiErrors: {
+    openEntryExists: 'There is already a clock-in with no clock-out.',
+    noOpenEntry: 'There is no open clock-in.',
+    overlap: 'It overlaps another time entry of the same person.',
+    clockInFuture: 'The clock-in cannot be in the future.',
+    clockOutBeforeIn: 'The clock-out must be after the clock-in.',
+    tooLong: 'A time entry cannot last more than 24 hours.',
+    voidedNotCorrectable: 'A voided time entry cannot be corrected.',
+    alreadyVoided: 'This time entry was already voided.',
+    clockOutFuture: 'The clock-out cannot be in the future.',
+    breakTooLong: 'The break cannot be longer than the time between clock-in and clock-out.',
+    openTooLong: 'This clock-in has been open for more than 24 hours. Ask your manager to correct it with the real clock-out time.',
+    noVenue: 'Your account is not linked to a venue. Ask your manager.',
+  },
   fields: {
     firstName: 'First name',
     lastName: 'Last name',
@@ -507,7 +521,6 @@ export const en: Messages = {
     clockedOut: (time: string, worked: string) => `Clocked out at ${time} · ${worked} worked`,
     stale: 'Looks like you forgot to clock out. Ask your manager to correct it; until then you cannot clock in again.',
     alreadyIn: (time: string) => `You were already clocked in since ${time}.`,
-    inactive: 'Could not clock in: your record is deactivated. Ask your manager.',
     notIn: 'You were not clocked in: your manager may have closed it already.',
     outTitle: 'Clock out',
     outSub: (time: string, elapsed: string) => `You clocked in at ${time}. That is ${elapsed} so far.`,
